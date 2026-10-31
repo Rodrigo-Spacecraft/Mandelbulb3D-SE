@@ -1,0 +1,33 @@
+{
+  "method": "Four coordinate probes, 30000 calls per probe/path, alternating order, Clang -O3; retain full native when the prepared path is over 10% slower on every probe. This selects execution only and does not change math or quality.",
+  "prefer_native": [
+    "ABoxPlatinum",
+    "ABoxPlatinumB",
+    "ABoxVaryScale",
+    "AmazingBox2",
+    "BT1Pine",
+    "BT2Pine",
+    "BenesiPine1",
+    "BenesiPine2",
+    "Beth432",
+    "GenIntPower",
+    "HalfOct4a",
+    "IQ_NormBulb",
+    "IQ_NormBulb_NoYZ",
+    "IQ_PineTree",
+    "IQ_PineTree_NoYZ",
+    "Magnet4D",
+    "MsltoeSym2",
+    "MsltoeSym3",
+    "QuatPow",
+    "Sierpinski4",
+    "TrifoxComplexAngles",
+    "_BPolygonFromCircle",
+    "_BPolygonToCircle",
+    "_DonutTransform",
+    "_FoldingCTetra3d",
+    "_cylripple",
+    "_helispiral",
+    "hyperd_1"
+  ]
+}

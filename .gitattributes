@@ -1,0 +1,3 @@
+# Preserve imported engine/formula bytes, including original whitespace.
+vendor/mb3d-rs/** -whitespace
+rust-assets/** -whitespace

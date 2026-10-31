@@ -1,0 +1,71 @@
+[package]
+name = "mb3d"
+version = "0.2.61"
+edition = "2021"
+description = "Rust port of Mandelbulb3D (MB3D) - renderer and desktop application"
+license = "LGPL-2.1-only"
+
+[features]
+# the desktop application (Mandelbulb3D window and forms); without it only
+# the command line renderer is built, which has no dependencies
+default = ["gui", "gpu"]
+gui = ["dep:winit", "dep:softbuffer", "dep:fontdue", "dep:arboard", "dep:open"]
+# ray marching on the graphics card (wgpu: Vulkan, Metal, DirectX 12),
+# see src/gpu.rs
+gpu = ["dep:wgpu", "dep:pollster"]
+
+[dependencies]
+winit = { version = "0.30", optional = true }
+softbuffer = { version = "0.4", optional = true }
+fontdue = { version = "0.9", optional = true }
+arboard = { version = "3", optional = true, default-features = false, features = ["wayland-data-control"] }
+wgpu = { version = "30.0.1", optional = true }
+pollster = { version = "1.0.1", optional = true }
+open = { version = "5", optional = true }
+
+# Windows: Microsoft's current shader compiler (DXC) built in; the old FXC
+# that wgpu falls back to without it cannot compile the ray marcher
+[target.'cfg(windows)'.dependencies]
+wgpu = { version = "30.0.1", optional = true, features = ["static-dxc"] }
+
+[[bin]]
+name = "Mandelbulb3D"
+path = "src/bin/Mandelbulb3D.rs"
+required-features = ["gui"]
+
+[[example]]
+name = "wintest"
+required-features = ["gui"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+debug = false
+
+[[example]]
+name = "gpubench"
+required-features = ["gpu"]
+
+[[example]]
+name = "profile"
+required-features = ["gpu"]
+
+[[example]]
+name = "paintbench"
+required-features = ["gpu"]
+
+[[example]]
+name = "formbench"
+
+[[example]]
+name = "gpuformulas"
+required-features = ["gpu"]
+
+[[example]]
+name = "postcheck"
+required-features = ["gpu"]
+
+[[example]]
+name = "wgslcompile"
+required-features = ["gpu"]

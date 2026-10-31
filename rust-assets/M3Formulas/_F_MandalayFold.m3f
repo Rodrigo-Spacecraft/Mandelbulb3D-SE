@@ -1,0 +1,18 @@
+[OPTIONS]
+.Version = 2
+.DEoption = -1
+.Double Offset_X = 0.5
+.Double Offset_Y = 0.5
+.Double Offset_Z = 0.5
+[CODE]
+558BEC568B75088B7630DD00DC66F0D9E1DC66F0DD18DD02DC66E8D9E1DC66E8
+DD1ADD01DC66E0D9E1DC66E0DD195E5DC20800
+[END]
+_F_MandalayFold
+===============
+
+Created by Luka Sladakovic / Spiraldiver
+https://linktr.ee/Spiraldive
+2026
+
+Magical Fold which makes everything step-like

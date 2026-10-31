@@ -1,0 +1,6617 @@
+/* Generated native C formula calculations. See tools/generate-native-c.py. */
+#include "runtime.h"
+int cn_f_ef51c569bcc8d778(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_51 = ((uint32_t)(pvar-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+208))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_88 = cn_rd64(m,CN_REC+8*(3)); uint64_t r3 = cn_init_88;
+__auto_type cn_init_105 = cn_rd64(m,CN_REC+8*(4)); uint64_t r4 = cn_init_105;
+__auto_type cn_init_122 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_122;
+__auto_type cn_init_139 = cn_rd64(m,CN_REC+8*(10)); uint64_t r10 = cn_init_139;
+__auto_type cn_init_156 = cn_rd64(m,CN_REC+8*(11)); uint64_t r11 = cn_init_156;
+__auto_type cn_init_173 = cn_rd64(m,CN_REC+8*(12)); uint64_t r12 = cn_init_173;
+__auto_type cn_init_190 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_190;
+__auto_type cn_init_203 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_203;
+__auto_type cn_init_216 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_216;
+__auto_type cn_init_229 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_229;
+__auto_type cn_init_242 = cn_cell(vm,0); uint64_t v26 = cn_init_242;
+__auto_type cn_init_255 = cn_cell(vm,8); uint64_t v27 = cn_init_255;
+__auto_type cn_init_268 = cn_cell(vm,16); uint64_t v28 = cn_init_268;
+__auto_type cn_init_281 = cn_cell(vm,24); uint64_t v29 = cn_init_281;
+__auto_type cn_init_294 = cn_cell(vm,32); uint64_t v30 = cn_init_294;
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<32))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[7])))&0xffffffffULL))<<0))));
+}
+(rg[7]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[6]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+(f[3]=(f[3]*f[1]));
+(f[3]=(f[3]*f[0]));
+{
+__auto_type cn_init_569 = cn_double(v29); __auto_type v = cn_init_569;
+(f[3]=(f[3]*v));
+}
+{
+__auto_type cn_init_593 = cn_double(r11); __auto_type v = cn_init_593;
+(f[3]=(f[3]+v));
+}
+(r4=cn_bits(f[3]));
+(f[2]=(f[2]*f[2]));
+cn_swap(f,2,1);
+(f[2]=(f[2]*f[2]));
+cn_swap(f,2,0);
+(f[2]=(f[2]*f[2]));
+(f[3]=f[2]);
+(f[3]=(f[3]+f[0]));
+{
+__auto_type cn_init_716 = cn_double(v27); __auto_type v = cn_init_716;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_750 = cn_double(v30); __auto_type v = cn_init_750;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[4]-f[3]));
+{
+__auto_type cn_init_789 = cn_double(r10); __auto_type v = cn_init_789;
+(f[3]=(f[3]+v));
+}
+(r3=cn_bits(f[3]));
+{
+__auto_type cn_init_824 = cn_double(v28); __auto_type v = cn_init_824;
+(f[2]=(f[2]*v));
+}
+cn_swap(f,2,0);
+(f[1]=(f[1]+f[2]));
+{
+__auto_type cn_init_872 = cn_double(v26); __auto_type v = cn_init_872;
+(f[1]=(f[1]*v));
+}
+(f[0]=(f[0]-f[1]));
+{
+__auto_type cn_init_911 = cn_double(r12); __auto_type v = cn_init_911;
+(f[0]=(f[0]+v));
+}
+(r5=cn_bits(f[0]));
+{
+(rg[7]=((uint32_t)(((((s2013>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[6]=((uint32_t)(((((s2013>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(3),r3);
+cn_wr64(m,CN_REC+8*(4),r4);
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_f00735d0df8b58ff(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_51 = ((uint32_t)(pvar-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+80))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_88 = cn_rd64(m,CN_REC+8*(3)); uint64_t r3 = cn_init_88;
+__auto_type cn_init_105 = cn_rd64(m,CN_REC+8*(4)); uint64_t r4 = cn_init_105;
+__auto_type cn_init_122 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_122;
+__auto_type cn_init_139 = cn_rd64(m,CN_REC+8*(6)); uint64_t r6 = cn_init_139;
+__auto_type cn_init_156 = cn_rd64(m,CN_REC+8*(10)); uint64_t r10 = cn_init_156;
+__auto_type cn_init_173 = cn_rd64(m,CN_REC+8*(11)); uint64_t r11 = cn_init_173;
+__auto_type cn_init_190 = cn_rd64(m,CN_REC+8*(12)); uint64_t r12 = cn_init_190;
+__auto_type cn_init_207 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_207;
+__auto_type cn_init_220 = cn_rd64u(m,0x10007eb8U); uint64_t s2007 = cn_init_220;
+__auto_type cn_init_233 = cn_rd64u(m,0x10007ec0U); uint64_t s2008 = cn_init_233;
+__auto_type cn_init_246 = cn_rd64u(m,0x10007ec8U); uint64_t s2009 = cn_init_246;
+__auto_type cn_init_259 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_259;
+__auto_type cn_init_272 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_272;
+__auto_type cn_init_285 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_285;
+__auto_type cn_init_298 = cn_cell(vm,0); uint64_t v10 = cn_init_298;
+__auto_type cn_init_311 = cn_cell(vm,8); uint64_t v11 = cn_init_311;
+__auto_type cn_init_324 = cn_cell(vm,16); uint64_t v12 = cn_init_324;
+__auto_type cn_init_337 = cn_cell(vm,24); uint64_t v13 = cn_init_337;
+__auto_type cn_init_350 = cn_cell(vm,32); uint64_t v14 = cn_init_350;
+__auto_type cn_init_363 = cn_cell(vm,40); uint64_t v15 = cn_init_363;
+__auto_type cn_init_376 = cn_cell(vm,48); uint64_t v16 = cn_init_376;
+__auto_type cn_init_389 = cn_cell(vm,56); uint64_t v17 = cn_init_389;
+__auto_type cn_init_402 = cn_cell(vm,64); uint64_t v18 = cn_init_402;
+__auto_type cn_init_415 = cn_cell(vm,72); uint64_t v19 = cn_init_415;
+__auto_type cn_init_428 = cn_cell(vm,80); uint64_t v20 = cn_init_428;
+__auto_type cn_init_441 = cn_cell(vm,88); uint64_t v21 = cn_init_441;
+__auto_type cn_init_454 = cn_cell(vm,96); uint64_t v22 = cn_init_454;
+__auto_type cn_init_467 = cn_cell(vm,104); uint64_t v23 = cn_init_467;
+__auto_type cn_init_480 = cn_cell(vm,112); uint64_t v24 = cn_init_480;
+__auto_type cn_init_493 = cn_cell(vm,120); uint64_t v25 = cn_init_493;
+__auto_type cn_init_506 = cn_cell(vm,128); uint64_t v26 = cn_init_506;
+__auto_type cn_init_519 = cn_cell(vm,136); uint64_t v27 = cn_init_519;
+__auto_type cn_init_532 = cn_cell(vm,144); uint64_t v28 = cn_init_532;
+__auto_type cn_init_545 = cn_cell(vm,152); uint64_t v29 = cn_init_545;
+__auto_type cn_init_558 = cn_cell(vm,160); uint64_t v30 = cn_init_558;
+{
+{
+{
+{
+{
+{
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<32))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[3])))&0xffffffffULL))<<0))));
+}
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[3]=rg[0]);
+(rg[6]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+{
+__auto_type cn_init_780 = 0xffffffd0U; __auto_type bv = cn_init_780;
+__auto_type cn_init_788 = rg[4]; __auto_type av = cn_init_788;
+__auto_type cn_init_806 = cn_alu(&fl,Alu_Add,av,bv,4); __auto_type r = cn_init_806;
+(rg[4]=r);
+}
+(f[0]=cn_double(v27));
+(f[1]=cn_double(r3));
+{
+__auto_type cn_init_865 = cn_double(((((((v14>>32))|((v15<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_865;
+(f[1]=(f[1]*v));
+}
+(f[2]=cn_double(r5));
+{
+__auto_type cn_init_917 = cn_double(((((((v15>>32))|((v16<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_917;
+(f[2]=(f[2]*v));
+}
+(f[1]=(f[1]-f[2]));
+(s2007=cn_bits(f[1]));
+(f[1]=cn_double(r3));
+{
+__auto_type cn_init_995 = cn_double(((((((v15>>32))|((v16<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_995;
+(f[1]=(f[1]*v));
+}
+(f[2]=cn_double(r5));
+{
+__auto_type cn_init_1047 = cn_double(((((((v14>>32))|((v15<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1047;
+(f[2]=(f[2]*v));
+}
+(f[1]=(f[1]+f[2]));
+(s2008=cn_bits(f[1]));
+(f[1]=cn_double(s2007));
+{
+__auto_type cn_init_1125 = cn_double(((((((v16>>32))|((v17<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1125;
+(f[1]=(f[1]*v));
+}
+(f[2]=cn_double(r4));
+{
+__auto_type cn_init_1177 = cn_double(((((((v17>>32))|((v18<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1177;
+(f[2]=(f[2]*v));
+}
+(f[1]=(f[1]-f[2]));
+(f[2]=cn_double(s2007));
+{
+__auto_type cn_init_1244 = cn_double(((((((v17>>32))|((v18<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1244;
+(f[2]=(f[2]*v));
+}
+(f[3]=cn_double(r4));
+{
+__auto_type cn_init_1296 = cn_double(((((((v16>>32))|((v17<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1296;
+(f[3]=(f[3]*v));
+}
+(f[2]=(f[2]+f[3]));
+(s2009=cn_bits(f[2]));
+(f[2]=f[1]);
+(f[2]=(f[2]-f[0]));
+(f[2]=fabs(f[2]));
+(f[2]=(f[2]+f[1]));
+cn_swap(f,2,1);
+(f[2]=(f[2]+f[0]));
+(f[2]=fabs(f[2]));
+(f[1]=(f[2]-f[1]));
+{
+__auto_type cn_init_1469 = cn_double(((((((v16>>32))|((v17<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1469;
+(f[1]=(f[1]*v));
+}
+(f[2]=cn_double(s2009));
+{
+__auto_type cn_init_1521 = cn_double(((((((v17>>32))|((v18<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1521;
+(f[2]=(f[2]*v));
+}
+(f[1]=(f[1]-f[2]));
+{
+__auto_type cn_init_1576 = cn_double(((((((v14>>32))|((v15<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1576;
+(f[1]=(f[1]*v));
+}
+(f[2]=cn_double(s2008));
+{
+__auto_type cn_init_1628 = cn_double(((((((v15>>32))|((v16<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1628;
+(f[2]=(f[2]*v));
+}
+(f[1]=(f[1]-f[2]));
+(f[2]=cn_double(r4));
+{
+__auto_type cn_init_1695 = cn_double(((((((v10>>32))|((v11<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1695;
+(f[2]=(f[2]*v));
+}
+(f[3]=cn_double(r5));
+{
+__auto_type cn_init_1747 = cn_double(((((((v11>>32))|((v12<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1747;
+(f[3]=(f[3]*v));
+}
+(f[2]=(f[2]-f[3]));
+(s2007=cn_bits(f[2]));
+(f[2]=cn_double(r4));
+{
+__auto_type cn_init_1825 = cn_double(((((((v11>>32))|((v12<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1825;
+(f[2]=(f[2]*v));
+}
+(f[3]=cn_double(r5));
+{
+__auto_type cn_init_1877 = cn_double(((((((v10>>32))|((v11<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1877;
+(f[3]=(f[3]*v));
+}
+(f[2]=(f[2]+f[3]));
+(s2008=cn_bits(f[2]));
+(f[2]=cn_double(s2007));
+{
+__auto_type cn_init_1955 = cn_double(((((((v12>>32))|((v13<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1955;
+(f[2]=(f[2]*v));
+}
+(f[3]=cn_double(r3));
+{
+__auto_type cn_init_2007 = cn_double(((((((v13>>32))|((v14<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2007;
+(f[3]=(f[3]*v));
+}
+(f[2]=(f[2]-f[3]));
+(f[3]=cn_double(s2007));
+{
+__auto_type cn_init_2074 = cn_double(((((((v13>>32))|((v14<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2074;
+(f[3]=(f[3]*v));
+}
+(f[4]=cn_double(r3));
+{
+__auto_type cn_init_2126 = cn_double(((((((v12>>32))|((v13<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2126;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(s2009=cn_bits(f[3]));
+(f[3]=f[2]);
+(f[3]=(f[3]-f[0]));
+(f[3]=fabs(f[3]));
+(f[3]=(f[3]+f[2]));
+cn_swap(f,3,2);
+(f[3]=(f[3]+f[0]));
+(f[3]=fabs(f[3]));
+(f[2]=(f[3]-f[2]));
+{
+__auto_type cn_init_2299 = cn_double(((((((v12>>32))|((v13<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2299;
+(f[2]=(f[2]*v));
+}
+(f[3]=cn_double(s2009));
+{
+__auto_type cn_init_2351 = cn_double(((((((v13>>32))|((v14<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2351;
+(f[3]=(f[3]*v));
+}
+(f[2]=(f[2]-f[3]));
+{
+__auto_type cn_init_2406 = cn_double(((((((v10>>32))|((v11<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2406;
+(f[2]=(f[2]*v));
+}
+(f[3]=cn_double(s2008));
+{
+__auto_type cn_init_2458 = cn_double(((((((v11>>32))|((v12<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2458;
+(f[3]=(f[3]*v));
+}
+(f[2]=(f[2]-f[3]));
+(f[3]=cn_double(r5));
+(f[4]=f[3]);
+(f[4]=(f[4]-f[0]));
+(f[4]=fabs(f[4]));
+(f[4]=(f[4]+f[3]));
+cn_swap(f,4,3);
+(f[4]=(f[4]+f[0]));
+(f[4]=fabs(f[4]));
+(f[3]=(f[4]-f[3]));
+(rg[0]=((uint32_t)(((((v10>>0))&0xffffffffULL)))));
+{
+__auto_type cn_init_2628 = 0x4U; __auto_type bv = cn_init_2628;
+__auto_type cn_init_2636 = rg[0]; __auto_type av = cn_init_2636;
+__auto_type cn_init_2654 = cn_alu(&fl,Alu_And,av,bv,4); __auto_type r = cn_init_2654;
+(rg[0]=r);
+}
+if(cn_cond(fl,4)){
+goto cn_break_b2;
+}
+(f[3]=fabs(f[3]));
+}
+cn_break_b2:;
+(rg[0]=((uint32_t)(((((v10>>0))&0xffffffffULL)))));
+{
+__auto_type cn_init_2712 = 0x2U; __auto_type bv = cn_init_2712;
+__auto_type cn_init_2720 = rg[0]; __auto_type av = cn_init_2720;
+__auto_type cn_init_2738 = cn_alu(&fl,Alu_And,av,bv,4); __auto_type r = cn_init_2738;
+(rg[0]=r);
+}
+if(cn_cond(fl,4)){
+goto cn_break_b4;
+}
+cn_swap(f,3,2);
+(f[3]=fabs(f[3]));
+cn_swap(f,3,2);
+}
+cn_break_b4:;
+(rg[0]=((uint32_t)(((((v10>>0))&0xffffffffULL)))));
+{
+__auto_type cn_init_2814 = 0x1U; __auto_type bv = cn_init_2814;
+__auto_type cn_init_2822 = rg[0]; __auto_type av = cn_init_2822;
+__auto_type cn_init_2840 = cn_alu(&fl,Alu_And,av,bv,4); __auto_type r = cn_init_2840;
+(rg[0]=r);
+}
+if(cn_cond(fl,4)){
+goto cn_break_b6;
+}
+cn_swap(f,3,1);
+(f[3]=fabs(f[3]));
+cn_swap(f,3,1);
+}
+cn_break_b6:;
+(f[4]=cn_double(((((((v19>>32))|((v20<<32))))&0xffffffffffffffffULL))));
+(f[3]=(f[3]+f[4]));
+(f[4]=f[4]);
+(f[4]=cn_double(((((((v20>>32))|((v21<<32))))&0xffffffffffffffffULL))));
+(f[2]=(f[2]+f[4]));
+(f[4]=f[4]);
+(f[4]=cn_double(((((((v21>>32))|((v22<<32))))&0xffffffffffffffffULL))));
+(f[1]=(f[1]+f[4]));
+(f[4]=f[4]);
+(f[4]=f[3]);
+(f[4]=(f[4]*f[4]));
+(f[5]=f[2]);
+(f[5]=(f[5]*f[5]));
+(f[4]=(f[4]+f[5]));
+(f[5]=f[1]);
+(f[5]=(f[5]*f[5]));
+(f[4]=(f[4]+f[5]));
+{
+__auto_type cn_init_3184 = cn_double(((((((v18>>32))|((v19<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_3184;
+(f[4]=(f[4]*v));
+}
+(fsw=cn_compare(f[4],cn_double(v28)));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x1800))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b8;
+}
+(f[4]=f[4]);
+(f[4]=cn_double(v29));
+goto cn_break_b11;
+}
+cn_break_b8:;
+(f[5]=cn_double(0x3ff0000000000000));
+(fsw=cn_compare(f[5],f[4]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x1000))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,2)){
+goto cn_break_b10;
+}
+(f[5]=f[5]);
+{
+__auto_type cn_init_3398 = cn_double(v30); __auto_type v = cn_init_3398;
+(f[4]=(v/f[4]));
+}
+goto cn_break_b11;
+}
+cn_break_b10:;
+(fsw=cn_compare(f[5],f[4]));
+(f[4]=cn_double(v30));
+}
+cn_break_b11:;
+(f[5]=cn_double(r6));
+(f[5]=(f[5]*f[4]));
+(r6=cn_bits(f[5]));
+(f[1]=(f[1]*f[4]));
+(f[2]=(f[2]*f[4]));
+(f[3]=(f[3]*f[4]));
+(f[4]=cn_double(((((((v19>>32))|((v20<<32))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_3565 = cn_double(v30); __auto_type v = cn_init_3565;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]-f[4]));
+(f[4]=f[4]);
+(f[4]=cn_double(((((((v20>>32))|((v21<<32))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_3642 = cn_double(v30); __auto_type v = cn_init_3642;
+(f[4]=(f[4]*v));
+}
+(f[2]=(f[2]-f[4]));
+(f[4]=f[4]);
+(f[4]=cn_double(((((((v21>>32))|((v22<<32))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_3719 = cn_double(v30); __auto_type v = cn_init_3719;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]-f[4]));
+(f[4]=f[4]);
+cn_swap(f,3,1);
+(f[4]=f[3]);
+{
+__auto_type cn_init_3801 = (((double)(cn_float(((uint32_t)(((((v23>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_3801;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[2]);
+{
+__auto_type cn_init_3849 = (((double)(cn_float(((uint32_t)(((((v23>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_3849;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[1]);
+{
+__auto_type cn_init_3912 = (((double)(cn_float(((uint32_t)(((((v22>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_3912;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[3]);
+{
+__auto_type cn_init_3975 = (((double)(cn_float(((uint32_t)(((((v26>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_3975;
+(f[5]=(f[5]*v));
+}
+(f[6]=f[2]);
+{
+__auto_type cn_init_4023 = (((double)(cn_float(((uint32_t)(((((v26>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_4023;
+(f[6]=(f[6]*v));
+}
+(f[5]=(f[5]+f[6]));
+(f[6]=f[1]);
+{
+__auto_type cn_init_4086 = (((double)(cn_float(((uint32_t)(((((v25>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_4086;
+(f[6]=(f[6]*v));
+}
+(f[5]=(f[5]+f[6]));
+cn_swap(f,5,3);
+{
+__auto_type cn_init_4148 = (((double)(cn_float(((uint32_t)(((((v25>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_4148;
+(f[5]=(f[5]*v));
+}
+cn_swap(f,5,2);
+{
+__auto_type cn_init_4195 = (((double)(cn_float(((uint32_t)(((((v24>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_4195;
+(f[5]=(f[5]*v));
+}
+(f[2]=(f[2]+f[5]));
+cn_swap(f,4,1);
+{
+__auto_type cn_init_4257 = (((double)(cn_float(((uint32_t)(((((v24>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_4257;
+(f[4]=(f[4]*v));
+}
+(f[2]=(f[2]+f[4]));
+cn_swap(f,3,1);
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+{
+__auto_type cn_init_4322 = cn_double(r12); __auto_type v = cn_init_4322;
+(f[3]=(f[3]+v));
+}
+(r5=cn_bits(f[3]));
+{
+__auto_type cn_init_4357 = cn_double(r11); __auto_type v = cn_init_4357;
+(f[2]=(f[2]+v));
+}
+(r4=cn_bits(f[2]));
+{
+__auto_type cn_init_4392 = cn_double(r10); __auto_type v = cn_init_4392;
+(f[1]=(f[1]+v));
+}
+(r3=cn_bits(f[1]));
+(f[0]=f[0]);
+{
+__auto_type cn_init_4432 = 0x30U; __auto_type bv = cn_init_4432;
+__auto_type cn_init_4440 = rg[4]; __auto_type av = cn_init_4440;
+__auto_type cn_init_4458 = cn_alu(&fl,Alu_Add,av,bv,4); __auto_type r = cn_init_4458;
+(rg[4]=r);
+}
+(rg[0]=rg[3]);
+{
+(rg[3]=((uint32_t)(((((s2013>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[6]=((uint32_t)(((((s2013>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(3),r3);
+cn_wr64(m,CN_REC+8*(4),r4);
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64(m,CN_REC+8*(6),r6);
+cn_wr64u(m,0x10007eb8U,s2007);
+cn_wr64u(m,0x10007ec0U,s2008);
+cn_wr64u(m,0x10007ec8U,s2009);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_f0b104a05b743bd3(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_22 = cn_initial_regs; __auto_type rg = cn_init_22;
+__auto_type cn_init_32 = (CN_Flags){0}; __auto_type fl = cn_init_32;
+__auto_type cn_init_38 = 0U; __auto_type fsw = cn_init_38;
+__auto_type cn_init_51 = ((uint32_t)(rg[EDI]-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+136))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_84 = cn_rd64u(m,0x10001018U); uint64_t r3 = cn_init_84;
+__auto_type cn_init_97 = cn_rd64u(m,0x10001020U); uint64_t r4 = cn_init_97;
+__auto_type cn_init_110 = cn_rd64u(m,0x10001028U); uint64_t r5 = cn_init_110;
+__auto_type cn_init_123 = cn_rd64u(m,0x10001030U); uint64_t r6 = cn_init_123;
+__auto_type cn_init_136 = cn_rd64u(m,0x10001070U); uint64_t r14 = cn_init_136;
+__auto_type cn_init_149 = cn_rd64u(m,0x10001100U); uint64_t r32 = cn_init_149;
+__auto_type cn_init_162 = cn_rd64u(m,0x10001108U); uint64_t r33 = cn_init_162;
+__auto_type cn_init_175 = cn_rd64u(m,0x10007ec8U); uint64_t s2009 = cn_init_175;
+__auto_type cn_init_188 = cn_rd64u(m,0x10007ed0U); uint64_t s2010 = cn_init_188;
+__auto_type cn_init_201 = cn_rd64u(m,0x10007ed8U); uint64_t s2011 = cn_init_201;
+__auto_type cn_init_214 = cn_rd64u(m,0x10007ee0U); uint64_t s2012 = cn_init_214;
+__auto_type cn_init_227 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_227;
+__auto_type cn_init_240 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_240;
+__auto_type cn_init_253 = cn_cell(vm,0); uint64_t v17 = cn_init_253;
+__auto_type cn_init_266 = cn_cell(vm,8); uint64_t v18 = cn_init_266;
+__auto_type cn_init_279 = cn_cell(vm,16); uint64_t v19 = cn_init_279;
+__auto_type cn_init_292 = cn_cell(vm,24); uint64_t v20 = cn_init_292;
+__auto_type cn_init_305 = cn_cell(vm,32); uint64_t v21 = cn_init_305;
+__auto_type cn_init_318 = cn_cell(vm,40); uint64_t v22 = cn_init_318;
+__auto_type cn_init_331 = cn_cell(vm,48); uint64_t v23 = cn_init_331;
+__auto_type cn_init_344 = cn_cell(vm,56); uint64_t v24 = cn_init_344;
+__auto_type cn_init_357 = cn_cell(vm,64); uint64_t v25 = cn_init_357;
+__auto_type cn_init_370 = cn_cell(vm,72); uint64_t v26 = cn_init_370;
+__auto_type cn_init_383 = cn_cell(vm,80); uint64_t v27 = cn_init_383;
+__auto_type cn_init_396 = cn_cell(vm,88); uint64_t v28 = cn_init_396;
+__auto_type cn_init_409 = cn_cell(vm,96); uint64_t v29 = cn_init_409;
+__auto_type cn_init_422 = cn_cell(vm,104); uint64_t v30 = cn_init_422;
+__auto_type cn_init_435 = cn_cell(vm,120); uint64_t v32 = cn_init_435;
+__auto_type cn_init_448 = cn_cell(vm,128); uint64_t v33 = cn_init_448;
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+__auto_type cn_init_490 = 0xffffffceU; __auto_type bv = cn_init_490;
+__auto_type cn_init_498 = rg[4]; __auto_type av = cn_init_498;
+__auto_type cn_init_516 = cn_alu(&fl,Alu_Add,av,bv,4); __auto_type r = cn_init_516;
+(rg[4]=r);
+}
+(m->xmm[0]=(CN_U2){r3,r4});
+{
+__auto_type cn_init_545 = r5; uint64_t s = cn_init_545;
+(m->xmm[1]=(CN_U2){s,0});
+}
+{
+__auto_type cn_init_575 = (CN_U2){v28,v29}; CN_U2 s = cn_init_575;
+__auto_type cn_init_585 = m->xmm[0]; __auto_type a = cn_init_585;
+(m->xmm[0]=(CN_U2){cn_bits(((cn_double(a[0])*cn_double(s[0])))),cn_bits(((cn_double(a[1])*cn_double(s[1]))))});
+}
+{
+__auto_type cn_init_655 = v28; uint64_t s = cn_init_655;
+__auto_type cn_init_668 = m->xmm[1][0]; __auto_type a = cn_init_668;
+(m->xmm[1][0]=cn_bits(((cn_double(a)*cn_double(s)))));
+}
+{
+__auto_type cn_init_715 = (CN_U2){v24,v25}; CN_U2 s = cn_init_715;
+__auto_type cn_init_725 = m->xmm[0]; __auto_type a = cn_init_725;
+(m->xmm[0]=(CN_U2){cn_bits(((cn_double(a[0])+cn_double(s[0])))),cn_bits(((cn_double(a[1])+cn_double(s[1]))))});
+}
+{
+__auto_type cn_init_795 = v26; uint64_t s = cn_init_795;
+__auto_type cn_init_808 = m->xmm[1][0]; __auto_type a = cn_init_808;
+(m->xmm[1][0]=cn_bits(((cn_double(a)+cn_double(s)))));
+}
+{
+__auto_type cn_init_845 = 0x0U; __auto_type bv = cn_init_845;
+__auto_type cn_init_862 = (((uint32_t)(((((v22>>32))&0xffffffffULL))))); __auto_type av = cn_init_862;
+__auto_type cn_init_880 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_880;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b2;
+}
+{
+__auto_type cn_init_901 = r32; uint64_t s = cn_init_901;
+(m->xmm[5]=(CN_U2){s,0});
+}
+{
+__auto_type cn_init_923 = v28; uint64_t s = cn_init_923;
+__auto_type cn_init_936 = m->xmm[5][0]; __auto_type a = cn_init_936;
+(m->xmm[5][0]=cn_bits(((cn_double(a)*cn_double(s)))));
+}
+(r3=m->xmm[0][0]);
+(r4=m->xmm[0][1]);
+(r5=m->xmm[1][0]);
+(r32=m->xmm[5][0]);
+}
+cn_break_b2:;
+{
+__auto_type cn_init_1032 = m->xmm[0][0]; uint64_t v = cn_init_1032;
+(s2009=(((s2009&~((0xffffffffffffULL<<16))))|((((v&0xffffffffffffULL))<<16))));
+(s2010=(((s2010&~0xffffULL))|((((v>>48))&0xffffULL))));
+}
+{
+__auto_type cn_init_1091 = m->xmm[0][1]; uint64_t v = cn_init_1091;
+(s2010=(((s2010&~((0xffffffffffffULL<<16))))|((((v&0xffffffffffffULL))<<16))));
+(s2011=(((s2011&~0xffffULL))|((((v>>48))&0xffffULL))));
+}
+{
+__auto_type cn_init_1150 = m->xmm[1][0]; uint64_t v = cn_init_1150;
+(s2011=(((s2011&~((0xffffffffffffULL<<16))))|((((v&0xffffffffffffULL))<<16))));
+(s2012=(((s2012&~0xffffULL))|((((v>>48))&0xffffULL))));
+}
+(f[0]=cn_double(((((((s2011>>16))|((s2012<<48))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_1248 = cn_double(((((((v19>>32))|((v20<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1248;
+(f[0]=(f[0]*v));
+}
+{
+__auto_type cn_tuple_1278_0 = sin(f[0]);
+__auto_type cn_tuple_1278_1 = cos(f[0]);
+__auto_type s = cn_tuple_1278_0;
+__auto_type c = cn_tuple_1278_1;
+(f[0]=s);
+(f[1]=c);
+(fsw&=~0x0400);
+}
+{
+__auto_type cn_init_1313 = cn_bits(f[1]); uint64_t v = cn_init_1313;
+(s2013=(((s2013&~((0xffffffffffffULL<<16))))|((((v&0xffffffffffffULL))<<16))));
+(s2014=(((s2014&~0xffffULL))|((((v>>48))&0xffffULL))));
+}
+{
+__auto_type cn_init_1371 = cn_bits(f[0]); uint64_t v = cn_init_1371;
+(s2012=(((s2012&~((0xffffffffffffULL<<16))))|((((v&0xffffffffffffULL))<<16))));
+(s2013=(((s2013&~0xffffULL))|((((v>>48))&0xffffULL))));
+}
+(f[0]=cn_double(((((((s2009>>16))|((s2010<<48))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_1469 = cn_double(((((((s2012>>16))|((s2013<<48))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1469;
+(f[0]=(f[0]*v));
+}
+(f[1]=cn_double(((((((s2010>>16))|((s2011<<48))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_1537 = cn_double(((((((s2013>>16))|((s2014<<48))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1537;
+(f[1]=(f[1]*v));
+}
+(f[1]=-f[1]);
+(f[0]=(f[0]+f[1]));
+(f[1]=cn_double(((((((s2009>>16))|((s2010<<48))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_1631 = cn_double(((((((s2013>>16))|((s2014<<48))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1631;
+(f[1]=(f[1]*v));
+}
+(f[2]=cn_double(((((((s2010>>16))|((s2011<<48))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_1699 = cn_double(((((((s2012>>16))|((s2013<<48))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1699;
+(f[2]=(f[2]*v));
+}
+(f[1]=(f[1]+f[2]));
+(f[0]=atan2(f[0],f[1]));
+{
+__auto_type cn_init_1756 = cn_double(v32); __auto_type v = cn_init_1756;
+(f[0]=(f[0]*v));
+}
+{
+__auto_type cn_init_1796 = cn_double(((((((v21>>32))|((v22<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1796;
+(f[0]=(f[0]/v));
+}
+(f[1]=f[0]);
+(f[1]=cn_round(m,f[1]));
+(f[0]=(f[0]-f[1]));
+{
+__auto_type cn_init_1876 = cn_double(((((((v21>>32))|((v22<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1876;
+(f[0]=(f[0]*v));
+}
+(f[0]=fabs(f[0]));
+{
+__auto_type cn_init_1914 = cn_double(v30); __auto_type v = cn_init_1914;
+(f[0]=(f[0]/v));
+}
+(f[1]=cn_double(0x3ff0000000000000));
+(f[0]=(f[0]-f[1]));
+{
+__auto_type cn_init_1965 = cn_double(v30); __auto_type v = cn_init_1965;
+(f[0]=(f[0]*v));
+}
+{
+__auto_type cn_init_1989 = cn_double(v33); __auto_type v = cn_init_1989;
+(f[0]=(f[0]*v));
+}
+{
+__auto_type cn_init_2008 = 0x2U; __auto_type bv = cn_init_2008;
+__auto_type cn_init_2025 = (((uint32_t)(((((v17>>0))&0xffffffffULL))))); __auto_type av = cn_init_2025;
+__auto_type cn_init_2043 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_2043;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b4;
+}
+(f[0]=-f[0]);
+}
+cn_break_b4:;
+(f[1]=cn_double(((((((s2009>>16))|((s2010<<48))))&0xffffffffffffffffULL))));
+(f[1]=(f[1]*f[1]));
+(f[2]=cn_double(((((((s2010>>16))|((s2011<<48))))&0xffffffffffffffffULL))));
+(f[2]=(f[2]*f[2]));
+(f[1]=(f[1]+f[2]));
+(f[1]=sqrt(f[1]));
+(f[2]=cn_double(((((((s2011>>16))|((s2012<<48))))&0xffffffffffffffffULL))));
+(f[1]=atan2(f[1],f[2]));
+{
+__auto_type cn_init_2240 = cn_double(v32); __auto_type v = cn_init_2240;
+(f[1]=(f[1]*v));
+}
+{
+__auto_type cn_init_2280 = cn_double(((((((v17>>32))|((v18<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2280;
+(f[1]=(f[1]/v));
+}
+(f[2]=f[1]);
+(f[2]=cn_round(m,f[2]));
+(f[1]=(f[1]-f[2]));
+{
+__auto_type cn_init_2360 = cn_double(((((((v17>>32))|((v18<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2360;
+(f[1]=(f[1]*v));
+}
+(f[1]=fabs(f[1]));
+{
+__auto_type cn_init_2414 = cn_double(((((((v18>>32))|((v19<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2414;
+(f[1]=(f[1]/v));
+}
+(f[2]=cn_double(0x3ff0000000000000));
+(f[1]=(f[1]-f[2]));
+{
+__auto_type cn_init_2481 = cn_double(((((((v18>>32))|((v19<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2481;
+(f[1]=(f[1]*v));
+}
+{
+__auto_type cn_init_2505 = cn_double(v33); __auto_type v = cn_init_2505;
+(f[1]=(f[1]*v));
+}
+{
+__auto_type cn_init_2524 = 0x2U; __auto_type bv = cn_init_2524;
+__auto_type cn_init_2541 = (((uint32_t)(((((v17>>0))&0xffffffffULL))))); __auto_type av = cn_init_2541;
+__auto_type cn_init_2559 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_2559;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b6;
+}
+(f[1]=-f[1]);
+}
+cn_break_b6:;
+{
+__auto_type cn_init_2590 = 0x1U; __auto_type bv = cn_init_2590;
+__auto_type cn_init_2607 = (((uint32_t)(((((v17>>0))&0xffffffffULL))))); __auto_type av = cn_init_2607;
+__auto_type cn_init_2625 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_2625;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b12;
+}
+{
+__auto_type cn_init_2644 = 0x2U; __auto_type bv = cn_init_2644;
+__auto_type cn_init_2661 = (((uint32_t)(((((v17>>0))&0xffffffffULL))))); __auto_type av = cn_init_2661;
+__auto_type cn_init_2679 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_2679;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b12;
+}
+(fsw=cn_compare(f[1],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x3000))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b10;
+}
+(f[1]=f[1]);
+goto cn_break_b11;
+}
+cn_break_b10:;
+(f[0]=f[1]);
+}
+cn_break_b11:;
+goto cn_break_b15;
+}
+cn_break_b12:;
+(fsw=cn_compare(f[1],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x3000))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b14;
+}
+(f[0]=f[1]);
+goto cn_break_b15;
+}
+cn_break_b14:;
+(f[1]=f[1]);
+}
+cn_break_b15:;
+(f[1]=cn_double(((((((s2009>>16))|((s2010<<48))))&0xffffffffffffffffULL))));
+(f[1]=(f[1]*f[1]));
+(f[2]=cn_double(((((((s2010>>16))|((s2011<<48))))&0xffffffffffffffffULL))));
+(f[2]=(f[2]*f[2]));
+(f[1]=(f[1]+f[2]));
+(f[2]=cn_double(((((((s2011>>16))|((s2012<<48))))&0xffffffffffffffffULL))));
+(f[2]=(f[2]*f[2]));
+(f[1]=(f[1]+f[2]));
+(f[1]=sqrt(f[1]));
+{
+__auto_type cn_init_3070 = cn_double(v23); __auto_type v = cn_init_3070;
+(f[1]=(f[1]-v));
+}
+{
+__auto_type cn_init_3110 = cn_double(((((((v20>>32))|((v21<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_3110;
+(f[1]=(f[1]+v));
+}
+(f[1]=fabs(f[1]));
+{
+__auto_type cn_init_3164 = cn_double(((((((v20>>32))|((v21<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_3164;
+(f[1]=(f[1]-v));
+}
+(fsw=cn_compare(f[1],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x3000))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b17;
+}
+(f[1]=f[1]);
+goto cn_break_b18;
+}
+cn_break_b17:;
+(f[0]=f[1]);
+}
+cn_break_b18:;
+{
+__auto_type cn_init_3278 = 0x0U; __auto_type bv = cn_init_3278;
+__auto_type cn_init_3295 = (((uint32_t)(((((v22>>32))&0xffffffffULL))))); __auto_type av = cn_init_3295;
+__auto_type cn_init_3313 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_3313;
+}
+if(cn_cond(fl,5)){
+goto cn_break_b20;
+}
+{
+__auto_type cn_init_3337 = cn_double(v28); __auto_type v = cn_init_3337;
+(f[0]=(f[0]/v));
+}
+}
+cn_break_b20:;
+(r14=cn_bits(f[0]));
+{
+__auto_type cn_init_3368 = 0x32U; __auto_type bv = cn_init_3368;
+__auto_type cn_init_3376 = rg[4]; __auto_type av = cn_init_3376;
+__auto_type cn_init_3394 = cn_alu(&fl,Alu_Add,av,bv,4); __auto_type r = cn_init_3394;
+(rg[4]=r);
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64u(m,0x10001018U,r3);
+cn_wr64u(m,0x10001020U,r4);
+cn_wr64u(m,0x10001028U,r5);
+cn_wr64u(m,0x10001070U,r14);
+cn_wr64u(m,0x10001100U,r32);
+cn_wr64u(m,0x10007ec8U,s2009);
+cn_wr64u(m,0x10007ed0U,s2010);
+cn_wr64u(m,0x10007ed8U,s2011);
+cn_wr64u(m,0x10007ee0U,s2012);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+((*regs)=rg);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_f11bef59dface564(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_22 = cn_initial_regs; __auto_type rg = cn_init_22;
+__auto_type cn_init_32 = (CN_Flags){0}; __auto_type fl = cn_init_32;
+__auto_type cn_init_38 = 0U; __auto_type fsw = cn_init_38;
+__auto_type cn_init_51 = ((uint32_t)(rg[EDI]-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+160))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_84 = cn_rd64u(m,0x10001018U); uint64_t r3 = cn_init_84;
+__auto_type cn_init_97 = cn_rd64u(m,0x10001020U); uint64_t r4 = cn_init_97;
+__auto_type cn_init_110 = cn_rd64u(m,0x10001028U); uint64_t r5 = cn_init_110;
+__auto_type cn_init_123 = cn_cell(vm,0); uint64_t v20 = cn_init_123;
+__auto_type cn_init_136 = cn_cell(vm,8); uint64_t v21 = cn_init_136;
+__auto_type cn_init_149 = cn_cell(vm,16); uint64_t v22 = cn_init_149;
+__auto_type cn_init_162 = cn_cell(vm,24); uint64_t v23 = cn_init_162;
+__auto_type cn_init_175 = cn_cell(vm,32); uint64_t v24 = cn_init_175;
+__auto_type cn_init_188 = cn_cell(vm,40); uint64_t v25 = cn_init_188;
+__auto_type cn_init_201 = cn_cell(vm,48); uint64_t v26 = cn_init_201;
+__auto_type cn_init_214 = cn_cell(vm,56); uint64_t v27 = cn_init_214;
+__auto_type cn_init_227 = cn_cell(vm,64); uint64_t v28 = cn_init_227;
+__auto_type cn_init_240 = cn_cell(vm,72); uint64_t v29 = cn_init_240;
+__auto_type cn_init_253 = cn_cell(vm,80); uint64_t v30 = cn_init_253;
+__auto_type cn_init_266 = cn_cell(vm,96); uint64_t v32 = cn_init_266;
+__auto_type cn_init_279 = cn_cell(vm,104); uint64_t v33 = cn_init_279;
+{
+(f[0]=cn_double(r5));
+{
+__auto_type cn_init_305 = cn_double(v28); __auto_type v = cn_init_305;
+(f[0]=(f[0]+v));
+}
+(f[1]=cn_double(r4));
+{
+__auto_type cn_init_341 = cn_double(v29); __auto_type v = cn_init_341;
+(f[1]=(f[1]+v));
+}
+(f[2]=cn_double(r3));
+{
+__auto_type cn_init_377 = cn_double(v30); __auto_type v = cn_init_377;
+(f[2]=(f[2]+v));
+}
+(f[3]=f[2]);
+{
+__auto_type cn_init_425 = (((double)(cn_float(((uint32_t)(((((v24>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_425;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_473 = (((double)(cn_float(((uint32_t)(((((v24>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_473;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_536 = (((double)(cn_float(((uint32_t)(((((v23>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_536;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_599 = (((double)(cn_float(((uint32_t)(((((v27>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_599;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_647 = (((double)(cn_float(((uint32_t)(((((v27>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_647;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_710 = (((double)(cn_float(((uint32_t)(((((v26>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_710;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_772 = (((double)(cn_float(((uint32_t)(((((v26>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_772;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_819 = (((double)(cn_float(((uint32_t)(((((v25>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_819;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_881 = (((double)(cn_float(((uint32_t)(((((v25>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_881;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(f[3]=f[1]);
+(f[4]=f[2]);
+__auto_type cn_tuple_948_0 = f[3];
+__auto_type cn_tuple_948_1 = f[4];
+__auto_type pa32y = cn_tuple_948_0;
+__auto_type pa32x = cn_tuple_948_1;
+__auto_type cn_tuple_962_0 = atan2(pa32y,pa32x);
+__auto_type cn_tuple_962_1 = atan2(pa32y,pa32x);
+__auto_type pa32lo = cn_tuple_962_0;
+__auto_type pa32hi = cn_tuple_962_1;
+(f[3]=pa32lo);
+__auto_type cn_init_998 = ({__auto_type cn_init_983 = cn_double(v22); __auto_type v = cn_init_983; (f[3]=(v-f[3])); v;}); __auto_type c32_33 = cn_init_998;
+__auto_type cn_init_1027 = ({__auto_type cn_init_1012 = cn_double(v32); __auto_type v = cn_init_1012; (f[3]=(f[3]*v)); v;}); __auto_type c32_34 = cn_init_1027;
+__auto_type cn_init_1067 = ({__auto_type cn_init_1052 = (((double)(((int32_t)(((uint32_t)(((((v23>>0))&0xffffffffULL))))))))); __auto_type v = cn_init_1052; (f[3]=(f[3]*v)); v;}); __auto_type c32_35 = cn_init_1067;
+{
+
+__auto_type cn_init_1114 = cn_round(m,({__auto_type cn_arg=pa32lo; ({(cn_arg=(c32_33-cn_arg)); (cn_arg=(cn_arg*c32_34)); (cn_arg=(cn_arg*c32_35)); cn_arg;});})); __auto_type r1 = cn_init_1114;
+__auto_type cn_init_1127 = cn_round(m,({__auto_type cn_arg=pa32hi; ({(cn_arg=(c32_33-cn_arg)); (cn_arg=(cn_arg*c32_34)); (cn_arg=(cn_arg*c32_35)); cn_arg;});})); __auto_type r2 = cn_init_1127;
+(f[3]=((((r1==r2)&&(cn_bits(r1)==cn_bits(r2))))?(({r1;})):(({cn_round(m,({__auto_type cn_arg=atan2(pa32y,pa32x); ({(cn_arg=(c32_33-cn_arg)); (cn_arg=(cn_arg*c32_34)); (cn_arg=(cn_arg*c32_35)); cn_arg;});}));}))));
+}
+{
+__auto_type cn_init_1192 = (((double)(((int32_t)(((uint32_t)(((((v23>>0))&0xffffffffULL))))))))); __auto_type v = cn_init_1192;
+(f[3]=(f[3]/v));
+}
+{
+__auto_type cn_init_1216 = cn_double(v33); __auto_type v = cn_init_1216;
+(f[3]=(f[3]*v));
+}
+{
+__auto_type cn_tuple_1247_0 = sin(f[3]);
+__auto_type cn_tuple_1247_1 = cos(f[3]);
+__auto_type s = cn_tuple_1247_0;
+__auto_type c = cn_tuple_1247_1;
+(f[3]=s);
+(f[4]=c);
+(fsw&=~0x0400);
+}
+(f[5]=f[1]);
+(f[5]=(f[5]*f[4]));
+(f[6]=f[2]);
+(f[6]=(f[6]*f[3]));
+(f[5]=(f[5]+f[6]));
+(r4=cn_bits(f[5]));
+(f[5]=f[2]);
+(f[5]=(f[5]*f[4]));
+(f[6]=f[1]);
+(f[6]=(f[6]*f[3]));
+(f[5]=(f[5]-f[6]));
+(r3=cn_bits(f[5]));
+(f[4]=f[4]);
+(f[3]=f[3]);
+(f[2]=f[2]);
+(f[1]=f[1]);
+(r5=cn_bits(f[0]));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r3));
+(f[2]=f[0]);
+(f[3]=f[1]);
+__auto_type cn_tuple_1533_0 = f[2];
+__auto_type cn_tuple_1533_1 = f[3];
+__auto_type pa67y = cn_tuple_1533_0;
+__auto_type pa67x = cn_tuple_1533_1;
+__auto_type cn_tuple_1547_0 = atan2(pa67y,pa67x);
+__auto_type cn_tuple_1547_1 = atan2(pa67y,pa67x);
+__auto_type pa67lo = cn_tuple_1547_0;
+__auto_type pa67hi = cn_tuple_1547_1;
+(f[2]=pa67lo);
+__auto_type cn_init_1599 = ({__auto_type cn_init_1584 = cn_double(((((((v20>>32))|((v21<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1584; (f[2]=(v-f[2])); v;}); __auto_type c67_68 = cn_init_1599;
+__auto_type cn_init_1628 = ({__auto_type cn_init_1613 = cn_double(v32); __auto_type v = cn_init_1613; (f[2]=(f[2]*v)); v;}); __auto_type c67_69 = cn_init_1628;
+__auto_type cn_init_1668 = ({__auto_type cn_init_1653 = (((double)(((int32_t)(((uint32_t)(((((v21>>32))&0xffffffffULL))))))))); __auto_type v = cn_init_1653; (f[2]=(f[2]*v)); v;}); __auto_type c67_70 = cn_init_1668;
+{
+
+__auto_type cn_init_1715 = cn_round(m,({__auto_type cn_arg=pa67lo; ({(cn_arg=(c67_68-cn_arg)); (cn_arg=(cn_arg*c67_69)); (cn_arg=(cn_arg*c67_70)); cn_arg;});})); __auto_type r1 = cn_init_1715;
+__auto_type cn_init_1728 = cn_round(m,({__auto_type cn_arg=pa67hi; ({(cn_arg=(c67_68-cn_arg)); (cn_arg=(cn_arg*c67_69)); (cn_arg=(cn_arg*c67_70)); cn_arg;});})); __auto_type r2 = cn_init_1728;
+(f[2]=((((r1==r2)&&(cn_bits(r1)==cn_bits(r2))))?(({r1;})):(({cn_round(m,({__auto_type cn_arg=atan2(pa67y,pa67x); ({(cn_arg=(c67_68-cn_arg)); (cn_arg=(cn_arg*c67_69)); (cn_arg=(cn_arg*c67_70)); cn_arg;});}));}))));
+}
+{
+__auto_type cn_init_1793 = (((double)(((int32_t)(((uint32_t)(((((v21>>32))&0xffffffffULL))))))))); __auto_type v = cn_init_1793;
+(f[2]=(f[2]/v));
+}
+{
+__auto_type cn_init_1817 = cn_double(v33); __auto_type v = cn_init_1817;
+(f[2]=(f[2]*v));
+}
+{
+__auto_type cn_tuple_1848_0 = sin(f[2]);
+__auto_type cn_tuple_1848_1 = cos(f[2]);
+__auto_type s = cn_tuple_1848_0;
+__auto_type c = cn_tuple_1848_1;
+(f[2]=s);
+(f[3]=c);
+(fsw&=~0x0400);
+}
+(f[4]=f[0]);
+(f[4]=(f[4]*f[3]));
+(f[5]=f[1]);
+(f[5]=(f[5]*f[2]));
+(f[4]=(f[4]+f[5]));
+(r5=cn_bits(f[4]));
+(f[4]=f[1]);
+(f[4]=(f[4]*f[3]));
+(f[5]=f[0]);
+(f[5]=(f[5]*f[2]));
+(f[4]=(f[4]-f[5]));
+(r3=cn_bits(f[4]));
+(f[3]=f[3]);
+(f[2]=f[2]);
+(f[1]=f[1]);
+(f[0]=f[0]);
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64u(m,0x10001018U,r3);
+cn_wr64u(m,0x10001020U,r4);
+cn_wr64u(m,0x10001028U,r5);
+((*regs)=rg);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_f15e7033ae08e677(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_51 = ((uint32_t)(pvar-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+160))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_88 = cn_rd64(m,CN_REC+8*(3)); uint64_t r3 = cn_init_88;
+__auto_type cn_init_105 = cn_rd64(m,CN_REC+8*(4)); uint64_t r4 = cn_init_105;
+__auto_type cn_init_122 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_122;
+__auto_type cn_init_139 = cn_rd64(m,CN_REC+8*(6)); uint64_t r6 = cn_init_139;
+__auto_type cn_init_156 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_156;
+__auto_type cn_init_169 = cn_rd64u(m,0x10007ec0U); uint64_t s2008 = cn_init_169;
+__auto_type cn_init_182 = cn_rd64u(m,0x10007ec8U); uint64_t s2009 = cn_init_182;
+__auto_type cn_init_195 = cn_rd64u(m,0x10007ed0U); uint64_t s2010 = cn_init_195;
+__auto_type cn_init_208 = cn_rd64u(m,0x10007ed8U); uint64_t s2011 = cn_init_208;
+__auto_type cn_init_221 = cn_rd64u(m,0x10007ee0U); uint64_t s2012 = cn_init_221;
+__auto_type cn_init_234 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_234;
+__auto_type cn_init_247 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_247;
+__auto_type cn_init_260 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_260;
+__auto_type cn_init_273 = cn_cell(vm,0); uint64_t v20 = cn_init_273;
+__auto_type cn_init_286 = cn_cell(vm,8); uint64_t v21 = cn_init_286;
+__auto_type cn_init_299 = cn_cell(vm,16); uint64_t v22 = cn_init_299;
+__auto_type cn_init_312 = cn_cell(vm,24); uint64_t v23 = cn_init_312;
+__auto_type cn_init_325 = cn_cell(vm,32); uint64_t v24 = cn_init_325;
+__auto_type cn_init_338 = cn_cell(vm,40); uint64_t v25 = cn_init_338;
+__auto_type cn_init_351 = cn_cell(vm,48); uint64_t v26 = cn_init_351;
+__auto_type cn_init_364 = cn_cell(vm,56); uint64_t v27 = cn_init_364;
+__auto_type cn_init_377 = cn_cell(vm,64); uint64_t v28 = cn_init_377;
+__auto_type cn_init_390 = cn_cell(vm,72); uint64_t v29 = cn_init_390;
+__auto_type cn_init_403 = cn_cell(vm,80); uint64_t v30 = cn_init_403;
+__auto_type cn_init_416 = cn_cell(vm,104); uint64_t v33 = cn_init_416;
+{
+{
+{
+{
+{
+{
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+__auto_type cn_init_500 = 0x20U; __auto_type bv = cn_init_500;
+__auto_type cn_init_508 = rg[4]; __auto_type av = cn_init_508;
+__auto_type cn_init_526 = cn_alu(&fl,Alu_Sub,av,bv,4); __auto_type r = cn_init_526;
+(rg[4]=r);
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2009=(((s2009&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[3])))&0xffffffffULL))<<32))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2009=(((s2009&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<0))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2008=(((s2008&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[7])))&0xffffffffULL))<<32))));
+}
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[7]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+(rg[3]=rg[0]);
+(f[0]=cn_double(r3));
+(f[0]=fabs(f[0]));
+{
+__auto_type cn_init_756 = cn_double(v33); __auto_type v = cn_init_756;
+(f[0]=(f[0]*v));
+}
+(r3=cn_bits(f[0]));
+(f[0]=cn_double(r4));
+(f[0]=fabs(f[0]));
+{
+__auto_type cn_init_817 = cn_double(v33); __auto_type v = cn_init_817;
+(f[0]=(f[0]*v));
+}
+(r4=cn_bits(f[0]));
+(f[0]=cn_double(r5));
+(f[0]=fabs(f[0]));
+{
+__auto_type cn_init_878 = cn_double(v33); __auto_type v = cn_init_878;
+(f[0]=(f[0]*v));
+}
+(r5=cn_bits(f[0]));
+(f[0]=cn_double(r6));
+{
+__auto_type cn_init_925 = cn_double(v33); __auto_type v = cn_init_925;
+(f[0]=(f[0]*v));
+}
+{
+__auto_type cn_init_949 = cn_double(v29); __auto_type v = cn_init_949;
+(f[0]=(f[0]/v));
+}
+{
+__auto_type cn_init_973 = cn_double(v30); __auto_type v = cn_init_973;
+(f[0]=(f[0]*v));
+}
+(r6=cn_bits(f[0]));
+(f[0]=cn_double(r3));
+(f[1]=cn_double(r4));
+(fsw=cn_compare(f[1],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x0))))));
+{
+__auto_type cn_init_1064 = 0x41U; __auto_type bv = cn_init_1064;
+__auto_type cn_init_1077 = cn_reg_get(rg,4,1); __auto_type av = cn_init_1077;
+__auto_type cn_init_1095 = cn_alu(&fl,Alu_And,av,bv,1); __auto_type r = cn_init_1095;
+cn_reg_set(rg,4,1,r);
+}
+if(cn_cond(fl,7)){
+goto cn_break_b2;
+}
+(f[0]=cn_double(r3));
+(f[1]=cn_double(r4));
+(r3=cn_bits(f[1]));
+(r4=cn_bits(f[0]));
+}
+cn_break_b2:;
+(f[0]=cn_double(r3));
+(f[1]=cn_double(r5));
+(fsw=cn_compare(f[1],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x0))))));
+{
+__auto_type cn_init_1235 = 0x41U; __auto_type bv = cn_init_1235;
+__auto_type cn_init_1248 = cn_reg_get(rg,4,1); __auto_type av = cn_init_1248;
+__auto_type cn_init_1266 = cn_alu(&fl,Alu_And,av,bv,1); __auto_type r = cn_init_1266;
+cn_reg_set(rg,4,1,r);
+}
+if(cn_cond(fl,7)){
+goto cn_break_b4;
+}
+(f[0]=cn_double(r3));
+(f[1]=cn_double(r5));
+(r3=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+}
+cn_break_b4:;
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(fsw=cn_compare(f[1],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x0))))));
+{
+__auto_type cn_init_1406 = 0x41U; __auto_type bv = cn_init_1406;
+__auto_type cn_init_1419 = cn_reg_get(rg,4,1); __auto_type av = cn_init_1419;
+__auto_type cn_init_1437 = cn_alu(&fl,Alu_And,av,bv,1); __auto_type r = cn_init_1437;
+cn_reg_set(rg,4,1,r);
+}
+if(cn_cond(fl,6)){
+goto cn_break_b6;
+}
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(r5=cn_bits(f[1]));
+(r4=cn_bits(f[0]));
+}
+cn_break_b6:;
+(f[0]=cn_double(r5));
+{
+__auto_type cn_init_1533 = cn_double(v25); __auto_type v = cn_init_1533;
+(f[0]=(f[0]+v));
+}
+(f[1]=cn_double(r4));
+{
+__auto_type cn_init_1569 = cn_double(v26); __auto_type v = cn_init_1569;
+(f[1]=(f[1]+v));
+}
+(f[2]=cn_double(r3));
+{
+__auto_type cn_init_1605 = cn_double(v27); __auto_type v = cn_init_1605;
+(f[2]=(f[2]+v));
+}
+(f[3]=f[2]);
+{
+__auto_type cn_init_1653 = (((double)(cn_float(((uint32_t)(((((v21>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_1653;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_1701 = (((double)(cn_float(((uint32_t)(((((v21>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_1701;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_1764 = (((double)(cn_float(((uint32_t)(((((v20>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_1764;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_1827 = (((double)(cn_float(((uint32_t)(((((v24>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_1827;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_1875 = (((double)(cn_float(((uint32_t)(((((v24>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_1875;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_1938 = (((double)(cn_float(((uint32_t)(((((v23>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_1938;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_2000 = (((double)(cn_float(((uint32_t)(((((v23>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2000;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_2047 = (((double)(cn_float(((uint32_t)(((((v22>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2047;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_2109 = (((double)(cn_float(((uint32_t)(((((v22>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2109;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(f[0]=cn_double(v28));
+{
+__auto_type cn_init_2193 = cn_double(r5); __auto_type v = cn_init_2193;
+(f[0]=(f[0]-v));
+}
+(f[0]=fabs(f[0]));
+(f[0]=-f[0]);
+{
+__auto_type cn_init_2242 = cn_double(v28); __auto_type v = cn_init_2242;
+(f[0]=(f[0]+v));
+}
+(r5=cn_bits(f[0]));
+(f[0]=cn_double(v33));
+(f[1]=f[0]);
+(f[2]=cn_double(v29));
+(f[1]=(f[1]+f[2]));
+(s2011=cn_bits(f[1]));
+(f[1]=cn_double(v29));
+(f[0]=(f[0]-f[1]));
+(s2010=cn_bits(f[0]));
+(f[0]=cn_double(r3));
+{
+__auto_type cn_init_2387 = cn_double(s2010); __auto_type v = cn_init_2387;
+(f[0]=(f[0]-v));
+}
+(s2013=cn_bits(f[0]));
+(f[0]=cn_double(r3));
+{
+__auto_type cn_init_2434 = cn_double(s2011); __auto_type v = cn_init_2434;
+(f[0]=(f[0]-v));
+}
+(s2012=cn_bits(f[0]));
+(f[0]=cn_double(s2013));
+(f[1]=cn_double(r4));
+(fsw=cn_compare(f[1],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x0))))));
+{
+__auto_type cn_init_2525 = 0x41U; __auto_type bv = cn_init_2525;
+__auto_type cn_init_2538 = cn_reg_get(rg,4,1); __auto_type av = cn_init_2538;
+__auto_type cn_init_2556 = cn_alu(&fl,Alu_And,av,bv,1); __auto_type r = cn_init_2556;
+cn_reg_set(rg,4,1,r);
+}
+if(cn_cond(fl,7)){
+goto cn_break_b8;
+}
+(f[0]=cn_double(s2013));
+(r3=cn_bits(f[0]));
+(f[0]=cn_double(r4));
+{
+__auto_type cn_init_2628 = cn_double(s2010); __auto_type v = cn_init_2628;
+(f[0]=(f[0]-v));
+}
+(r4=cn_bits(f[0]));
+goto cn_break_b11;
+}
+cn_break_b8:;
+(f[0]=cn_double(s2012));
+(f[1]=cn_double(r4));
+(fsw=cn_compare(f[1],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x0))))));
+{
+__auto_type cn_init_2723 = 0x41U; __auto_type bv = cn_init_2723;
+__auto_type cn_init_2736 = cn_reg_get(rg,4,1); __auto_type av = cn_init_2736;
+__auto_type cn_init_2754 = cn_alu(&fl,Alu_And,av,bv,1); __auto_type r = cn_init_2754;
+cn_reg_set(rg,4,1,r);
+}
+if(cn_cond(fl,6)){
+goto cn_break_b10;
+}
+(f[0]=cn_double(s2012));
+(r3=cn_bits(f[0]));
+goto cn_break_b11;
+}
+cn_break_b10:;
+(f[0]=cn_double(r4));
+(f[1]=cn_double(s2012));
+(r4=cn_bits(f[1]));
+(r3=cn_bits(f[0]));
+}
+cn_break_b11:;
+(f[0]=cn_double(r3));
+{
+__auto_type cn_init_2877 = cn_double(v30); __auto_type v = cn_init_2877;
+(f[0]=(f[0]*v));
+}
+{
+__auto_type cn_init_2901 = cn_double(v29); __auto_type v = cn_init_2901;
+(f[0]=(f[0]/v));
+}
+(r3=cn_bits(f[0]));
+(f[0]=cn_double(r4));
+{
+__auto_type cn_init_2948 = cn_double(v30); __auto_type v = cn_init_2948;
+(f[0]=(f[0]*v));
+}
+{
+__auto_type cn_init_2972 = cn_double(v29); __auto_type v = cn_init_2972;
+(f[0]=(f[0]/v));
+}
+(r4=cn_bits(f[0]));
+(f[0]=cn_double(r5));
+{
+__auto_type cn_init_3019 = cn_double(v30); __auto_type v = cn_init_3019;
+(f[0]=(f[0]*v));
+}
+(r5=cn_bits(f[0]));
+(rg[0]=rg[3]);
+{
+(rg[7]=((uint32_t)(((((s2008>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[6]=((uint32_t)(((((s2009>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[3]=((uint32_t)(((((s2009>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[4]=rg[5]);
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(3),r3);
+cn_wr64(m,CN_REC+8*(4),r4);
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64(m,CN_REC+8*(6),r6);
+cn_wr64u(m,0x10007ec0U,s2008);
+cn_wr64u(m,0x10007ec8U,s2009);
+cn_wr64u(m,0x10007ed0U,s2010);
+cn_wr64u(m,0x10007ed8U,s2011);
+cn_wr64u(m,0x10007ee0U,s2012);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_f19722dc8c8c12d9(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_51 = ((uint32_t)(pvar-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+128))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_88 = cn_rd64(m,CN_REC+8*(3)); uint64_t r3 = cn_init_88;
+__auto_type cn_init_105 = cn_rd64(m,CN_REC+8*(4)); uint64_t r4 = cn_init_105;
+__auto_type cn_init_122 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_122;
+__auto_type cn_init_139 = cn_rd64(m,CN_REC+8*(6)); uint64_t r6 = cn_init_139;
+__auto_type cn_init_156 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_156;
+__auto_type cn_init_169 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_169;
+__auto_type cn_init_182 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_182;
+__auto_type cn_init_195 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_195;
+__auto_type cn_init_208 = cn_cell(vm,0); uint64_t v16 = cn_init_208;
+__auto_type cn_init_221 = cn_cell(vm,8); uint64_t v17 = cn_init_221;
+__auto_type cn_init_234 = cn_cell(vm,16); uint64_t v18 = cn_init_234;
+__auto_type cn_init_247 = cn_cell(vm,24); uint64_t v19 = cn_init_247;
+__auto_type cn_init_260 = cn_cell(vm,32); uint64_t v20 = cn_init_260;
+__auto_type cn_init_273 = cn_cell(vm,40); uint64_t v21 = cn_init_273;
+__auto_type cn_init_286 = cn_cell(vm,48); uint64_t v22 = cn_init_286;
+__auto_type cn_init_299 = cn_cell(vm,56); uint64_t v23 = cn_init_299;
+__auto_type cn_init_312 = cn_cell(vm,64); uint64_t v24 = cn_init_312;
+__auto_type cn_init_325 = cn_cell(vm,72); uint64_t v25 = cn_init_325;
+__auto_type cn_init_338 = cn_cell(vm,80); uint64_t v26 = cn_init_338;
+__auto_type cn_init_351 = cn_cell(vm,88); uint64_t v27 = cn_init_351;
+__auto_type cn_init_364 = cn_cell(vm,96); uint64_t v28 = cn_init_364;
+__auto_type cn_init_377 = cn_cell(vm,104); uint64_t v29 = cn_init_377;
+__auto_type cn_init_390 = cn_cell(vm,112); uint64_t v30 = cn_init_390;
+__auto_type cn_init_403 = cn_cell(vm,120); uint64_t v31 = cn_init_403;
+{
+{
+{
+{
+{
+{
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[3])))&0xffffffffULL))<<32))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<0))));
+}
+(rg[3]=rg[0]);
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[6]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+{
+__auto_type cn_init_625 = 0x7fffffffU; __auto_type v = cn_init_625;
+(rg[0]=v);
+}
+{
+__auto_type cn_init_642 = rg[0]; __auto_type bv = cn_init_642;
+__auto_type cn_init_659 = (((uint32_t)(((((r5>>32))&0xffffffffULL))))); __auto_type av = cn_init_659;
+__auto_type cn_init_677 = cn_alu(&fl,Alu_And,av,bv,4); __auto_type r = cn_init_677;
+(r5=(((r5&~((0xffffffffULL<<32))))|(((((((uint64_t)((r))))&0xffffffffULL))<<32))));
+}
+{
+__auto_type cn_init_716 = rg[0]; __auto_type bv = cn_init_716;
+__auto_type cn_init_733 = (((uint32_t)(((((r4>>32))&0xffffffffULL))))); __auto_type av = cn_init_733;
+__auto_type cn_init_751 = cn_alu(&fl,Alu_And,av,bv,4); __auto_type r = cn_init_751;
+(r4=(((r4&~((0xffffffffULL<<32))))|(((((((uint64_t)((r))))&0xffffffffULL))<<32))));
+}
+{
+__auto_type cn_init_790 = rg[0]; __auto_type bv = cn_init_790;
+__auto_type cn_init_807 = (((uint32_t)(((((r3>>32))&0xffffffffULL))))); __auto_type av = cn_init_807;
+__auto_type cn_init_825 = cn_alu(&fl,Alu_And,av,bv,4); __auto_type r = cn_init_825;
+(r3=(((r3&~((0xffffffffULL<<32))))|(((((((uint64_t)((r))))&0xffffffffULL))<<32))));
+}
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_926 = (((double)(cn_float(((uint32_t)(((((v23>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_926;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_974 = (((double)(cn_float(((uint32_t)(((((v23>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_974;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_1037 = (((double)(cn_float(((uint32_t)(((((v22>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_1037;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_1100 = (((double)(cn_float(((uint32_t)(((((v26>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_1100;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_1148 = (((double)(cn_float(((uint32_t)(((((v26>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_1148;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_1211 = (((double)(cn_float(((uint32_t)(((((v25>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_1211;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_1273 = (((double)(cn_float(((uint32_t)(((((v25>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_1273;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_1320 = (((double)(cn_float(((uint32_t)(((((v24>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_1320;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_1382 = (((double)(cn_float(((uint32_t)(((((v24>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_1382;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(fsw=cn_compare(f[2],f[1]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x2800))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b2;
+}
+cn_swap(f,2,1);
+}
+cn_break_b2:;
+(fsw=cn_compare(f[2],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x2800))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b4;
+}
+cn_swap(f,2,0);
+}
+cn_break_b4:;
+cn_swap(f,2,1);
+(fsw=cn_compare(f[2],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x2800))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b6;
+}
+cn_swap(f,2,0);
+}
+cn_break_b6:;
+(f[3]=cn_double(v17));
+(f[4]=cn_double(0x0));
+(fsw=cn_compare(f[4],f[3]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x2000))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b8;
+}
+(f[3]=(f[3]-f[1]));
+(f[3]=fabs(f[3]));
+(f[3]=-f[3]);
+{
+__auto_type cn_init_1804 = cn_double(v17); __auto_type v = cn_init_1804;
+(f[3]=(f[3]+v));
+}
+cn_swap(f,3,1);
+}
+cn_break_b8:;
+(f[3]=f[3]);
+(f[3]=cn_double(v16));
+(f[4]=cn_double(0x0));
+(fsw=cn_compare(f[4],f[3]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x2000))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b10;
+}
+(f[3]=(f[3]-f[2]));
+(f[3]=fabs(f[3]));
+(f[3]=-f[3]);
+{
+__auto_type cn_init_1982 = cn_double(v16); __auto_type v = cn_init_1982;
+(f[3]=(f[3]+v));
+}
+cn_swap(f,3,2);
+}
+cn_break_b10:;
+(f[3]=f[3]);
+(f[3]=f[1]);
+{
+__auto_type cn_init_2050 = (((double)(cn_float(((uint32_t)(((((v19>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2050;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[2]);
+{
+__auto_type cn_init_2098 = (((double)(cn_float(((uint32_t)(((((v18>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2098;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_2161 = (((double)(cn_float(((uint32_t)(((((v18>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2161;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[1]);
+{
+__auto_type cn_init_2224 = (((double)(cn_float(((uint32_t)(((((v22>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2224;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[2]);
+{
+__auto_type cn_init_2272 = (((double)(cn_float(((uint32_t)(((((v21>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2272;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_2335 = (((double)(cn_float(((uint32_t)(((((v21>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2335;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,1);
+{
+__auto_type cn_init_2397 = (((double)(cn_float(((uint32_t)(((((v20>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2397;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,2);
+{
+__auto_type cn_init_2444 = (((double)(cn_float(((uint32_t)(((((v20>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2444;
+(f[4]=(f[4]*v));
+}
+(f[2]=(f[2]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_2506 = (((double)(cn_float(((uint32_t)(((((v19>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2506;
+(f[3]=(f[3]*v));
+}
+(f[2]=(f[2]+f[3]));
+(f[3]=cn_double(v30));
+(f[4]=cn_double(r6));
+(f[4]=(f[4]*f[3]));
+(r6=cn_bits(f[4]));
+(f[0]=(f[0]*f[3]));
+(f[1]=(f[1]*f[3]));
+(f[2]=(f[2]*f[3]));
+(f[4]=cn_double(0x3ff0000000000000));
+(f[3]=(f[3]-f[4]));
+(f[4]=f[3]);
+(f[5]=f[4]);
+{
+__auto_type cn_init_2687 = cn_double(v29); __auto_type v = cn_init_2687;
+(f[5]=(f[5]*v));
+}
+(f[1]=(f[1]-f[5]));
+{
+__auto_type cn_init_2726 = cn_double(v28); __auto_type v = cn_init_2726;
+(f[4]=(f[4]*v));
+}
+(f[2]=(f[2]-f[4]));
+{
+__auto_type cn_init_2765 = cn_double(v27); __auto_type v = cn_init_2765;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[3]);
+{
+__auto_type cn_init_2799 = cn_double(v31); __auto_type v = cn_init_2799;
+(f[4]=(f[4]*v));
+}
+(fsw=cn_compare(f[4],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x2000))))));
+{
+__auto_type cn_init_2855 = 0x41U; __auto_type bv = cn_init_2855;
+__auto_type cn_init_2868 = cn_reg_get(rg,4,1); __auto_type av = cn_init_2868;
+__auto_type cn_init_2886 = cn_alu(&fl,Alu_And,av,bv,1); __auto_type r = cn_init_2886;
+cn_reg_set(rg,4,1,r);
+}
+if(cn_cond(fl,4)){
+goto cn_break_b12;
+}
+(f[0]=(f[0]-f[3]));
+}
+cn_break_b12:;
+(f[3]=f[3]);
+(r4=cn_bits(f[2]));
+(r3=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[0]=rg[3]);
+{
+(rg[6]=((uint32_t)(((((s2013>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[3]=((uint32_t)(((((s2013>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(3),r3);
+cn_wr64(m,CN_REC+8*(4),r4);
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64(m,CN_REC+8*(6),r6);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_f1ba1b4b15115e83(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_51 = ((uint32_t)(pvar-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+200))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_88 = cn_rd64(m,CN_REC+8*(0)); uint64_t r0 = cn_init_88;
+__auto_type cn_init_105 = cn_rd64(m,CN_REC+8*(3)); uint64_t r3 = cn_init_105;
+__auto_type cn_init_122 = cn_rd64(m,CN_REC+8*(4)); uint64_t r4 = cn_init_122;
+__auto_type cn_init_139 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_139;
+__auto_type cn_init_156 = cn_rd64(m,CN_REC+8*(6)); uint64_t r6 = cn_init_156;
+__auto_type cn_init_173 = cn_rd64(m,CN_REC+8*(10)); uint64_t r10 = cn_init_173;
+__auto_type cn_init_190 = cn_rd64(m,CN_REC+8*(11)); uint64_t r11 = cn_init_190;
+__auto_type cn_init_207 = cn_rd64(m,CN_REC+8*(12)); uint64_t r12 = cn_init_207;
+__auto_type cn_init_224 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_224;
+__auto_type cn_init_237 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_237;
+__auto_type cn_init_250 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_250;
+__auto_type cn_init_263 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_263;
+__auto_type cn_init_276 = cn_cell(vm,0); uint64_t v25 = cn_init_276;
+__auto_type cn_init_289 = cn_cell(vm,8); uint64_t v26 = cn_init_289;
+__auto_type cn_init_302 = cn_cell(vm,16); uint64_t v27 = cn_init_302;
+__auto_type cn_init_315 = cn_cell(vm,24); uint64_t v28 = cn_init_315;
+__auto_type cn_init_328 = cn_cell(vm,32); uint64_t v29 = cn_init_328;
+__auto_type cn_init_341 = cn_cell(vm,40); uint64_t v30 = cn_init_341;
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<32))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[7])))&0xffffffffULL))<<0))));
+}
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[7]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+(f[0]=cn_double(r3));
+(f[0]=(f[0]*f[0]));
+(f[1]=cn_double(r4));
+(f[1]=(f[1]*f[1]));
+(f[1]=-f[1]);
+(f[0]=(f[0]+f[1]));
+(f[1]=cn_double(r5));
+(f[1]=(f[1]*f[1]));
+(f[1]=-f[1]);
+(f[0]=(f[0]+f[1]));
+(f[1]=cn_double(r6));
+(f[1]=(f[1]*f[1]));
+(f[0]=(f[0]+f[1]));
+{
+__auto_type cn_init_715 = cn_double(v30); __auto_type v = cn_init_715;
+(f[0]=(f[0]*v));
+}
+{
+__auto_type cn_init_739 = cn_double(r10); __auto_type v = cn_init_739;
+(f[0]=(f[0]+v));
+}
+(f[1]=cn_double(r3));
+{
+__auto_type cn_init_775 = cn_double(r4); __auto_type v = cn_init_775;
+(f[1]=(f[1]*v));
+}
+(f[2]=cn_double(r5));
+{
+__auto_type cn_init_811 = cn_double(r6); __auto_type v = cn_init_811;
+(f[2]=(f[2]*v));
+}
+(f[1]=(f[1]+f[2]));
+{
+__auto_type cn_init_850 = cn_double(v29); __auto_type v = cn_init_850;
+(f[1]=(f[1]*v));
+}
+{
+__auto_type cn_init_874 = cn_double(r11); __auto_type v = cn_init_874;
+(f[1]=(f[1]+v));
+}
+(f[2]=cn_double(r3));
+{
+__auto_type cn_init_910 = cn_double(r5); __auto_type v = cn_init_910;
+(f[2]=(f[2]*v));
+}
+{
+__auto_type cn_init_934 = cn_double(v28); __auto_type v = cn_init_934;
+(f[2]=(f[2]*v));
+}
+(f[3]=cn_double(r4));
+{
+__auto_type cn_init_970 = cn_double(r6); __auto_type v = cn_init_970;
+(f[3]=(f[3]*v));
+}
+{
+__auto_type cn_init_994 = cn_double(v27); __auto_type v = cn_init_994;
+(f[3]=(f[3]*v));
+}
+(f[2]=(f[2]+f[3]));
+{
+__auto_type cn_init_1033 = cn_double(r12); __auto_type v = cn_init_1033;
+(f[2]=(f[2]+v));
+}
+(f[3]=cn_double(r3));
+{
+__auto_type cn_init_1069 = cn_double(r6); __auto_type v = cn_init_1069;
+(f[3]=(f[3]*v));
+}
+(f[4]=cn_double(r4));
+{
+__auto_type cn_init_1105 = cn_double(r5); __auto_type v = cn_init_1105;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+{
+__auto_type cn_init_1144 = cn_double(v26); __auto_type v = cn_init_1144;
+(f[3]=(f[3]*v));
+}
+{
+__auto_type cn_init_1168 = cn_double(r0); __auto_type v = cn_init_1168;
+(f[3]=(f[3]+v));
+}
+{
+__auto_type cn_init_1192 = cn_double(v25); __auto_type v = cn_init_1192;
+(f[3]=(f[3]+v));
+}
+(r6=cn_bits(f[3]));
+(r5=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r3=cn_bits(f[0]));
+{
+(rg[7]=((uint32_t)(((((s2013>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[6]=((uint32_t)(((((s2013>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(3),r3);
+cn_wr64(m,CN_REC+8*(4),r4);
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64(m,CN_REC+8*(6),r6);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_f1d590365a4793b6(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_51 = ((uint32_t)(pvar-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+200))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_88 = cn_rd64(m,CN_REC+8*(3)); uint64_t r3 = cn_init_88;
+__auto_type cn_init_105 = cn_rd64(m,CN_REC+8*(4)); uint64_t r4 = cn_init_105;
+__auto_type cn_init_122 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_122;
+__auto_type cn_init_139 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_139;
+__auto_type cn_init_152 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_152;
+__auto_type cn_init_165 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_165;
+__auto_type cn_init_178 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_178;
+__auto_type cn_init_191 = cn_cell(vm,0); uint64_t v25 = cn_init_191;
+__auto_type cn_init_204 = cn_cell(vm,8); uint64_t v26 = cn_init_204;
+__auto_type cn_init_217 = cn_cell(vm,16); uint64_t v27 = cn_init_217;
+__auto_type cn_init_230 = cn_cell(vm,24); uint64_t v28 = cn_init_230;
+__auto_type cn_init_243 = cn_cell(vm,32); uint64_t v29 = cn_init_243;
+__auto_type cn_init_256 = cn_cell(vm,40); uint64_t v30 = cn_init_256;
+{
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<32))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[3])))&0xffffffffULL))<<0))));
+}
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[3]=rg[0]);
+(rg[6]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+(f[0]=cn_double(r3));
+{
+__auto_type cn_init_480 = cn_double(v28); __auto_type v = cn_init_480;
+(f[0]=(f[0]*v));
+}
+(f[1]=cn_double(r5));
+{
+__auto_type cn_init_516 = cn_double(v27); __auto_type v = cn_init_516;
+(f[1]=(f[1]*v));
+}
+(f[1]=-f[1]);
+(f[0]=(f[0]+f[1]));
+{
+__auto_type cn_init_566 = cn_double(v26); __auto_type v = cn_init_566;
+(f[0]=(f[0]+v));
+}
+(f[1]=f[0]);
+(f[1]=fabs(f[1]));
+(f[1]=sqrt(f[1]));
+cn_swap(f,1,0);
+(f[2]=cn_double(0x0));
+(fsw=cn_compare(f[2],f[1]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x3800))))));
+{
+__auto_type cn_init_681 = 0x41U; __auto_type bv = cn_init_681;
+__auto_type cn_init_694 = cn_reg_get(rg,4,1); __auto_type av = cn_init_694;
+__auto_type cn_init_712 = cn_alu(&fl,Alu_And,av,bv,1); __auto_type r = cn_init_712;
+cn_reg_set(rg,4,1,r);
+}
+if(cn_cond(fl,15)){
+goto cn_break_b2;
+}
+(f[0]=-f[0]);
+}
+cn_break_b2:;
+{
+__auto_type cn_init_761 = cn_double(r4); __auto_type v = cn_init_761;
+(f[0]=(f[0]+v));
+}
+(f[1]=cn_double(v29));
+{
+__auto_type cn_init_797 = cn_double(r3); __auto_type v = cn_init_797;
+(f[1]=(f[1]-v));
+}
+{
+__auto_type cn_init_821 = cn_double(v30); __auto_type v = cn_init_821;
+(f[1]=(f[1]*v));
+}
+(f[2]=cn_double(v29));
+{
+__auto_type cn_init_857 = cn_double(r4); __auto_type v = cn_init_857;
+(f[2]=(f[2]*v));
+}
+(f[3]=cn_double(r3));
+{
+__auto_type cn_init_893 = cn_double(v28); __auto_type v = cn_init_893;
+(f[3]=(f[3]*v));
+}
+(f[3]=-f[3]);
+(f[2]=(f[2]+f[3]));
+{
+__auto_type cn_init_943 = cn_double(v25); __auto_type v = cn_init_943;
+(f[2]=(f[2]*v));
+}
+{
+__auto_type cn_init_967 = cn_double(r5); __auto_type v = cn_init_967;
+(f[2]=(f[2]+v));
+}
+(r5=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r3=cn_bits(f[0]));
+(rg[0]=rg[3]);
+{
+(rg[3]=((uint32_t)(((((s2013>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[6]=((uint32_t)(((((s2013>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(3),r3);
+cn_wr64(m,CN_REC+8*(4),r4);
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_f37a6105e1854b32(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_51 = ((uint32_t)(pvar-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+216))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_88 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_88;
+__auto_type cn_init_105 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_105;
+__auto_type cn_init_118 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_118;
+__auto_type cn_init_131 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_131;
+__auto_type cn_init_144 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_144;
+__auto_type cn_init_157 = cn_cell(vm,0); uint64_t v27 = cn_init_157;
+__auto_type cn_init_170 = cn_cell(vm,8); uint64_t v28 = cn_init_170;
+__auto_type cn_init_183 = cn_cell(vm,16); uint64_t v29 = cn_init_183;
+__auto_type cn_init_196 = cn_cell(vm,24); uint64_t v30 = cn_init_196;
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<32))));
+}
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[6]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(v28));
+(f[0]=(f[0]*f[1]));
+(f[1]=cn_double(v30));
+(f[0]=(f[0]+f[1]));
+(f[1]=f[0]);
+(f[1]=(f[1]*f[1]));
+(f[2]=cn_double(0x3ff0000000000000));
+(f[1]=(f[1]+f[2]));
+(f[1]=sqrt(f[1]));
+(f[0]=(f[0]+f[1]));
+(f[1]=cn_double(v27));
+cn_swap(f,1,0);
+(f[0]*=log2(f[1]));
+(f[1]=cn_double(v29));
+(f[0]=(f[0]-f[1]));
+(r5=cn_bits(f[0]));
+{
+(rg[6]=((uint32_t)(((((s2013>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_f6c64401ae59f789(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_51 = ((uint32_t)(pvar-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+216))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_88 = cn_rd64(m,CN_REC+8*(7)); uint64_t r7 = cn_init_88;
+__auto_type cn_init_105 = cn_rd64(m,CN_REC+8*(8)); uint64_t r8 = cn_init_105;
+__auto_type cn_init_122 = cn_rd64(m,CN_REC+8*(9)); uint64_t r9 = cn_init_122;
+__auto_type cn_init_139 = cn_rd64(m,CN_REC+8*(10)); uint64_t r10 = cn_init_139;
+__auto_type cn_init_156 = cn_rd64(m,CN_REC+8*(11)); uint64_t r11 = cn_init_156;
+__auto_type cn_init_173 = cn_rd64(m,CN_REC+8*(12)); uint64_t r12 = cn_init_173;
+__auto_type cn_init_190 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_190;
+__auto_type cn_init_203 = cn_rd64u(m,0x10007ee0U); uint64_t s2012 = cn_init_203;
+__auto_type cn_init_216 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_216;
+__auto_type cn_init_229 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_229;
+__auto_type cn_init_242 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_242;
+__auto_type cn_init_255 = cn_cell(vm,0); uint64_t v27 = cn_init_255;
+__auto_type cn_init_268 = cn_cell(vm,8); uint64_t v28 = cn_init_268;
+__auto_type cn_init_281 = cn_cell(vm,16); uint64_t v29 = cn_init_281;
+__auto_type cn_init_294 = cn_cell(vm,24); uint64_t v30 = cn_init_294;
+__auto_type cn_init_307 = cn_cell(vm,40); uint64_t v32 = cn_init_307;
+{
+{
+{
+{
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<32))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[7])))&0xffffffffULL))<<0))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2012=(((s2012&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[0])))&0xffffffffULL))<<32))));
+}
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[7]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+(f[0]=cn_double(r7));
+{
+__auto_type cn_init_577 = cn_double(v30); __auto_type v = cn_init_577;
+(f[0]=(f[0]-v));
+}
+(f[1]=cn_double(r8));
+{
+__auto_type cn_init_613 = cn_double(v29); __auto_type v = cn_init_613;
+(f[1]=(f[1]-v));
+}
+(f[2]=cn_double(r9));
+{
+__auto_type cn_init_649 = cn_double(v28); __auto_type v = cn_init_649;
+(f[2]=(f[2]-v));
+}
+(f[3]=f[0]);
+(f[3]=(f[3]*f[3]));
+(f[4]=f[1]);
+(f[4]=(f[4]*f[4]));
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+(f[4]=(f[4]*f[4]));
+(f[3]=(f[3]+f[4]));
+(f[3]=sqrt(f[3]));
+(fsw=cn_compare(f[3],cn_double(v27)));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x2000))))));
+{
+__auto_type cn_init_826 = 0x41U; __auto_type bv = cn_init_826;
+__auto_type cn_init_839 = cn_reg_get(rg,4,1); __auto_type av = cn_init_839;
+__auto_type cn_init_857 = cn_alu(&fl,Alu_And,av,bv,1); __auto_type r = cn_init_857;
+cn_reg_set(rg,4,1,r);
+}
+if(cn_cond(fl,5)){
+goto cn_break_b6;
+}
+(f[4]=f[3]);
+{
+__auto_type cn_init_904 = cn_double(v27); __auto_type v = cn_init_904;
+(f[4]=(f[4]-v));
+}
+(f[5]=f[3]);
+(f[5]=fabs(f[5]));
+(fsw=cn_compare(f[5],cn_double(v32)));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x1800))))));
+{
+__auto_type cn_init_986 = 0x41U; __auto_type bv = cn_init_986;
+__auto_type cn_init_999 = cn_reg_get(rg,4,1); __auto_type av = cn_init_999;
+__auto_type cn_init_1017 = cn_alu(&fl,Alu_And,av,bv,1); __auto_type r = cn_init_1017;
+cn_reg_set(rg,4,1,r);
+}
+if(cn_cond(fl,4)){
+goto cn_break_b5;
+}
+cn_swap(f,4,3);
+(f[5]=cn_double(0x0));
+(fsw=cn_compare(f[5],f[4]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x2000))))));
+(f[4]=cn_double(v32));
+{
+__auto_type cn_init_1119 = 0x41U; __auto_type bv = cn_init_1119;
+__auto_type cn_init_1132 = cn_reg_get(rg,4,1); __auto_type av = cn_init_1132;
+__auto_type cn_init_1150 = cn_alu(&fl,Alu_And,av,bv,1); __auto_type r = cn_init_1150;
+cn_reg_set(rg,4,1,r);
+}
+if(cn_cond(fl,5)){
+goto cn_break_b4;
+}
+(f[4]=-f[4]);
+}
+cn_break_b4:;
+cn_swap(f,4,3);
+}
+cn_break_b5:;
+(f[3]=(f[4]/f[3]));
+(f[0]=(f[0]*f[3]));
+(f[1]=(f[1]*f[3]));
+(f[2]=(f[2]*f[3]));
+{
+__auto_type cn_init_1269 = cn_double(r12); __auto_type v = cn_init_1269;
+(f[2]=(f[2]+v));
+}
+(r12=cn_bits(f[2]));
+{
+__auto_type cn_init_1304 = cn_double(r11); __auto_type v = cn_init_1304;
+(f[1]=(f[1]+v));
+}
+(r11=cn_bits(f[1]));
+{
+__auto_type cn_init_1339 = cn_double(r10); __auto_type v = cn_init_1339;
+(f[0]=(f[0]+v));
+}
+(r10=cn_bits(f[0]));
+goto cn_break_b7;
+}
+cn_break_b6:;
+(fsw=cn_compare(f[3],f[2]));
+(fsw=cn_compare(f[1],f[0]));
+}
+cn_break_b7:;
+{
+(rg[0]=((uint32_t)(((((s2012>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[7]=((uint32_t)(((((s2013>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[6]=((uint32_t)(((((s2013>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(10),r10);
+cn_wr64(m,CN_REC+8*(11),r11);
+cn_wr64(m,CN_REC+8*(12),r12);
+cn_wr64u(m,0x10007ee0U,s2012);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_f7d7af6ba66543c7(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_47 = 0ULL; __auto_type steps = cn_init_47;
+__auto_type cn_init_52 = max_steps; __auto_type limit = cn_init_52;
+__auto_type cn_init_62 = ((uint32_t)(pvar-256)); __auto_type vb = cn_init_62;
+__auto_type cn_init_82 = cn_ptr(m,((uint32_t)(vb+168))); unsigned char * vm = cn_init_82;
+__auto_type cn_init_99 = cn_rd64(m,CN_REC+8*(3)); uint64_t r3 = cn_init_99;
+__auto_type cn_init_116 = cn_rd64(m,CN_REC+8*(4)); uint64_t r4 = cn_init_116;
+__auto_type cn_init_133 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_133;
+__auto_type cn_init_150 = cn_rd64(m,CN_REC+8*(10)); uint64_t r10 = cn_init_150;
+__auto_type cn_init_167 = cn_rd64(m,CN_REC+8*(11)); uint64_t r11 = cn_init_167;
+__auto_type cn_init_184 = cn_rd64(m,CN_REC+8*(12)); uint64_t r12 = cn_init_184;
+__auto_type cn_init_201 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_201;
+__auto_type cn_init_218 = cn_rd64(m,CN_REC+8*(15)); uint64_t r15 = cn_init_218;
+__auto_type cn_init_231 = cn_rd64u(m,0x10007eb0U); uint64_t s2006 = cn_init_231;
+__auto_type cn_init_244 = cn_rd64u(m,0x10007eb8U); uint64_t s2007 = cn_init_244;
+__auto_type cn_init_257 = cn_rd64u(m,0x10007ed0U); uint64_t s2010 = cn_init_257;
+__auto_type cn_init_270 = cn_rd64u(m,0x10007ed8U); uint64_t s2011 = cn_init_270;
+__auto_type cn_init_283 = cn_rd64u(m,0x10007ee0U); uint64_t s2012 = cn_init_283;
+__auto_type cn_init_296 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_296;
+__auto_type cn_init_309 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_309;
+__auto_type cn_init_322 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_322;
+__auto_type cn_init_335 = cn_cell(vm,0); uint64_t v21 = cn_init_335;
+__auto_type cn_init_348 = cn_cell(vm,8); uint64_t v22 = cn_init_348;
+__auto_type cn_init_361 = cn_cell(vm,16); uint64_t v23 = cn_init_361;
+__auto_type cn_init_374 = cn_cell(vm,24); uint64_t v24 = cn_init_374;
+__auto_type cn_init_387 = cn_cell(vm,32); uint64_t v25 = cn_init_387;
+__auto_type cn_init_400 = cn_cell(vm,40); uint64_t v26 = cn_init_400;
+__auto_type cn_init_413 = cn_cell(vm,48); uint64_t v27 = cn_init_413;
+__auto_type cn_init_426 = cn_cell(vm,56); uint64_t v28 = cn_init_426;
+__auto_type cn_init_439 = cn_cell(vm,64); uint64_t v29 = cn_init_439;
+__auto_type cn_init_452 = cn_cell(vm,72); uint64_t v30 = cn_init_452;
+__auto_type cn_init_465 = cn_cell(vm,88); uint64_t v32 = cn_init_465;
+__auto_type cn_init_478 = cn_cell(vm,96); uint64_t v33 = cn_init_478;
+__auto_type cn_init_491 = cn_cell(vm,104); uint64_t v34 = cn_init_491;
+__auto_type cn_init_504 = cn_cell(vm,112); uint64_t v35 = cn_init_504;
+{
+{
+{
+{
+{
+{
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+__auto_type cn_init_588 = 0x30U; __auto_type bv = cn_init_588;
+__auto_type cn_init_596 = rg[4]; __auto_type av = cn_init_596;
+__auto_type cn_init_614 = cn_alu(&fl,Alu_Sub,av,bv,4); __auto_type r = cn_init_614;
+(rg[4]=r);
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2007=(((s2007&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[3])))&0xffffffffULL))<<32))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2007=(((s2007&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<0))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2006=(((s2006&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[7])))&0xffffffffULL))<<32))));
+}
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[7]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+(rg[3]=rg[0]);
+{
+__auto_type cn_init_825 = (((uint32_t)(((((v23>>32))&0xffULL))))); __auto_type v = cn_init_825;
+cn_reg_set(rg,0,1,v);
+}
+cn_continue_l1:;
+{
+(f[0]=cn_double(r3));
+{
+__auto_type cn_init_866 = cn_double(v32); __auto_type v = cn_init_866;
+(f[0]=(f[0]*v));
+}
+(f[1]=cn_double(r5));
+{
+__auto_type cn_init_902 = cn_double(v33); __auto_type v = cn_init_902;
+(f[1]=(f[1]*v));
+}
+(f[1]=-f[1]);
+(f[0]=(f[0]+f[1]));
+{
+__auto_type cn_init_952 = cn_double(v34); __auto_type v = cn_init_952;
+(f[0]=(f[0]*v));
+}
+(s2013=cn_bits(f[0]));
+(f[0]=cn_double(r3));
+{
+__auto_type cn_init_999 = cn_double(v33); __auto_type v = cn_init_999;
+(f[0]=(f[0]*v));
+}
+(f[1]=cn_double(r5));
+{
+__auto_type cn_init_1035 = cn_double(v32); __auto_type v = cn_init_1035;
+(f[1]=(f[1]*v));
+}
+(f[0]=(f[0]+f[1]));
+(f[0]=fabs(f[0]));
+(f[1]=cn_double(s2013));
+(f[2]=cn_double(r4));
+{
+__auto_type cn_init_1112 = cn_double(v34); __auto_type v = cn_init_1112;
+(f[2]=(f[2]*v));
+}
+(f[2]=-f[2]);
+(f[1]=(f[1]+f[2]));
+(f[1]=fabs(f[1]));
+(f[2]=cn_double(s2013));
+(f[3]=cn_double(r4));
+{
+__auto_type cn_init_1200 = cn_double(v34); __auto_type v = cn_init_1200;
+(f[3]=(f[3]*v));
+}
+(f[2]=(f[2]+f[3]));
+(f[2]=fabs(f[2]));
+(r4=cn_bits(f[2]));
+(r3=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(f[0]=cn_double(r3));
+{
+__auto_type cn_init_1298 = cn_double(r4); __auto_type v = cn_init_1298;
+(f[0]=(f[0]+v));
+}
+{
+__auto_type cn_init_1322 = cn_double(v34); __auto_type v = cn_init_1322;
+(f[0]=(f[0]*v));
+}
+(s2013=cn_bits(f[0]));
+(f[0]=cn_double(r3));
+(f[0]=-f[0]);
+{
+__auto_type cn_init_1380 = cn_double(r4); __auto_type v = cn_init_1380;
+(f[0]=(f[0]+v));
+}
+{
+__auto_type cn_init_1404 = cn_double(v34); __auto_type v = cn_init_1404;
+(f[0]=(f[0]*v));
+}
+(f[1]=cn_double(s2013));
+{
+__auto_type cn_init_1440 = cn_double(v32); __auto_type v = cn_init_1440;
+(f[1]=(f[1]*v));
+}
+(f[2]=cn_double(r5));
+{
+__auto_type cn_init_1476 = cn_double(v33); __auto_type v = cn_init_1476;
+(f[2]=(f[2]*v));
+}
+(f[1]=(f[1]+f[2]));
+(f[2]=cn_double(s2013));
+{
+__auto_type cn_init_1527 = cn_double(v33); __auto_type v = cn_init_1527;
+(f[2]=(f[2]*v));
+}
+(f[2]=-f[2]);
+(f[3]=cn_double(r5));
+{
+__auto_type cn_init_1574 = cn_double(v32); __auto_type v = cn_init_1574;
+(f[3]=(f[3]*v));
+}
+(f[2]=(f[2]+f[3]));
+(r5=cn_bits(f[2]));
+(r3=cn_bits(f[1]));
+(r4=cn_bits(f[0]));
+(f[0]=cn_double(r3));
+{
+__auto_type cn_init_1658 = cn_double(v30); __auto_type v = cn_init_1658;
+(f[0]=(f[0]*v));
+}
+{
+__auto_type cn_init_1682 = cn_double(v29); __auto_type v = cn_init_1682;
+(f[0]=(f[0]-v));
+}
+(r3=cn_bits(f[0]));
+(f[0]=cn_double(r4));
+{
+__auto_type cn_init_1729 = cn_double(v30); __auto_type v = cn_init_1729;
+(f[0]=(f[0]*v));
+}
+(r4=cn_bits(f[0]));
+(f[0]=cn_double(r5));
+{
+__auto_type cn_init_1776 = cn_double(v30); __auto_type v = cn_init_1776;
+(f[0]=(f[0]*v));
+}
+(r5=cn_bits(f[0]));
+{
+__auto_type cn_init_1814 = cn_reg_get(rg,0,1); __auto_type v = cn_init_1814;
+__auto_type cn_init_1821 = fl.cf; __auto_type cf = cn_init_1821;
+__auto_type cn_init_1839 = cn_alu(&fl,Alu_Sub,v,1,1); __auto_type r = cn_init_1839;
+(fl.cf=cf);
+cn_reg_set(rg,0,1,r);
+}
+if(cn_cond(fl,5)){
+(steps+=1);
+if((steps>limit)){
+return 1;
+}
+goto cn_continue_l1;
+}
+goto cn_break_b2;
+}
+goto cn_continue_l1;
+cn_break_l1:;
+}
+cn_break_b2:;
+{
+__auto_type cn_init_1912 = (((uint32_t)(((((v24>>32))&0xffULL))))); __auto_type v = cn_init_1912;
+cn_reg_set(rg,0,1,v);
+}
+{
+__auto_type cn_init_1944 = (((uint32_t)(((((r15>>0))&0xffULL))))); __auto_type bv = cn_init_1944;
+__auto_type cn_init_1957 = cn_reg_get(rg,0,1); __auto_type av = cn_init_1957;
+__auto_type cn_init_1975 = cn_alu(&fl,Alu_Cmp,av,bv,1); __auto_type r = cn_init_1975;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b4;
+}
+{
+__auto_type cn_init_2006 = (((uint32_t)(((((v24>>0))&0xffULL))))); __auto_type v = cn_init_2006;
+cn_reg_set(rg,0,1,v);
+}
+{
+__auto_type cn_init_2038 = (((uint32_t)(((((r15>>0))&0xffULL))))); __auto_type bv = cn_init_2038;
+__auto_type cn_init_2051 = cn_reg_get(rg,0,1); __auto_type av = cn_init_2051;
+__auto_type cn_init_2069 = cn_alu(&fl,Alu_Cmp,av,bv,1); __auto_type r = cn_init_2069;
+}
+if(cn_cond(fl,15)){
+goto cn_break_b5;
+}
+}
+cn_break_b4:;
+(f[0]=cn_double(v25));
+{
+__auto_type cn_tuple_2112_0 = sin(f[0]);
+__auto_type cn_tuple_2112_1 = cos(f[0]);
+__auto_type s = cn_tuple_2112_0;
+__auto_type c = cn_tuple_2112_1;
+(f[0]=s);
+(f[1]=c);
+(fsw&=~0x0400);
+}
+(s2013=cn_bits(f[1]));
+(s2012=cn_bits(f[0]));
+(f[1]=cn_double(r5));
+(f[0]=(f[0]*f[1]));
+(f[1]=cn_double(r4));
+{
+__auto_type cn_init_2204 = cn_double(s2013); __auto_type v = cn_init_2204;
+(f[1]=(f[1]*v));
+}
+(f[0]=(f[0]+f[1]));
+(f[1]=cn_double(r4));
+{
+__auto_type cn_init_2255 = cn_double(s2012); __auto_type v = cn_init_2255;
+(f[1]=(f[1]*v));
+}
+(f[2]=cn_double(r5));
+{
+__auto_type cn_init_2291 = cn_double(s2013); __auto_type v = cn_init_2291;
+(f[2]=(f[2]*v));
+}
+(f[2]=-f[2]);
+(f[1]=(f[1]+f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+}
+cn_break_b5:;
+{
+__auto_type cn_init_2371 = (((uint32_t)(((((v23>>0))&0xffULL))))); __auto_type v = cn_init_2371;
+cn_reg_set(rg,0,1,v);
+}
+{
+__auto_type cn_init_2403 = (((uint32_t)(((((r15>>0))&0xffULL))))); __auto_type bv = cn_init_2403;
+__auto_type cn_init_2416 = cn_reg_get(rg,0,1); __auto_type av = cn_init_2416;
+__auto_type cn_init_2434 = cn_alu(&fl,Alu_Cmp,av,bv,1); __auto_type r = cn_init_2434;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b7;
+}
+{
+__auto_type cn_init_2465 = (((uint32_t)(((((v22>>32))&0xffULL))))); __auto_type v = cn_init_2465;
+cn_reg_set(rg,0,1,v);
+}
+{
+__auto_type cn_init_2497 = (((uint32_t)(((((r15>>0))&0xffULL))))); __auto_type bv = cn_init_2497;
+__auto_type cn_init_2510 = cn_reg_get(rg,0,1); __auto_type av = cn_init_2510;
+__auto_type cn_init_2528 = cn_alu(&fl,Alu_Cmp,av,bv,1); __auto_type r = cn_init_2528;
+}
+if(cn_cond(fl,15)){
+goto cn_break_b11;
+}
+}
+cn_break_b7:;
+(f[0]=cn_double(v35));
+{
+__auto_type cn_init_2581 = cn_double(((((((v21>>32))|((v22<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2581;
+(f[0]=(f[0]/v));
+}
+(s2013=cn_bits(f[0]));
+(f[0]=(f[0]+f[0]));
+(s2012=cn_bits(f[0]));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[0]=atan2(f[0],f[1]));
+(f[0]=fabs(f[0]));
+cn_continue_l8:;
+{
+(fsw=cn_compare(f[0],cn_double(s2013)));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x3800))))));
+{
+__auto_type cn_init_2736 = 0x41U; __auto_type bv = cn_init_2736;
+__auto_type cn_init_2749 = cn_reg_get(rg,4,1); __auto_type av = cn_init_2749;
+__auto_type cn_init_2767 = cn_alu(&fl,Alu_And,av,bv,1); __auto_type r = cn_init_2767;
+cn_reg_set(rg,4,1,r);
+}
+if(cn_cond(fl,15)){
+goto cn_break_b10;
+}
+{
+__auto_type cn_init_2804 = cn_double(s2012); __auto_type v = cn_init_2804;
+(f[0]=(f[0]-v));
+}
+(steps+=1);
+if((steps>limit)){
+return 1;
+}
+goto cn_continue_l8;
+}
+goto cn_continue_l8;
+cn_break_l8:;
+}
+cn_break_b10:;
+(f[0]=cos(f[0]));
+(fsw&=~0x0400);
+(f[1]=f[0]);
+{
+__auto_type cn_init_2880 = cn_double(r4); __auto_type v = cn_init_2880;
+(f[1]=(f[1]*v));
+}
+(r4=cn_bits(f[1]));
+{
+__auto_type cn_init_2915 = cn_double(r5); __auto_type v = cn_init_2915;
+(f[0]=(f[0]*v));
+}
+(r5=cn_bits(f[0]));
+}
+cn_break_b11:;
+(f[0]=cn_double(r3));
+(f[0]=(f[0]*f[0]));
+(s2013=cn_bits(f[0]));
+(f[0]=cn_double(r4));
+(f[0]=(f[0]*f[0]));
+(s2012=cn_bits(f[0]));
+(f[0]=cn_double(r5));
+(f[0]=(f[0]*f[0]));
+(s2011=cn_bits(f[0]));
+(f[0]=cn_double(r3));
+(f[0]=(f[0]+f[0]));
+(f[1]=cn_double(s2012));
+{
+__auto_type cn_init_3104 = cn_double(s2011); __auto_type v = cn_init_3104;
+(f[1]=(f[1]+v));
+}
+(f[1]=sqrt(f[1]));
+(f[0]=(f[0]/f[1]));
+(s2010=cn_bits(f[0]));
+(f[0]=cn_double(s2013));
+{
+__auto_type cn_init_3180 = cn_double(s2012); __auto_type v = cn_init_3180;
+(f[0]=(f[0]-v));
+}
+{
+__auto_type cn_init_3204 = cn_double(s2011); __auto_type v = cn_init_3204;
+(f[0]=(f[0]-v));
+}
+(f[1]=cn_double(s2010));
+(f[2]=cn_double(s2012));
+{
+__auto_type cn_init_3252 = cn_double(s2011); __auto_type v = cn_init_3252;
+(f[2]=(f[2]-v));
+}
+(f[1]=(f[1]*f[2]));
+(f[2]=cn_double(s2010));
+(f[2]=(f[2]+f[2]));
+{
+__auto_type cn_init_3318 = cn_double(r5); __auto_type v = cn_init_3318;
+(f[2]=(f[2]*v));
+}
+{
+__auto_type cn_init_3342 = cn_double(r4); __auto_type v = cn_init_3342;
+(f[2]=(f[2]*v));
+}
+(f[3]=cn_double(r11));
+{
+__auto_type cn_init_3378 = cn_double(v26); __auto_type v = cn_init_3378;
+(f[3]=(f[3]*v));
+}
+(f[2]=(f[2]+f[3]));
+(r4=cn_bits(f[2]));
+(f[2]=cn_double(r12));
+{
+__auto_type cn_init_3440 = cn_double(v27); __auto_type v = cn_init_3440;
+(f[2]=(f[2]*v));
+}
+(f[1]=(f[1]+f[2]));
+(r5=cn_bits(f[1]));
+(f[1]=cn_double(r10));
+{
+__auto_type cn_init_3502 = cn_double(v28); __auto_type v = cn_init_3502;
+(f[1]=(f[1]*v));
+}
+(f[0]=(f[0]+f[1]));
+(r3=cn_bits(f[0]));
+(rg[0]=rg[3]);
+{
+(rg[7]=((uint32_t)(((((s2006>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[6]=((uint32_t)(((((s2007>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[3]=((uint32_t)(((((s2007>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[4]=rg[5]);
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(3),r3);
+cn_wr64(m,CN_REC+8*(4),r4);
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64u(m,0x10007eb0U,s2006);
+cn_wr64u(m,0x10007eb8U,s2007);
+cn_wr64u(m,0x10007ed0U,s2010);
+cn_wr64u(m,0x10007ed8U,s2011);
+cn_wr64u(m,0x10007ee0U,s2012);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_f7f9bff8d369f709(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_51 = ((uint32_t)(pvar-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+160))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_88 = cn_rd64(m,CN_REC+8*(3)); uint64_t r3 = cn_init_88;
+__auto_type cn_init_105 = cn_rd64(m,CN_REC+8*(4)); uint64_t r4 = cn_init_105;
+__auto_type cn_init_122 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_122;
+__auto_type cn_init_139 = cn_rd64(m,CN_REC+8*(6)); uint64_t r6 = cn_init_139;
+__auto_type cn_init_156 = cn_rd64(m,CN_REC+8*(10)); uint64_t r10 = cn_init_156;
+__auto_type cn_init_173 = cn_rd64(m,CN_REC+8*(11)); uint64_t r11 = cn_init_173;
+__auto_type cn_init_190 = cn_rd64(m,CN_REC+8*(12)); uint64_t r12 = cn_init_190;
+__auto_type cn_init_207 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_207;
+__auto_type cn_init_224 = cn_rd64(m,CN_REC+8*(32)); uint64_t r32 = cn_init_224;
+__auto_type cn_init_241 = cn_rd64(m,CN_REC+8*(33)); uint64_t r33 = cn_init_241;
+__auto_type cn_init_254 = cn_rd64u(m,0x10007ea0U); uint64_t s2004 = cn_init_254;
+__auto_type cn_init_267 = cn_rd64u(m,0x10007ea8U); uint64_t s2005 = cn_init_267;
+__auto_type cn_init_280 = cn_rd64u(m,0x10007eb0U); uint64_t s2006 = cn_init_280;
+__auto_type cn_init_293 = cn_rd64u(m,0x10007eb8U); uint64_t s2007 = cn_init_293;
+__auto_type cn_init_306 = cn_rd64u(m,0x10007ec0U); uint64_t s2008 = cn_init_306;
+__auto_type cn_init_319 = cn_rd64u(m,0x10007ec8U); uint64_t s2009 = cn_init_319;
+__auto_type cn_init_332 = cn_rd64u(m,0x10007ed0U); uint64_t s2010 = cn_init_332;
+__auto_type cn_init_345 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_345;
+__auto_type cn_init_358 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_358;
+__auto_type cn_init_371 = cn_cell(vm,0); uint64_t v20 = cn_init_371;
+__auto_type cn_init_384 = cn_cell(vm,8); uint64_t v21 = cn_init_384;
+__auto_type cn_init_397 = cn_cell(vm,16); uint64_t v22 = cn_init_397;
+__auto_type cn_init_410 = cn_cell(vm,24); uint64_t v23 = cn_init_410;
+__auto_type cn_init_423 = cn_cell(vm,32); uint64_t v24 = cn_init_423;
+__auto_type cn_init_436 = cn_cell(vm,40); uint64_t v25 = cn_init_436;
+__auto_type cn_init_449 = cn_cell(vm,48); uint64_t v26 = cn_init_449;
+__auto_type cn_init_462 = cn_cell(vm,56); uint64_t v27 = cn_init_462;
+__auto_type cn_init_475 = cn_cell(vm,64); uint64_t v28 = cn_init_475;
+__auto_type cn_init_488 = cn_cell(vm,72); uint64_t v29 = cn_init_488;
+__auto_type cn_init_501 = cn_cell(vm,80); uint64_t v30 = cn_init_501;
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+__auto_type cn_init_669 = 0x3cU; __auto_type bv = cn_init_669;
+__auto_type cn_init_677 = rg[4]; __auto_type av = cn_init_677;
+__auto_type cn_init_695 = cn_alu(&fl,Alu_Sub,av,bv,4); __auto_type r = cn_init_695;
+(rg[4]=r);
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2006=(((s2006&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[3])))&0xffffffffULL))<<0))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2005=(((s2005&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<32))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2005=(((s2005&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[7])))&0xffffffffULL))<<0))));
+}
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[7]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+(rg[3]=rg[0]);
+{
+__auto_type cn_init_894 = 0x80U; __auto_type bv = cn_init_894;
+__auto_type cn_init_902 = rg[6]; __auto_type av = cn_init_902;
+__auto_type cn_init_920 = cn_alu(&fl,Alu_Add,av,bv,4); __auto_type r = cn_init_920;
+(rg[6]=r);
+}
+(f[0]=(((double)(cn_float(((uint32_t)(((((v25>>32))&0xffffffffULL)))))))));
+(s2010=(((s2010&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((v25>>0))&0xffffffffULL)))))))));
+(s2010=(((s2010&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((v24>>32))&0xffffffffULL)))))))));
+(s2009=(((s2009&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((v24>>0))&0xffffffffULL)))))))));
+(s2009=(((s2009&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((v23>>32))&0xffffffffULL)))))))));
+(s2008=(((s2008&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((v23>>0))&0xffffffffULL)))))))));
+(s2008=(((s2008&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((v22>>32))&0xffffffffULL)))))))));
+(s2007=(((s2007&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((v22>>0))&0xffffffffULL)))))))));
+(s2007=(((s2007&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((v21>>32))&0xffffffffULL)))))))));
+(s2006=(((s2006&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2004=(((s2004&~((0xffffffffULL<<32))))|(((((((uint64_t)((0x10008106U))))&0xffffffffULL))<<32))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_1637 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_1637;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_1685 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_1685;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_1748 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_1748;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_1811 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_1811;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_1859 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_1859;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_1922 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_1922;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_1984 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_1984;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_2031 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2031;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_2093 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2093;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+{
+__auto_type cn_init_2127 = 0x1U; __auto_type bv = cn_init_2127;
+__auto_type cn_init_2144 = (((uint32_t)(((((v20>>32))&0xffffffffULL))))); __auto_type av = cn_init_2144;
+__auto_type cn_init_2162 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_2162;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b27;
+}
+{
+__auto_type cn_init_2186 = cn_double(v27); __auto_type v = cn_init_2186;
+(f[2]=(f[2]-v));
+}
+(f[2]=fabs(f[2]));
+(f[2]=-f[2]);
+{
+__auto_type cn_init_2235 = cn_double(v27); __auto_type v = cn_init_2235;
+(f[2]=(f[2]+v));
+}
+goto cn_break_b40;
+}
+cn_break_b27:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_2273 = cn_double(v27); __auto_type v = cn_init_2273;
+(f[3]=(f[3]+v));
+}
+(f[3]=fabs(f[3]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_2321 = cn_double(v27); __auto_type v = cn_init_2321;
+(f[4]=(f[4]-v));
+}
+(f[4]=fabs(f[4]));
+(f[4]=-f[4]);
+(f[3]=(f[3]+f[4]));
+(f[2]=(f[2]-f[3]));
+(f[2]=-f[2]);
+}
+cn_break_b40:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_2436 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2436;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_2484 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2484;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_2547 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2547;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_2610 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2610;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_2658 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2658;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_2721 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2721;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_2783 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2783;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_2830 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2830;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_2892 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2892;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+{
+__auto_type cn_init_2974 = 0x0U; __auto_type bv = cn_init_2974;
+__auto_type cn_init_2991 = (((uint32_t)(((((v21>>0))&0xffffffffULL))))); __auto_type av = cn_init_2991;
+__auto_type cn_init_3009 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_3009;
+}
+if(cn_cond(fl,5)){
+goto cn_break_b59;
+}
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2008=(((s2008&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2004=(((s2004&~((0xffffffffULL<<32))))|(((((((uint64_t)((0x10008131U))))&0xffffffffULL))<<32))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_3445 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_3445;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_3493 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_3493;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_3556 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_3556;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_3619 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_3619;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_3667 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_3667;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_3730 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_3730;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_3792 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_3792;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_3839 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_3839;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_3901 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_3901;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+{
+__auto_type cn_init_3935 = 0x1U; __auto_type bv = cn_init_3935;
+__auto_type cn_init_3952 = (((uint32_t)(((((v20>>32))&0xffffffffULL))))); __auto_type av = cn_init_3952;
+__auto_type cn_init_3970 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_3970;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b28;
+}
+{
+__auto_type cn_init_3994 = cn_double(v27); __auto_type v = cn_init_3994;
+(f[2]=(f[2]-v));
+}
+(f[2]=fabs(f[2]));
+(f[2]=-f[2]);
+{
+__auto_type cn_init_4043 = cn_double(v27); __auto_type v = cn_init_4043;
+(f[2]=(f[2]+v));
+}
+goto cn_break_b41;
+}
+cn_break_b28:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_4081 = cn_double(v27); __auto_type v = cn_init_4081;
+(f[3]=(f[3]+v));
+}
+(f[3]=fabs(f[3]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_4129 = cn_double(v27); __auto_type v = cn_init_4129;
+(f[4]=(f[4]-v));
+}
+(f[4]=fabs(f[4]));
+(f[4]=-f[4]);
+(f[3]=(f[3]+f[4]));
+(f[2]=(f[2]-f[3]));
+(f[2]=-f[2]);
+}
+cn_break_b41:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_4244 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_4244;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_4292 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_4292;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_4355 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_4355;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_4418 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_4418;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_4466 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_4466;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_4529 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_4529;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_4591 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_4591;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_4638 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_4638;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_4700 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_4700;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2010=(((s2010&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2008=(((s2008&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2004=(((s2004&~((0xffffffffULL<<32))))|(((((((uint64_t)((0x10008156U))))&0xffffffffULL))<<32))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_5199 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_5199;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_5247 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_5247;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_5310 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_5310;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_5373 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_5373;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_5421 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_5421;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_5484 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_5484;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_5546 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_5546;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_5593 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_5593;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_5655 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_5655;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+{
+__auto_type cn_init_5689 = 0x1U; __auto_type bv = cn_init_5689;
+__auto_type cn_init_5706 = (((uint32_t)(((((v20>>32))&0xffffffffULL))))); __auto_type av = cn_init_5706;
+__auto_type cn_init_5724 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_5724;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b29;
+}
+{
+__auto_type cn_init_5748 = cn_double(v27); __auto_type v = cn_init_5748;
+(f[2]=(f[2]-v));
+}
+(f[2]=fabs(f[2]));
+(f[2]=-f[2]);
+{
+__auto_type cn_init_5797 = cn_double(v27); __auto_type v = cn_init_5797;
+(f[2]=(f[2]+v));
+}
+goto cn_break_b42;
+}
+cn_break_b29:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_5835 = cn_double(v27); __auto_type v = cn_init_5835;
+(f[3]=(f[3]+v));
+}
+(f[3]=fabs(f[3]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_5883 = cn_double(v27); __auto_type v = cn_init_5883;
+(f[4]=(f[4]-v));
+}
+(f[4]=fabs(f[4]));
+(f[4]=-f[4]);
+(f[3]=(f[3]+f[4]));
+(f[2]=(f[2]-f[3]));
+(f[2]=-f[2]);
+}
+cn_break_b42:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_5998 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_5998;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_6046 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_6046;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_6109 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_6109;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_6172 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_6172;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_6220 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_6220;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_6283 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_6283;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_6345 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_6345;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_6392 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_6392;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_6454 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_6454;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2008=(((s2008&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2004=(((s2004&~((0xffffffffULL<<32))))|(((((((uint64_t)((0x1000817bU))))&0xffffffffULL))<<32))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_6953 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_6953;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_7001 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_7001;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_7064 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_7064;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_7127 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_7127;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_7175 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_7175;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_7238 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_7238;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_7300 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_7300;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_7347 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_7347;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_7409 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_7409;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+{
+__auto_type cn_init_7443 = 0x1U; __auto_type bv = cn_init_7443;
+__auto_type cn_init_7460 = (((uint32_t)(((((v20>>32))&0xffffffffULL))))); __auto_type av = cn_init_7460;
+__auto_type cn_init_7478 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_7478;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b30;
+}
+{
+__auto_type cn_init_7502 = cn_double(v27); __auto_type v = cn_init_7502;
+(f[2]=(f[2]-v));
+}
+(f[2]=fabs(f[2]));
+(f[2]=-f[2]);
+{
+__auto_type cn_init_7551 = cn_double(v27); __auto_type v = cn_init_7551;
+(f[2]=(f[2]+v));
+}
+goto cn_break_b43;
+}
+cn_break_b30:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_7589 = cn_double(v27); __auto_type v = cn_init_7589;
+(f[3]=(f[3]+v));
+}
+(f[3]=fabs(f[3]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_7637 = cn_double(v27); __auto_type v = cn_init_7637;
+(f[4]=(f[4]-v));
+}
+(f[4]=fabs(f[4]));
+(f[4]=-f[4]);
+(f[3]=(f[3]+f[4]));
+(f[2]=(f[2]-f[3]));
+(f[2]=-f[2]);
+}
+cn_break_b43:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_7752 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_7752;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_7800 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_7800;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_7863 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_7863;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_7926 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_7926;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_7974 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_7974;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_8037 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_8037;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_8099 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_8099;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_8146 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_8146;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_8208 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_8208;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+goto cn_break_b73;
+}
+cn_break_b59:;
+{
+__auto_type cn_init_8294 = 0x1U; __auto_type bv = cn_init_8294;
+__auto_type cn_init_8311 = (((uint32_t)(((((v21>>0))&0xffffffffULL))))); __auto_type av = cn_init_8311;
+__auto_type cn_init_8329 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_8329;
+}
+if(cn_cond(fl,5)){
+goto cn_break_b64;
+}
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2010=(((s2010&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2008=(((s2008&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2004=(((s2004&~((0xffffffffULL<<32))))|(((((((uint64_t)((0x100081abU))))&0xffffffffULL))<<32))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_8765 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_8765;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_8813 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_8813;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_8876 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_8876;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_8939 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_8939;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_8987 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_8987;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_9050 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_9050;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_9112 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_9112;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_9159 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_9159;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_9221 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_9221;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+{
+__auto_type cn_init_9255 = 0x1U; __auto_type bv = cn_init_9255;
+__auto_type cn_init_9272 = (((uint32_t)(((((v20>>32))&0xffffffffULL))))); __auto_type av = cn_init_9272;
+__auto_type cn_init_9290 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_9290;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b31;
+}
+{
+__auto_type cn_init_9314 = cn_double(v27); __auto_type v = cn_init_9314;
+(f[2]=(f[2]-v));
+}
+(f[2]=fabs(f[2]));
+(f[2]=-f[2]);
+{
+__auto_type cn_init_9363 = cn_double(v27); __auto_type v = cn_init_9363;
+(f[2]=(f[2]+v));
+}
+goto cn_break_b44;
+}
+cn_break_b31:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_9401 = cn_double(v27); __auto_type v = cn_init_9401;
+(f[3]=(f[3]+v));
+}
+(f[3]=fabs(f[3]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_9449 = cn_double(v27); __auto_type v = cn_init_9449;
+(f[4]=(f[4]-v));
+}
+(f[4]=fabs(f[4]));
+(f[4]=-f[4]);
+(f[3]=(f[3]+f[4]));
+(f[2]=(f[2]-f[3]));
+(f[2]=-f[2]);
+}
+cn_break_b44:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_9564 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_9564;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_9612 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_9612;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_9675 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_9675;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_9738 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_9738;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_9786 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_9786;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_9849 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_9849;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_9911 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_9911;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_9958 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_9958;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_10020 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_10020;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2008=(((s2008&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2004=(((s2004&~((0xffffffffULL<<32))))|(((((((uint64_t)((0x100081d0U))))&0xffffffffULL))<<32))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_10519 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_10519;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_10567 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_10567;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_10630 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_10630;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_10693 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_10693;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_10741 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_10741;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_10804 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_10804;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_10866 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_10866;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_10913 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_10913;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_10975 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_10975;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+{
+__auto_type cn_init_11009 = 0x1U; __auto_type bv = cn_init_11009;
+__auto_type cn_init_11026 = (((uint32_t)(((((v20>>32))&0xffffffffULL))))); __auto_type av = cn_init_11026;
+__auto_type cn_init_11044 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_11044;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b32;
+}
+{
+__auto_type cn_init_11068 = cn_double(v27); __auto_type v = cn_init_11068;
+(f[2]=(f[2]-v));
+}
+(f[2]=fabs(f[2]));
+(f[2]=-f[2]);
+{
+__auto_type cn_init_11117 = cn_double(v27); __auto_type v = cn_init_11117;
+(f[2]=(f[2]+v));
+}
+goto cn_break_b45;
+}
+cn_break_b32:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_11155 = cn_double(v27); __auto_type v = cn_init_11155;
+(f[3]=(f[3]+v));
+}
+(f[3]=fabs(f[3]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_11203 = cn_double(v27); __auto_type v = cn_init_11203;
+(f[4]=(f[4]-v));
+}
+(f[4]=fabs(f[4]));
+(f[4]=-f[4]);
+(f[3]=(f[3]+f[4]));
+(f[2]=(f[2]-f[3]));
+(f[2]=-f[2]);
+}
+cn_break_b45:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_11318 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_11318;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_11366 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_11366;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_11429 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_11429;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_11492 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_11492;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_11540 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_11540;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_11603 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_11603;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_11665 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_11665;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_11712 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_11712;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_11774 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_11774;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2010=(((s2010&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2008=(((s2008&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2004=(((s2004&~((0xffffffffULL<<32))))|(((((((uint64_t)((0x100081f5U))))&0xffffffffULL))<<32))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_12273 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_12273;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_12321 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_12321;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_12384 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_12384;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_12447 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_12447;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_12495 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_12495;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_12558 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_12558;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_12620 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_12620;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_12667 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_12667;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_12729 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_12729;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+{
+__auto_type cn_init_12763 = 0x1U; __auto_type bv = cn_init_12763;
+__auto_type cn_init_12780 = (((uint32_t)(((((v20>>32))&0xffffffffULL))))); __auto_type av = cn_init_12780;
+__auto_type cn_init_12798 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_12798;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b33;
+}
+{
+__auto_type cn_init_12822 = cn_double(v27); __auto_type v = cn_init_12822;
+(f[2]=(f[2]-v));
+}
+(f[2]=fabs(f[2]));
+(f[2]=-f[2]);
+{
+__auto_type cn_init_12871 = cn_double(v27); __auto_type v = cn_init_12871;
+(f[2]=(f[2]+v));
+}
+goto cn_break_b46;
+}
+cn_break_b33:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_12909 = cn_double(v27); __auto_type v = cn_init_12909;
+(f[3]=(f[3]+v));
+}
+(f[3]=fabs(f[3]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_12957 = cn_double(v27); __auto_type v = cn_init_12957;
+(f[4]=(f[4]-v));
+}
+(f[4]=fabs(f[4]));
+(f[4]=-f[4]);
+(f[3]=(f[3]+f[4]));
+(f[2]=(f[2]-f[3]));
+(f[2]=-f[2]);
+}
+cn_break_b46:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_13072 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_13072;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_13120 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_13120;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_13183 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_13183;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_13246 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_13246;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_13294 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_13294;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_13357 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_13357;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_13419 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_13419;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_13466 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_13466;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_13528 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_13528;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+goto cn_break_b73;
+}
+cn_break_b64:;
+{
+__auto_type cn_init_13614 = 0x2U; __auto_type bv = cn_init_13614;
+__auto_type cn_init_13631 = (((uint32_t)(((((v21>>0))&0xffffffffULL))))); __auto_type av = cn_init_13631;
+__auto_type cn_init_13649 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_13649;
+}
+if(cn_cond(fl,5)){
+goto cn_break_b69;
+}
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2010=(((s2010&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2004=(((s2004&~((0xffffffffULL<<32))))|(((((((uint64_t)((0x10008225U))))&0xffffffffULL))<<32))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_14085 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_14085;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_14133 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_14133;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_14196 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_14196;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_14259 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_14259;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_14307 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_14307;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_14370 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_14370;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_14432 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_14432;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_14479 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_14479;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_14541 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_14541;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+{
+__auto_type cn_init_14575 = 0x1U; __auto_type bv = cn_init_14575;
+__auto_type cn_init_14592 = (((uint32_t)(((((v20>>32))&0xffffffffULL))))); __auto_type av = cn_init_14592;
+__auto_type cn_init_14610 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_14610;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b34;
+}
+{
+__auto_type cn_init_14634 = cn_double(v27); __auto_type v = cn_init_14634;
+(f[2]=(f[2]-v));
+}
+(f[2]=fabs(f[2]));
+(f[2]=-f[2]);
+{
+__auto_type cn_init_14683 = cn_double(v27); __auto_type v = cn_init_14683;
+(f[2]=(f[2]+v));
+}
+goto cn_break_b47;
+}
+cn_break_b34:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_14721 = cn_double(v27); __auto_type v = cn_init_14721;
+(f[3]=(f[3]+v));
+}
+(f[3]=fabs(f[3]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_14769 = cn_double(v27); __auto_type v = cn_init_14769;
+(f[4]=(f[4]-v));
+}
+(f[4]=fabs(f[4]));
+(f[4]=-f[4]);
+(f[3]=(f[3]+f[4]));
+(f[2]=(f[2]-f[3]));
+(f[2]=-f[2]);
+}
+cn_break_b47:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_14884 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_14884;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_14932 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_14932;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_14995 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_14995;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_15058 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_15058;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_15106 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_15106;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_15169 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_15169;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_15231 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_15231;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_15278 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_15278;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_15340 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_15340;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2010=(((s2010&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2008=(((s2008&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2004=(((s2004&~((0xffffffffULL<<32))))|(((((((uint64_t)((0x1000824aU))))&0xffffffffULL))<<32))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_15839 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_15839;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_15887 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_15887;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_15950 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_15950;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_16013 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_16013;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_16061 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_16061;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_16124 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_16124;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_16186 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_16186;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_16233 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_16233;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_16295 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_16295;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+{
+__auto_type cn_init_16329 = 0x1U; __auto_type bv = cn_init_16329;
+__auto_type cn_init_16346 = (((uint32_t)(((((v20>>32))&0xffffffffULL))))); __auto_type av = cn_init_16346;
+__auto_type cn_init_16364 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_16364;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b35;
+}
+{
+__auto_type cn_init_16388 = cn_double(v27); __auto_type v = cn_init_16388;
+(f[2]=(f[2]-v));
+}
+(f[2]=fabs(f[2]));
+(f[2]=-f[2]);
+{
+__auto_type cn_init_16437 = cn_double(v27); __auto_type v = cn_init_16437;
+(f[2]=(f[2]+v));
+}
+goto cn_break_b48;
+}
+cn_break_b35:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_16475 = cn_double(v27); __auto_type v = cn_init_16475;
+(f[3]=(f[3]+v));
+}
+(f[3]=fabs(f[3]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_16523 = cn_double(v27); __auto_type v = cn_init_16523;
+(f[4]=(f[4]-v));
+}
+(f[4]=fabs(f[4]));
+(f[4]=-f[4]);
+(f[3]=(f[3]+f[4]));
+(f[2]=(f[2]-f[3]));
+(f[2]=-f[2]);
+}
+cn_break_b48:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_16638 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_16638;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_16686 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_16686;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_16749 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_16749;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_16812 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_16812;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_16860 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_16860;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_16923 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_16923;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_16985 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_16985;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_17032 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_17032;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_17094 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_17094;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2010=(((s2010&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2004=(((s2004&~((0xffffffffULL<<32))))|(((((((uint64_t)((0x1000826fU))))&0xffffffffULL))<<32))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_17593 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_17593;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_17641 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_17641;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_17704 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_17704;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_17767 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_17767;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_17815 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_17815;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_17878 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_17878;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_17940 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_17940;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_17987 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_17987;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_18049 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_18049;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+{
+__auto_type cn_init_18083 = 0x1U; __auto_type bv = cn_init_18083;
+__auto_type cn_init_18100 = (((uint32_t)(((((v20>>32))&0xffffffffULL))))); __auto_type av = cn_init_18100;
+__auto_type cn_init_18118 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_18118;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b36;
+}
+{
+__auto_type cn_init_18142 = cn_double(v27); __auto_type v = cn_init_18142;
+(f[2]=(f[2]-v));
+}
+(f[2]=fabs(f[2]));
+(f[2]=-f[2]);
+{
+__auto_type cn_init_18191 = cn_double(v27); __auto_type v = cn_init_18191;
+(f[2]=(f[2]+v));
+}
+goto cn_break_b49;
+}
+cn_break_b36:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_18229 = cn_double(v27); __auto_type v = cn_init_18229;
+(f[3]=(f[3]+v));
+}
+(f[3]=fabs(f[3]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_18277 = cn_double(v27); __auto_type v = cn_init_18277;
+(f[4]=(f[4]-v));
+}
+(f[4]=fabs(f[4]));
+(f[4]=-f[4]);
+(f[3]=(f[3]+f[4]));
+(f[2]=(f[2]-f[3]));
+(f[2]=-f[2]);
+}
+cn_break_b49:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_18392 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_18392;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_18440 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_18440;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_18503 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_18503;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_18566 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_18566;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_18614 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_18614;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_18677 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_18677;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_18739 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_18739;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_18786 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_18786;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_18848 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_18848;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+goto cn_break_b73;
+}
+cn_break_b69:;
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2010=(((s2010&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2008=(((s2008&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2004=(((s2004&~((0xffffffffULL<<32))))|(((((((uint64_t)((0x1000829cU))))&0xffffffffULL))<<32))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_19351 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_19351;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_19399 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_19399;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_19462 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_19462;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_19525 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_19525;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_19573 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_19573;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_19636 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_19636;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_19698 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_19698;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_19745 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_19745;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_19807 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_19807;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+{
+__auto_type cn_init_19841 = 0x1U; __auto_type bv = cn_init_19841;
+__auto_type cn_init_19858 = (((uint32_t)(((((v20>>32))&0xffffffffULL))))); __auto_type av = cn_init_19858;
+__auto_type cn_init_19876 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_19876;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b37;
+}
+{
+__auto_type cn_init_19900 = cn_double(v27); __auto_type v = cn_init_19900;
+(f[2]=(f[2]-v));
+}
+(f[2]=fabs(f[2]));
+(f[2]=-f[2]);
+{
+__auto_type cn_init_19949 = cn_double(v27); __auto_type v = cn_init_19949;
+(f[2]=(f[2]+v));
+}
+goto cn_break_b50;
+}
+cn_break_b37:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_19987 = cn_double(v27); __auto_type v = cn_init_19987;
+(f[3]=(f[3]+v));
+}
+(f[3]=fabs(f[3]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_20035 = cn_double(v27); __auto_type v = cn_init_20035;
+(f[4]=(f[4]-v));
+}
+(f[4]=fabs(f[4]));
+(f[4]=-f[4]);
+(f[3]=(f[3]+f[4]));
+(f[2]=(f[2]-f[3]));
+(f[2]=-f[2]);
+}
+cn_break_b50:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_20150 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_20150;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_20198 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_20198;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_20261 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_20261;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_20324 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_20324;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_20372 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_20372;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_20435 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_20435;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_20497 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_20497;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_20544 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_20544;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_20606 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_20606;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2010=(((s2010&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<32))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<32))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2004=(((s2004&~((0xffffffffULL<<32))))|(((((((uint64_t)((0x100082c1U))))&0xffffffffULL))<<32))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_21105 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_21105;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_21153 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_21153;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_21216 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_21216;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_21279 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_21279;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_21327 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_21327;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_21390 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_21390;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_21452 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_21452;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_21499 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_21499;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_21561 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_21561;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+{
+__auto_type cn_init_21595 = 0x1U; __auto_type bv = cn_init_21595;
+__auto_type cn_init_21612 = (((uint32_t)(((((v20>>32))&0xffffffffULL))))); __auto_type av = cn_init_21612;
+__auto_type cn_init_21630 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_21630;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b38;
+}
+{
+__auto_type cn_init_21654 = cn_double(v27); __auto_type v = cn_init_21654;
+(f[2]=(f[2]-v));
+}
+(f[2]=fabs(f[2]));
+(f[2]=-f[2]);
+{
+__auto_type cn_init_21703 = cn_double(v27); __auto_type v = cn_init_21703;
+(f[2]=(f[2]+v));
+}
+goto cn_break_b51;
+}
+cn_break_b38:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_21741 = cn_double(v27); __auto_type v = cn_init_21741;
+(f[3]=(f[3]+v));
+}
+(f[3]=fabs(f[3]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_21789 = cn_double(v27); __auto_type v = cn_init_21789;
+(f[4]=(f[4]-v));
+}
+(f[4]=fabs(f[4]));
+(f[4]=-f[4]);
+(f[3]=(f[3]+f[4]));
+(f[2]=(f[2]-f[3]));
+(f[2]=-f[2]);
+}
+cn_break_b51:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_21904 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_21904;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_21952 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_21952;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_22015 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_22015;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_22078 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_22078;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_22126 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_22126;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_22189 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_22189;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_22251 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_22251;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_22298 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_22298;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_22360 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_22360;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2010=(((s2010&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2008=(((s2008&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2009=(((s2009&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(f[0]=(((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))));
+(f[0]=-f[0]);
+(s2007=(((s2007&~((0xffffffffULL<<0))))|(((((((uint64_t)(cn_bits((((float)((f[0]))))))))&0xffffffffULL))<<0))));
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2004=(((s2004&~((0xffffffffULL<<32))))|(((((((uint64_t)((0x100082e6U))))&0xffffffffULL))<<32))));
+(f[0]=cn_double(r5));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r3));
+(f[3]=f[2]);
+{
+__auto_type cn_init_22859 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_22859;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_22907 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_22907;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_22970 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_22970;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_23033 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_23033;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_23081 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_23081;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_23144 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_23144;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_23206 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_23206;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_23253 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_23253;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_23315 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_23315;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+{
+__auto_type cn_init_23349 = 0x1U; __auto_type bv = cn_init_23349;
+__auto_type cn_init_23366 = (((uint32_t)(((((v20>>32))&0xffffffffULL))))); __auto_type av = cn_init_23366;
+__auto_type cn_init_23384 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_23384;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b39;
+}
+{
+__auto_type cn_init_23408 = cn_double(v27); __auto_type v = cn_init_23408;
+(f[2]=(f[2]-v));
+}
+(f[2]=fabs(f[2]));
+(f[2]=-f[2]);
+{
+__auto_type cn_init_23457 = cn_double(v27); __auto_type v = cn_init_23457;
+(f[2]=(f[2]+v));
+}
+goto cn_break_b52;
+}
+cn_break_b39:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_23495 = cn_double(v27); __auto_type v = cn_init_23495;
+(f[3]=(f[3]+v));
+}
+(f[3]=fabs(f[3]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_23543 = cn_double(v27); __auto_type v = cn_init_23543;
+(f[4]=(f[4]-v));
+}
+(f[4]=fabs(f[4]));
+(f[4]=-f[4]);
+(f[3]=(f[3]+f[4]));
+(f[2]=(f[2]-f[3]));
+(f[2]=-f[2]);
+}
+cn_break_b52:;
+(f[3]=f[2]);
+{
+__auto_type cn_init_23658 = (((double)(cn_float(((uint32_t)(((((s2009>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_23658;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_23706 = (((double)(cn_float(((uint32_t)(((((s2008>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_23706;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_23769 = (((double)(cn_float(((uint32_t)(((((s2006>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_23769;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_23832 = (((double)(cn_float(((uint32_t)(((((s2010>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_23832;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_23880 = (((double)(cn_float(((uint32_t)(((((s2009>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_23880;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_23943 = (((double)(cn_float(((uint32_t)(((((s2007>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_23943;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_24005 = (((double)(cn_float(((uint32_t)(((((s2010>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_24005;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_24052 = (((double)(cn_float(((uint32_t)(((((s2008>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_24052;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_24114 = (((double)(cn_float(((uint32_t)(((((s2007>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_24114;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(r3=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r5=cn_bits(f[0]));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+cn_break_b73:;
+{
+__auto_type cn_init_24197 = 0x0U; __auto_type bv = cn_init_24197;
+__auto_type cn_init_24214 = (((uint32_t)(((((r33>>0))&0xffffffffULL))))); __auto_type av = cn_init_24214;
+__auto_type cn_init_24232 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_24232;
+}
+if(cn_cond(fl,15)){
+goto cn_break_b75;
+}
+{
+__auto_type cn_init_24263 = (((uint32_t)(((((r33>>0))&0xffffffffULL))))); __auto_type v = cn_init_24263;
+__auto_type cn_init_24270 = fl.cf; __auto_type cf = cn_init_24270;
+__auto_type cn_init_24288 = cn_alu(&fl,Alu_Add,v,1,4); __auto_type r = cn_init_24288;
+(fl.cf=cf);
+(r33=(((r33&~((0xffffffffULL<<0))))|(((((((uint64_t)((r))))&0xffffffffULL))<<0))));
+}
+(f[0]=cn_double(v30));
+(r32=cn_bits(f[0]));
+}
+cn_break_b75:;
+(f[0]=cn_double(r32));
+(f[1]=cn_double(0x3ff0000000000000));
+(f[2]=f[0]);
+(f[2]=fabs(f[2]));
+(f[1]=(f[2]-f[1]));
+{
+__auto_type cn_init_24422 = cn_double(v26); __auto_type v = cn_init_24422;
+(f[1]=(f[1]*v));
+}
+(f[0]=(f[0]+f[1]));
+(r32=cn_bits(f[0]));
+(f[0]=cn_double(r3));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r5));
+(f[3]=cn_double(r3));
+(f[3]=(f[3]*f[3]));
+(f[4]=cn_double(r4));
+(f[4]=(f[4]*f[4]));
+(f[5]=cn_double(r5));
+(f[5]=(f[5]*f[5]));
+(f[4]=(f[4]+f[5]));
+(f[3]=(f[3]+f[4]));
+(fsw=cn_compare(f[3],cn_double(v28)));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x2000))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b77;
+}
+(f[3]=f[3]);
+(f[3]=cn_double(v29));
+goto cn_break_b80;
+}
+cn_break_b77:;
+(f[4]=cn_double(0x3ff0000000000000));
+(fsw=cn_compare(f[4],f[3]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x1800))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,2)){
+goto cn_break_b79;
+}
+(f[4]=f[4]);
+{
+__auto_type cn_init_24809 = cn_double(r32); __auto_type v = cn_init_24809;
+(f[3]=(v/f[3]));
+}
+goto cn_break_b80;
+}
+cn_break_b79:;
+(fsw=cn_compare(f[4],f[3]));
+(f[3]=cn_double(r32));
+}
+cn_break_b80:;
+(f[4]=cn_double(r6));
+(f[4]=(f[4]*f[3]));
+(r6=cn_bits(f[4]));
+(f[0]=(f[0]*f[3]));
+(f[1]=(f[1]*f[3]));
+(f[2]=(f[2]*f[3]));
+{
+__auto_type cn_init_24948 = cn_double(r12); __auto_type v = cn_init_24948;
+(f[2]=(f[2]+v));
+}
+(r5=cn_bits(f[2]));
+{
+__auto_type cn_init_24983 = cn_double(r11); __auto_type v = cn_init_24983;
+(f[1]=(f[1]+v));
+}
+(r4=cn_bits(f[1]));
+{
+__auto_type cn_init_25018 = cn_double(r10); __auto_type v = cn_init_25018;
+(f[0]=(f[0]+v));
+}
+(r3=cn_bits(f[0]));
+(rg[0]=rg[3]);
+{
+(rg[7]=((uint32_t)(((((s2005>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[6]=((uint32_t)(((((s2005>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[3]=((uint32_t)(((((s2006>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[4]=rg[5]);
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(3),r3);
+cn_wr64(m,CN_REC+8*(4),r4);
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64(m,CN_REC+8*(6),r6);
+cn_wr64(m,CN_REC+8*(32),r32);
+cn_wr64(m,CN_REC+8*(33),r33);
+cn_wr64u(m,0x10007ea0U,s2004);
+cn_wr64u(m,0x10007ea8U,s2005);
+cn_wr64u(m,0x10007eb0U,s2006);
+cn_wr64u(m,0x10007eb8U,s2007);
+cn_wr64u(m,0x10007ec0U,s2008);
+cn_wr64u(m,0x10007ec8U,s2009);
+cn_wr64u(m,0x10007ed0U,s2010);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_f8a79f471f2fd4a3(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_51 = ((uint32_t)(pvar-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+232))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_88 = cn_rd64(m,CN_REC+8*(3)); uint64_t r3 = cn_init_88;
+__auto_type cn_init_105 = cn_rd64(m,CN_REC+8*(4)); uint64_t r4 = cn_init_105;
+__auto_type cn_init_122 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_122;
+__auto_type cn_init_139 = cn_rd64(m,CN_REC+8*(7)); uint64_t r7 = cn_init_139;
+__auto_type cn_init_156 = cn_rd64(m,CN_REC+8*(8)); uint64_t r8 = cn_init_156;
+__auto_type cn_init_173 = cn_rd64(m,CN_REC+8*(9)); uint64_t r9 = cn_init_173;
+__auto_type cn_init_190 = cn_rd64(m,CN_REC+8*(10)); uint64_t r10 = cn_init_190;
+__auto_type cn_init_207 = cn_rd64(m,CN_REC+8*(11)); uint64_t r11 = cn_init_207;
+__auto_type cn_init_224 = cn_rd64(m,CN_REC+8*(12)); uint64_t r12 = cn_init_224;
+__auto_type cn_init_241 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_241;
+__auto_type cn_init_254 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_254;
+__auto_type cn_init_267 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_267;
+__auto_type cn_init_280 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_280;
+__auto_type cn_init_293 = cn_cell(vm,0); uint64_t v29 = cn_init_293;
+__auto_type cn_init_306 = cn_cell(vm,8); uint64_t v30 = cn_init_306;
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<32))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[7])))&0xffffffffULL))<<0))));
+}
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[7]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+(f[0]=cn_double(v30));
+(f[1]=cn_double(0x3ff0000000000000));
+(f[1]=(f[1]/f[0]));
+(f[2]=cn_double(r8));
+(f[2]=(f[2]*f[1]));
+(f[3]=cn_double(r7));
+(f[3]=(f[3]*f[1]));
+(f[4]=cn_double(r9));
+(f[1]=(f[1]*f[4]));
+(f[4]=f[3]);
+(f[4]=cn_round(m,f[4]));
+(f[5]=f[2]);
+(f[5]=cn_round(m,f[5]));
+(f[6]=f[1]);
+(f[6]=cn_round(m,f[6]));
+(f[1]=(f[1]-f[6]));
+{
+__auto_type cn_init_715 = cn_double(v29); __auto_type v = cn_init_715;
+(f[6]=(f[6]*v));
+}
+(r12=cn_bits(f[6]));
+(f[2]=(f[2]-f[5]));
+{
+__auto_type cn_init_765 = cn_double(v29); __auto_type v = cn_init_765;
+(f[5]=(f[5]*v));
+}
+(r11=cn_bits(f[5]));
+(f[3]=(f[3]-f[4]));
+{
+__auto_type cn_init_815 = cn_double(v29); __auto_type v = cn_init_815;
+(f[4]=(f[4]*v));
+}
+(r10=cn_bits(f[4]));
+(f[3]=(f[3]*f[0]));
+(r3=cn_bits(f[3]));
+(f[2]=(f[2]*f[0]));
+(r4=cn_bits(f[2]));
+(f[0]=(f[0]*f[1]));
+(r5=cn_bits(f[0]));
+{
+(rg[7]=((uint32_t)(((((s2013>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[6]=((uint32_t)(((((s2013>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(3),r3);
+cn_wr64(m,CN_REC+8*(4),r4);
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64(m,CN_REC+8*(10),r10);
+cn_wr64(m,CN_REC+8*(11),r11);
+cn_wr64(m,CN_REC+8*(12),r12);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_fb5ac68d1c9c59f0(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_51 = ((uint32_t)(pvar-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+128))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_88 = cn_rd64(m,CN_REC+8*(3)); uint64_t r3 = cn_init_88;
+__auto_type cn_init_105 = cn_rd64(m,CN_REC+8*(4)); uint64_t r4 = cn_init_105;
+__auto_type cn_init_122 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_122;
+__auto_type cn_init_139 = cn_rd64(m,CN_REC+8*(6)); uint64_t r6 = cn_init_139;
+__auto_type cn_init_156 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_156;
+__auto_type cn_init_169 = cn_rd64u(m,0x10007ec0U); uint64_t s2008 = cn_init_169;
+__auto_type cn_init_182 = cn_rd64u(m,0x10007ec8U); uint64_t s2009 = cn_init_182;
+__auto_type cn_init_195 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_195;
+__auto_type cn_init_208 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_208;
+__auto_type cn_init_221 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_221;
+__auto_type cn_init_234 = cn_cell(vm,0); uint64_t v16 = cn_init_234;
+__auto_type cn_init_247 = cn_cell(vm,8); uint64_t v17 = cn_init_247;
+__auto_type cn_init_260 = cn_cell(vm,16); uint64_t v18 = cn_init_260;
+__auto_type cn_init_273 = cn_cell(vm,24); uint64_t v19 = cn_init_273;
+__auto_type cn_init_286 = cn_cell(vm,32); uint64_t v20 = cn_init_286;
+__auto_type cn_init_299 = cn_cell(vm,40); uint64_t v21 = cn_init_299;
+__auto_type cn_init_312 = cn_cell(vm,48); uint64_t v22 = cn_init_312;
+__auto_type cn_init_325 = cn_cell(vm,56); uint64_t v23 = cn_init_325;
+__auto_type cn_init_338 = cn_cell(vm,64); uint64_t v24 = cn_init_338;
+__auto_type cn_init_351 = cn_cell(vm,72); uint64_t v25 = cn_init_351;
+__auto_type cn_init_364 = cn_cell(vm,80); uint64_t v26 = cn_init_364;
+__auto_type cn_init_377 = cn_cell(vm,88); uint64_t v27 = cn_init_377;
+__auto_type cn_init_390 = cn_cell(vm,96); uint64_t v28 = cn_init_390;
+__auto_type cn_init_403 = cn_cell(vm,104); uint64_t v29 = cn_init_403;
+__auto_type cn_init_416 = cn_cell(vm,112); uint64_t v30 = cn_init_416;
+__auto_type cn_init_429 = cn_cell(vm,128); uint64_t v32 = cn_init_429;
+__auto_type cn_init_442 = cn_cell(vm,136); uint64_t v33 = cn_init_442;
+{
+{
+{
+{
+{
+{
+{
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+__auto_type cn_init_529 = 0x20U; __auto_type bv = cn_init_529;
+__auto_type cn_init_537 = rg[4]; __auto_type av = cn_init_537;
+__auto_type cn_init_555 = cn_alu(&fl,Alu_Sub,av,bv,4); __auto_type r = cn_init_555;
+(rg[4]=r);
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2009=(((s2009&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[3])))&0xffffffffULL))<<32))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2009=(((s2009&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<0))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2008=(((s2008&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[7])))&0xffffffffULL))<<32))));
+}
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[7]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+(rg[3]=rg[0]);
+(f[0]=cn_double(r4));
+{
+__auto_type cn_init_771 = cn_double(v27); __auto_type v = cn_init_771;
+(f[0]=(f[0]+v));
+}
+(r4=cn_bits(f[0]));
+(f[1]=cn_double(r3));
+{
+__auto_type cn_init_818 = cn_double(v28); __auto_type v = cn_init_818;
+(f[1]=(f[1]+v));
+}
+(r3=cn_bits(f[1]));
+(f[0]=atan2(f[0],f[1]));
+(f[1]=cn_double(v29));
+{
+__auto_type cn_init_883 = cn_double(v33); __auto_type v = cn_init_883;
+(f[1]=(f[1]*v));
+}
+(f[0]=(f[0]+f[1]));
+{
+__auto_type cn_init_922 = cn_double(v32); __auto_type v = cn_init_922;
+(f[0]=(f[0]/v));
+}
+{
+__auto_type cn_init_946 = cn_double(v30); __auto_type v = cn_init_946;
+(f[0]=(f[0]*v));
+}
+{
+__auto_type cn_init_973 = cn_round(m,f[0]); __auto_type x = cn_init_973;
+__auto_type cn_init_1008 = (((isnan(x)||!(x>=-2147483648.0&&x<=2147483647.0)))?(({0x80000000U;})):(({((uint32_t)(((int32_t)(x))));}))); __auto_type i = cn_init_1008;
+(s2013=(((s2013&~((0xffffffffULL<<0))))|(((((((uint64_t)(i)))&0xffffffffULL))<<0))));
+}
+(f[0]=(((double)(((int32_t)(((uint32_t)(((((s2013>>0))&0xffffffffULL))))))))));
+(f[0]=-f[0]);
+{
+__auto_type cn_init_1081 = cn_double(v30); __auto_type v = cn_init_1081;
+(f[0]=(f[0]/v));
+}
+{
+__auto_type cn_init_1105 = cn_double(v32); __auto_type v = cn_init_1105;
+(f[0]=(f[0]*v));
+}
+(f[1]=cn_double(v29));
+{
+__auto_type cn_init_1141 = cn_double(v33); __auto_type v = cn_init_1141;
+(f[1]=(f[1]*v));
+}
+(f[0]=(f[0]+f[1]));
+{
+__auto_type cn_tuple_1186_0 = sin(f[0]);
+__auto_type cn_tuple_1186_1 = cos(f[0]);
+__auto_type s = cn_tuple_1186_0;
+__auto_type c = cn_tuple_1186_1;
+(f[0]=s);
+(f[1]=c);
+(fsw&=~0x0400);
+}
+(f[2]=cn_double(r3));
+(f[2]=(f[2]*f[1]));
+(f[3]=cn_double(r4));
+(f[3]=(f[3]*f[0]));
+(f[2]=(f[3]-f[2]));
+(f[3]=cn_double(r3));
+(f[3]=(f[3]*f[0]));
+(f[4]=cn_double(r4));
+(f[4]=(f[4]*f[1]));
+(f[3]=(f[3]+f[4]));
+(rg[0]=((uint32_t)(((((v16>>0))&0xffffffffULL)))));
+{
+__auto_type cn_init_1367 = 0x2U; __auto_type bv = cn_init_1367;
+__auto_type cn_init_1375 = rg[0]; __auto_type av = cn_init_1375;
+__auto_type cn_init_1393 = cn_alu(&fl,Alu_And,av,bv,4); __auto_type r = cn_init_1393;
+(rg[0]=r);
+}
+if(cn_cond(fl,4)){
+goto cn_break_b2;
+}
+(f[3]=fabs(f[3]));
+goto cn_break_b4;
+}
+cn_break_b2:;
+(rg[0]=((uint32_t)(((((s2013>>0))&0xffffffffULL)))));
+{
+__auto_type cn_init_1454 = 0x1U; __auto_type bv = cn_init_1454;
+__auto_type cn_init_1462 = rg[0]; __auto_type av = cn_init_1462;
+__auto_type cn_init_1480 = cn_alu(&fl,Alu_And,av,bv,4); __auto_type r = cn_init_1480;
+(rg[0]=r);
+}
+if(cn_cond(fl,5)){
+goto cn_break_b4;
+}
+(f[3]=-f[3]);
+}
+cn_break_b4:;
+{
+__auto_type cn_init_1523 = cn_double(v27); __auto_type v = cn_init_1523;
+(f[3]=(f[3]-v));
+}
+{
+__auto_type cn_init_1547 = cn_double(v26); __auto_type v = cn_init_1547;
+(f[3]=(f[3]-v));
+}
+(f[3]=fabs(f[3]));
+(f[3]=-f[3]);
+{
+__auto_type cn_init_1596 = cn_double(v26); __auto_type v = cn_init_1596;
+(f[3]=(f[3]+v));
+}
+(r4=cn_bits(f[3]));
+{
+__auto_type cn_init_1631 = cn_double(v28); __auto_type v = cn_init_1631;
+(f[2]=(f[2]-v));
+}
+(f[3]=cn_double(r5));
+(f[4]=cn_double(v25));
+(f[2]=(f[2]+f[4]));
+(f[4]=f[4]);
+(fsw=cn_compare(f[3],f[2]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x2000))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,6)){
+goto cn_break_b6;
+}
+cn_swap(f,3,2);
+}
+cn_break_b6:;
+(f[4]=cn_double(v25));
+(f[2]=(f[2]-f[4]));
+(rg[0]=((uint32_t)(((((v16>>0))&0xffffffffULL)))));
+{
+__auto_type cn_init_1823 = 0x1U; __auto_type bv = cn_init_1823;
+__auto_type cn_init_1831 = rg[0]; __auto_type av = cn_init_1831;
+__auto_type cn_init_1849 = cn_alu(&fl,Alu_And,av,bv,4); __auto_type r = cn_init_1849;
+(rg[0]=r);
+}
+if(cn_cond(fl,4)){
+goto cn_break_b10;
+}
+(f[2]=(f[2]+f[4]));
+(f[4]=f[4]);
+(fsw=cn_compare(f[3],f[2]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x2000))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,6)){
+goto cn_break_b9;
+}
+cn_swap(f,3,2);
+}
+cn_break_b9:;
+(f[4]=cn_double(v25));
+(f[2]=(f[2]-f[4]));
+goto cn_break_b13;
+}
+cn_break_b10:;
+(f[2]=(f[2]-f[4]));
+(f[4]=f[4]);
+(fsw=cn_compare(f[3],f[2]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x2000))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,6)){
+goto cn_break_b12;
+}
+cn_swap(f,3,2);
+}
+cn_break_b12:;
+(f[4]=cn_double(v25));
+(f[2]=(f[2]+f[4]));
+}
+cn_break_b13:;
+(f[4]=f[4]);
+(r5=cn_bits(f[3]));
+(r3=cn_bits(f[2]));
+(f[1]=f[1]);
+(f[0]=f[0]);
+(f[0]=cn_double(r5));
+{
+__auto_type cn_init_2213 = cn_double(v23); __auto_type v = cn_init_2213;
+(f[0]=(f[0]+v));
+}
+(f[1]=cn_double(r4));
+{
+__auto_type cn_init_2249 = cn_double(v22); __auto_type v = cn_init_2249;
+(f[1]=(f[1]+v));
+}
+(f[2]=cn_double(r3));
+{
+__auto_type cn_init_2285 = cn_double(v21); __auto_type v = cn_init_2285;
+(f[2]=(f[2]+v));
+}
+(f[3]=f[2]);
+{
+__auto_type cn_init_2333 = (((double)(cn_float(((uint32_t)(((((v17>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2333;
+(f[3]=(f[3]*v));
+}
+(f[4]=f[1]);
+{
+__auto_type cn_init_2381 = (((double)(cn_float(((uint32_t)(((((v17>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2381;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[0]);
+{
+__auto_type cn_init_2444 = (((double)(cn_float(((uint32_t)(((((v16>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2444;
+(f[4]=(f[4]*v));
+}
+(f[3]=(f[3]+f[4]));
+(f[4]=f[2]);
+{
+__auto_type cn_init_2507 = (((double)(cn_float(((uint32_t)(((((v20>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2507;
+(f[4]=(f[4]*v));
+}
+(f[5]=f[1]);
+{
+__auto_type cn_init_2555 = (((double)(cn_float(((uint32_t)(((((v20>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2555;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+(f[5]=f[0]);
+{
+__auto_type cn_init_2618 = (((double)(cn_float(((uint32_t)(((((v19>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2618;
+(f[5]=(f[5]*v));
+}
+(f[4]=(f[4]+f[5]));
+cn_swap(f,4,2);
+{
+__auto_type cn_init_2680 = (((double)(cn_float(((uint32_t)(((((v19>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2680;
+(f[4]=(f[4]*v));
+}
+cn_swap(f,4,1);
+{
+__auto_type cn_init_2727 = (((double)(cn_float(((uint32_t)(((((v18>>32))&0xffffffffULL)))))))); __auto_type v = cn_init_2727;
+(f[4]=(f[4]*v));
+}
+(f[1]=(f[1]+f[4]));
+cn_swap(f,3,0);
+{
+__auto_type cn_init_2789 = (((double)(cn_float(((uint32_t)(((((v18>>0))&0xffffffffULL)))))))); __auto_type v = cn_init_2789;
+(f[3]=(f[3]*v));
+}
+(f[1]=(f[1]+f[3]));
+(f[3]=cn_double(v24));
+(f[4]=cn_double(r6));
+(f[4]=(f[4]*f[3]));
+(r6=cn_bits(f[4]));
+(f[0]=(f[0]*f[3]));
+(f[1]=(f[1]*f[3]));
+(f[2]=(f[2]*f[3]));
+(f[3]=f[3]);
+{
+__auto_type cn_init_2933 = cn_double(v21); __auto_type v = cn_init_2933;
+(f[2]=(f[2]-v));
+}
+(r3=cn_bits(f[2]));
+{
+__auto_type cn_init_2968 = cn_double(v22); __auto_type v = cn_init_2968;
+(f[1]=(f[1]-v));
+}
+(r4=cn_bits(f[1]));
+{
+__auto_type cn_init_3003 = cn_double(v23); __auto_type v = cn_init_3003;
+(f[0]=(f[0]-v));
+}
+(r5=cn_bits(f[0]));
+(rg[0]=rg[3]);
+{
+(rg[7]=((uint32_t)(((((s2008>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[6]=((uint32_t)(((((s2009>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[3]=((uint32_t)(((((s2009>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[4]=rg[5]);
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(3),r3);
+cn_wr64(m,CN_REC+8*(4),r4);
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64(m,CN_REC+8*(6),r6);
+cn_wr64u(m,0x10007ec0U,s2008);
+cn_wr64u(m,0x10007ec8U,s2009);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_fceaa568004c7d1c(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_58 = cn_rd64(m,CN_REC+8*(3)); uint64_t r3 = cn_init_58;
+__auto_type cn_init_75 = cn_rd64(m,CN_REC+8*(4)); uint64_t r4 = cn_init_75;
+__auto_type cn_init_92 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_92;
+__auto_type cn_init_109 = cn_rd64(m,CN_REC+8*(10)); uint64_t r10 = cn_init_109;
+__auto_type cn_init_126 = cn_rd64(m,CN_REC+8*(11)); uint64_t r11 = cn_init_126;
+__auto_type cn_init_143 = cn_rd64(m,CN_REC+8*(12)); uint64_t r12 = cn_init_143;
+__auto_type cn_init_160 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_160;
+__auto_type cn_init_173 = cn_rd64u(m,0x10007ee0U); uint64_t s2012 = cn_init_173;
+__auto_type cn_init_186 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_186;
+__auto_type cn_init_199 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_199;
+__auto_type cn_init_212 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_212;
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[3])))&0xffffffffULL))<<32))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<0))));
+}
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2012=(((s2012&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[7])))&0xffffffffULL))<<32))));
+}
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[7]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+(rg[3]=rg[0]);
+(f[0]=cn_double(r3));
+(f[0]=(f[0]*f[0]));
+(f[1]=cn_double(r4));
+(f[1]=(f[1]*f[1]));
+(f[0]=(f[0]-f[1]));
+(f[1]=cn_double(r5));
+(f[1]=(f[1]*f[1]));
+(f[0]=(f[0]-f[1]));
+(f[1]=cn_double(r3));
+{
+__auto_type cn_init_591 = cn_double(r4); __auto_type v = cn_init_591;
+(f[1]=(f[1]*v));
+}
+(f[1]=(f[1]+f[1]));
+(f[2]=cn_double(r5));
+(f[2]=(f[2]+f[2]));
+(f[3]=cn_double(r3));
+{
+__auto_type cn_init_669 = cn_double(r4); __auto_type v = cn_init_669;
+(f[3]=(f[3]-v));
+}
+(f[2]=(f[2]*f[3]));
+{
+__auto_type cn_init_708 = cn_double(r12); __auto_type v = cn_init_708;
+(f[2]=(f[2]+v));
+}
+(r5=cn_bits(f[2]));
+{
+__auto_type cn_init_743 = cn_double(r11); __auto_type v = cn_init_743;
+(f[1]=(f[1]+v));
+}
+(r4=cn_bits(f[1]));
+{
+__auto_type cn_init_778 = cn_double(r10); __auto_type v = cn_init_778;
+(f[0]=(f[0]+v));
+}
+(r3=cn_bits(f[0]));
+(rg[0]=rg[3]);
+{
+(rg[7]=((uint32_t)(((((s2012>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[6]=((uint32_t)(((((s2013>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[3]=((uint32_t)(((((s2013>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[4]=rg[5]);
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(3),r3);
+cn_wr64(m,CN_REC+8*(4),r4);
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64u(m,0x10007ee0U,s2012);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_fd36b304692cf4cb(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_22 = cn_initial_regs; __auto_type rg = cn_init_22;
+__auto_type cn_init_32 = (CN_Flags){0}; __auto_type fl = cn_init_32;
+__auto_type cn_init_38 = 0U; __auto_type fsw = cn_init_38;
+__auto_type cn_init_51 = ((uint32_t)(rg[EDI]-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+136))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_84 = cn_rd64u(m,0x10001018U); uint64_t r3 = cn_init_84;
+__auto_type cn_init_97 = cn_rd64u(m,0x10001020U); uint64_t r4 = cn_init_97;
+__auto_type cn_init_110 = cn_rd64u(m,0x10001028U); uint64_t r5 = cn_init_110;
+__auto_type cn_init_123 = cn_rd64u(m,0x10001030U); uint64_t r6 = cn_init_123;
+__auto_type cn_init_136 = cn_rd64u(m,0x10001070U); uint64_t r14 = cn_init_136;
+__auto_type cn_init_149 = cn_rd64u(m,0x10001100U); uint64_t r32 = cn_init_149;
+__auto_type cn_init_162 = cn_rd64u(m,0x10001108U); uint64_t r33 = cn_init_162;
+__auto_type cn_init_175 = cn_rd64u(m,0x10007ed0U); uint64_t s2010 = cn_init_175;
+__auto_type cn_init_188 = cn_rd64u(m,0x10007ed8U); uint64_t s2011 = cn_init_188;
+__auto_type cn_init_201 = cn_rd64u(m,0x10007ee0U); uint64_t s2012 = cn_init_201;
+__auto_type cn_init_214 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_214;
+__auto_type cn_init_227 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_227;
+__auto_type cn_init_240 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_240;
+__auto_type cn_init_253 = cn_cell(vm,0); uint64_t v17 = cn_init_253;
+__auto_type cn_init_266 = cn_cell(vm,8); uint64_t v18 = cn_init_266;
+__auto_type cn_init_279 = cn_cell(vm,16); uint64_t v19 = cn_init_279;
+__auto_type cn_init_292 = cn_cell(vm,24); uint64_t v20 = cn_init_292;
+__auto_type cn_init_305 = cn_cell(vm,32); uint64_t v21 = cn_init_305;
+__auto_type cn_init_318 = cn_cell(vm,40); uint64_t v22 = cn_init_318;
+__auto_type cn_init_331 = cn_cell(vm,48); uint64_t v23 = cn_init_331;
+__auto_type cn_init_344 = cn_cell(vm,56); uint64_t v24 = cn_init_344;
+__auto_type cn_init_357 = cn_cell(vm,64); uint64_t v25 = cn_init_357;
+__auto_type cn_init_370 = cn_cell(vm,72); uint64_t v26 = cn_init_370;
+__auto_type cn_init_383 = cn_cell(vm,80); uint64_t v27 = cn_init_383;
+__auto_type cn_init_396 = cn_cell(vm,88); uint64_t v28 = cn_init_396;
+__auto_type cn_init_409 = cn_cell(vm,96); uint64_t v29 = cn_init_409;
+__auto_type cn_init_422 = cn_cell(vm,104); uint64_t v30 = cn_init_422;
+__auto_type cn_init_435 = cn_cell(vm,120); uint64_t v32 = cn_init_435;
+__auto_type cn_init_448 = cn_cell(vm,128); uint64_t v33 = cn_init_448;
+__auto_type cn_init_461 = cn_cell(vm,136); uint64_t v34 = cn_init_461;
+__auto_type cn_init_474 = cn_cell(vm,144); uint64_t v35 = cn_init_474;
+__auto_type cn_init_487 = cn_cell(vm,152); uint64_t v36 = cn_init_487;
+__auto_type cn_init_500 = cn_cell(vm,160); uint64_t v37 = cn_init_500;
+__auto_type cn_init_513 = cn_cell(vm,168); uint64_t v38 = cn_init_513;
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+{
+__auto_type cn_init_555 = 0xffffffd8U; __auto_type bv = cn_init_555;
+__auto_type cn_init_563 = rg[4]; __auto_type av = cn_init_563;
+__auto_type cn_init_581 = cn_alu(&fl,Alu_Add,av,bv,4); __auto_type r = cn_init_581;
+(rg[4]=r);
+}
+(m->xmm[0]=(CN_U2){r3,r4});
+{
+__auto_type cn_init_610 = r5; uint64_t s = cn_init_610;
+(m->xmm[1]=(CN_U2){s,0});
+}
+{
+__auto_type cn_init_640 = (CN_U2){v28,v29}; CN_U2 s = cn_init_640;
+__auto_type cn_init_650 = m->xmm[0]; __auto_type a = cn_init_650;
+(m->xmm[0]=(CN_U2){cn_bits(((cn_double(a[0])*cn_double(s[0])))),cn_bits(((cn_double(a[1])*cn_double(s[1]))))});
+}
+{
+__auto_type cn_init_720 = v28; uint64_t s = cn_init_720;
+__auto_type cn_init_733 = m->xmm[1][0]; __auto_type a = cn_init_733;
+(m->xmm[1][0]=cn_bits(((cn_double(a)*cn_double(s)))));
+}
+{
+__auto_type cn_init_780 = (CN_U2){v24,v25}; CN_U2 s = cn_init_780;
+__auto_type cn_init_790 = m->xmm[0]; __auto_type a = cn_init_790;
+(m->xmm[0]=(CN_U2){cn_bits(((cn_double(a[0])+cn_double(s[0])))),cn_bits(((cn_double(a[1])+cn_double(s[1]))))});
+}
+{
+__auto_type cn_init_860 = v26; uint64_t s = cn_init_860;
+__auto_type cn_init_873 = m->xmm[1][0]; __auto_type a = cn_init_873;
+(m->xmm[1][0]=cn_bits(((cn_double(a)+cn_double(s)))));
+}
+{
+__auto_type cn_init_910 = 0x0U; __auto_type bv = cn_init_910;
+__auto_type cn_init_927 = (((uint32_t)(((((v22>>32))&0xffffffffULL))))); __auto_type av = cn_init_927;
+__auto_type cn_init_945 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_945;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b2;
+}
+{
+__auto_type cn_init_966 = r32; uint64_t s = cn_init_966;
+(m->xmm[5]=(CN_U2){s,0});
+}
+{
+__auto_type cn_init_988 = v28; uint64_t s = cn_init_988;
+__auto_type cn_init_1001 = m->xmm[5][0]; __auto_type a = cn_init_1001;
+(m->xmm[5][0]=cn_bits(((cn_double(a)*cn_double(s)))));
+}
+(r3=m->xmm[0][0]);
+(r4=m->xmm[0][1]);
+(r5=m->xmm[1][0]);
+(r32=m->xmm[5][0]);
+}
+cn_break_b2:;
+{
+__auto_type cn_init_1097 = m->xmm[0][0]; uint64_t v = cn_init_1097;
+(s2010=(((s2010&~((0xffffffffULL<<32))))|((((v&0xffffffffULL))<<32))));
+(s2011=(((s2011&~0xffffffffULL))|((((v>>32))&0xffffffffULL))));
+}
+{
+__auto_type cn_init_1156 = m->xmm[0][1]; uint64_t v = cn_init_1156;
+(s2011=(((s2011&~((0xffffffffULL<<32))))|((((v&0xffffffffULL))<<32))));
+(s2012=(((s2012&~0xffffffffULL))|((((v>>32))&0xffffffffULL))));
+}
+{
+__auto_type cn_init_1215 = m->xmm[1][0]; uint64_t v = cn_init_1215;
+(s2012=(((s2012&~((0xffffffffULL<<32))))|((((v&0xffffffffULL))<<32))));
+(s2013=(((s2013&~0xffffffffULL))|((((v>>32))&0xffffffffULL))));
+}
+(f[0]=cn_double(((((((s2012>>32))|((s2013<<32))))&0xffffffffffffffffULL))));
+(f[0]=fabs(f[0]));
+(f[1]=cn_double(v36));
+(fsw=cn_compare(f[1],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x3800))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b4;
+}
+(f[0]=f[0]);
+(f[0]=cn_double(v35));
+goto cn_break_b12;
+}
+cn_break_b4:;
+{
+__auto_type cn_init_1414 = 0x0U; __auto_type bv = cn_init_1414;
+__auto_type cn_init_1431 = (((uint32_t)(((((v17>>0))&0xffffffffULL))))); __auto_type av = cn_init_1431;
+__auto_type cn_init_1449 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_1449;
+}
+if(cn_cond(fl,13)){
+goto cn_break_b6;
+}
+{
+__auto_type cn_init_1473 = cn_double(v38); __auto_type v = cn_init_1473;
+(f[0]=(f[0]*v));
+}
+(f[0]=sin(f[0]));
+(fsw&=~0x0400);
+}
+cn_break_b6:;
+{
+__auto_type cn_init_1512 = 0x1U; __auto_type bv = cn_init_1512;
+__auto_type cn_init_1529 = (((uint32_t)(((((v17>>0))&0xffffffffULL))))); __auto_type av = cn_init_1529;
+__auto_type cn_init_1547 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_1547;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b9;
+}
+{
+__auto_type cn_init_1566 = 0xffffffffU; __auto_type bv = cn_init_1566;
+__auto_type cn_init_1583 = (((uint32_t)(((((v17>>0))&0xffffffffULL))))); __auto_type av = cn_init_1583;
+__auto_type cn_init_1601 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_1601;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b9;
+}
+(f[0]=-f[0]);
+(f[1]=cn_double(0x3ff0000000000000));
+(f[0]=(f[0]+f[1]));
+}
+cn_break_b9:;
+(f[1]=cn_double(v23));
+cn_swap(f,1,0);
+(f[0]*=log2(f[1]));
+(rg[2]=((uint32_t)(((((s2013>>0))&0xffffffffULL)))));
+{
+__auto_type cn_init_1711 = 0x80000000U; __auto_type bv = cn_init_1711;
+__auto_type cn_init_1719 = rg[2]; __auto_type av = cn_init_1719;
+__auto_type cn_init_1737 = cn_alu(&fl,Alu_And,av,bv,4); __auto_type r = cn_init_1737;
+(rg[2]=r);
+}
+if(cn_cond(fl,4)){
+goto cn_break_b11;
+}
+(f[0]=-f[0]);
+}
+cn_break_b11:;
+{
+__auto_type cn_init_1796 = cn_double(((((((v20>>32))|((v21<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1796;
+(f[0]=(f[0]+v));
+}
+{
+__auto_type cn_tuple_1826_0 = sin(f[0]);
+__auto_type cn_tuple_1826_1 = cos(f[0]);
+__auto_type s = cn_tuple_1826_0;
+__auto_type c = cn_tuple_1826_1;
+(f[0]=s);
+(f[1]=c);
+(fsw&=~0x0400);
+}
+{
+__auto_type cn_init_1861 = cn_bits(f[1]); uint64_t v = cn_init_1861;
+(s2014=(((s2014&~((0xffffffffULL<<32))))|((((v&0xffffffffULL))<<32))));
+(s2015=(((s2015&~0xffffffffULL))|((((v>>32))&0xffffffffULL))));
+}
+{
+__auto_type cn_init_1919 = cn_bits(f[0]); uint64_t v = cn_init_1919;
+(s2013=(((s2013&~((0xffffffffULL<<32))))|((((v&0xffffffffULL))<<32))));
+(s2014=(((s2014&~0xffffffffULL))|((((v>>32))&0xffffffffULL))));
+}
+(f[0]=cn_double(((((((s2010>>32))|((s2011<<32))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_2017 = cn_double(((((((s2013>>32))|((s2014<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2017;
+(f[0]=(f[0]*v));
+}
+(f[1]=cn_double(((((((s2011>>32))|((s2012<<32))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_2085 = cn_double(((((((s2014>>32))|((s2015<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2085;
+(f[1]=(f[1]*v));
+}
+(f[1]=-f[1]);
+(f[0]=(f[0]+f[1]));
+(f[1]=cn_double(((((((s2010>>32))|((s2011<<32))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_2179 = cn_double(((((((s2014>>32))|((s2015<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2179;
+(f[1]=(f[1]*v));
+}
+(f[2]=cn_double(((((((s2011>>32))|((s2012<<32))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_2247 = cn_double(((((((s2013>>32))|((s2014<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2247;
+(f[2]=(f[2]*v));
+}
+(f[1]=(f[1]+f[2]));
+(f[0]=atan2(f[0],f[1]));
+{
+__auto_type cn_init_2304 = cn_double(v32); __auto_type v = cn_init_2304;
+(f[0]=(f[0]*v));
+}
+{
+__auto_type cn_init_2344 = cn_double(((((((v21>>32))|((v22<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2344;
+(f[0]=(f[0]/v));
+}
+(f[1]=f[0]);
+(f[1]=cn_round(m,f[1]));
+(f[0]=(f[0]-f[1]));
+{
+__auto_type cn_init_2424 = cn_double(((((((v21>>32))|((v22<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2424;
+(f[0]=(f[0]*v));
+}
+(f[0]=fabs(f[0]));
+{
+__auto_type cn_init_2462 = cn_double(v30); __auto_type v = cn_init_2462;
+(f[0]=(f[0]/v));
+}
+(f[1]=cn_double(0x3ff0000000000000));
+(f[0]=(f[0]-f[1]));
+{
+__auto_type cn_init_2513 = cn_double(v30); __auto_type v = cn_init_2513;
+(f[0]=(f[0]*v));
+}
+{
+__auto_type cn_init_2537 = cn_double(v33); __auto_type v = cn_init_2537;
+(f[0]=(f[0]*v));
+}
+(f[0]=-f[0]);
+}
+cn_break_b12:;
+(f[1]=cn_double(((((((s2010>>32))|((s2011<<32))))&0xffffffffffffffffULL))));
+(f[1]=(f[1]*f[1]));
+(f[2]=cn_double(((((((s2011>>32))|((s2012<<32))))&0xffffffffffffffffULL))));
+(f[2]=(f[2]*f[2]));
+(f[1]=(f[1]+f[2]));
+(f[2]=cn_double(((((((s2012>>32))|((s2013<<32))))&0xffffffffffffffffULL))));
+(f[2]=(f[2]*f[2]));
+{
+__auto_type cn_init_2733 = cn_double(((((((v18>>32))|((v19<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2733;
+(f[2]=(f[2]*v));
+}
+(f[1]=(f[1]+f[2]));
+{
+__auto_type cn_init_2788 = cn_double(((((((v17>>32))|((v18<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2788;
+(f[1]=(f[1]-v));
+}
+(f[1]=fabs(f[1]));
+(f[1]=sqrt(f[1]));
+{
+__auto_type cn_init_2856 = cn_double(((((((v19>>32))|((v20<<32))))&0xffffffffffffffffULL))); __auto_type v = cn_init_2856;
+(f[1]=(f[1]-v));
+}
+{
+__auto_type cn_init_2880 = cn_double(v34); __auto_type v = cn_init_2880;
+(f[1]=(f[1]*v));
+}
+(fsw=cn_compare(f[1],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x3000))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b14;
+}
+(f[1]=f[1]);
+goto cn_break_b15;
+}
+cn_break_b14:;
+(f[0]=f[1]);
+}
+cn_break_b15:;
+(f[1]=cn_double(((((((s2012>>32))|((s2013<<32))))&0xffffffffffffffffULL))));
+(f[1]=fabs(f[1]));
+{
+__auto_type cn_init_3041 = cn_double(v37); __auto_type v = cn_init_3041;
+(f[1]=(f[1]-v));
+}
+(fsw=cn_compare(f[1],f[0]));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x3000))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b17;
+}
+(f[1]=f[1]);
+goto cn_break_b18;
+}
+cn_break_b17:;
+(f[0]=f[1]);
+}
+cn_break_b18:;
+{
+__auto_type cn_init_3155 = 0x0U; __auto_type bv = cn_init_3155;
+__auto_type cn_init_3172 = (((uint32_t)(((((v22>>32))&0xffffffffULL))))); __auto_type av = cn_init_3172;
+__auto_type cn_init_3190 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_3190;
+}
+if(cn_cond(fl,5)){
+goto cn_break_b20;
+}
+{
+__auto_type cn_init_3214 = cn_double(v28); __auto_type v = cn_init_3214;
+(f[0]=(f[0]/v));
+}
+}
+cn_break_b20:;
+(r14=cn_bits(f[0]));
+{
+__auto_type cn_init_3245 = 0x28U; __auto_type bv = cn_init_3245;
+__auto_type cn_init_3253 = rg[4]; __auto_type av = cn_init_3253;
+__auto_type cn_init_3271 = cn_alu(&fl,Alu_Add,av,bv,4); __auto_type r = cn_init_3271;
+(rg[4]=r);
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64u(m,0x10001018U,r3);
+cn_wr64u(m,0x10001020U,r4);
+cn_wr64u(m,0x10001028U,r5);
+cn_wr64u(m,0x10001070U,r14);
+cn_wr64u(m,0x10001100U,r32);
+cn_wr64u(m,0x10007ed0U,s2010);
+cn_wr64u(m,0x10007ed8U,s2011);
+cn_wr64u(m,0x10007ee0U,s2012);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+cn_wr64u(m,0x10007ef8U,s2015);
+((*regs)=rg);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_ff7b36c315e2d39e(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_58 = cn_rd64(m,CN_REC+8*(0)); uint64_t r0 = cn_init_58;
+__auto_type cn_init_75 = cn_rd64(m,CN_REC+8*(3)); uint64_t r3 = cn_init_75;
+__auto_type cn_init_92 = cn_rd64(m,CN_REC+8*(4)); uint64_t r4 = cn_init_92;
+__auto_type cn_init_109 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_109;
+__auto_type cn_init_126 = cn_rd64(m,CN_REC+8*(6)); uint64_t r6 = cn_init_126;
+__auto_type cn_init_143 = cn_rd64(m,CN_REC+8*(10)); uint64_t r10 = cn_init_143;
+__auto_type cn_init_160 = cn_rd64(m,CN_REC+8*(11)); uint64_t r11 = cn_init_160;
+__auto_type cn_init_177 = cn_rd64(m,CN_REC+8*(12)); uint64_t r12 = cn_init_177;
+__auto_type cn_init_190 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_190;
+__auto_type cn_init_203 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_203;
+__auto_type cn_init_216 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_216;
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<32))));
+}
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(f[0]=cn_double(r10));
+(f[1]=cn_double(r11));
+(f[2]=cn_double(r12));
+(f[3]=cn_double(r0));
+(f[4]=f[0]);
+(f[4]=(f[4]*f[4]));
+(f[5]=f[1]);
+(f[5]=(f[5]*f[5]));
+(f[6]=f[2]);
+(f[6]=(f[6]*f[6]));
+(f[7]=f[3]);
+(f[7]=(f[7]*f[7]));
+(f[6]=(f[6]+f[7]));
+(f[5]=(f[5]+f[6]));
+(f[4]=(f[4]+f[5]));
+(f[5]=cn_double(0x3ff0000000000000));
+(f[4]=(f[5]/f[4]));
+(f[0]=(f[0]*f[4]));
+(f[1]=(f[1]*f[4]));
+(f[2]=(f[2]*f[4]));
+(f[3]=(f[3]*f[4]));
+(r0=cn_bits(f[3]));
+(r12=cn_bits(f[2]));
+(r11=cn_bits(f[1]));
+(r10=cn_bits(f[0]));
+(f[0]=cn_double(r3));
+(f[1]=cn_double(r4));
+(f[2]=cn_double(r5));
+(f[3]=cn_double(r6));
+(f[4]=f[0]);
+(f[4]=(f[4]*f[4]));
+(f[5]=f[1]);
+(f[5]=(f[5]*f[5]));
+(f[6]=f[2]);
+(f[6]=(f[6]*f[6]));
+(f[7]=f[3]);
+(f[7]=(f[7]*f[7]));
+(f[6]=(f[6]+f[7]));
+(f[5]=(f[5]+f[6]));
+(f[4]=(f[4]+f[5]));
+(f[5]=cn_double(0x3ff0000000000000));
+(f[4]=(f[5]/f[4]));
+(f[0]=(f[0]*f[4]));
+(f[1]=(f[1]*f[4]));
+(f[2]=(f[2]*f[4]));
+(f[3]=(f[3]*f[4]));
+(r6=cn_bits(f[3]));
+(r5=cn_bits(f[2]));
+(r4=cn_bits(f[1]));
+(r3=cn_bits(f[0]));
+{
+(rg[6]=((uint32_t)(((((s2013>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(0),r0);
+cn_wr64(m,CN_REC+8*(3),r3);
+cn_wr64(m,CN_REC+8*(4),r4);
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64(m,CN_REC+8*(6),r6);
+cn_wr64(m,CN_REC+8*(10),r10);
+cn_wr64(m,CN_REC+8*(11),r11);
+cn_wr64(m,CN_REC+8*(12),r12);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_ff7c406ca39237b1(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_22 = cn_initial_regs; __auto_type rg = cn_init_22;
+__auto_type cn_init_32 = (CN_Flags){0}; __auto_type fl = cn_init_32;
+__auto_type cn_init_38 = 0U; __auto_type fsw = cn_init_38;
+__auto_type cn_init_44 = 0ULL; __auto_type steps = cn_init_44;
+__auto_type cn_init_49 = max_steps; __auto_type limit = cn_init_49;
+__auto_type cn_init_62 = ((uint32_t)(rg[EDI]-256)); __auto_type vb = cn_init_62;
+__auto_type cn_init_82 = cn_ptr(m,((uint32_t)(vb+152))); unsigned char * vm = cn_init_82;
+__auto_type cn_init_95 = cn_rd64u(m,0x10001018U); uint64_t r3 = cn_init_95;
+__auto_type cn_init_108 = cn_rd64u(m,0x10001020U); uint64_t r4 = cn_init_108;
+__auto_type cn_init_121 = cn_rd64u(m,0x10001028U); uint64_t r5 = cn_init_121;
+__auto_type cn_init_134 = cn_rd64u(m,0x10001030U); uint64_t r6 = cn_init_134;
+__auto_type cn_init_147 = cn_rd64u(m,0x10001070U); uint64_t r14 = cn_init_147;
+__auto_type cn_init_160 = cn_rd64u(m,0x10001100U); uint64_t r32 = cn_init_160;
+__auto_type cn_init_173 = cn_rd64u(m,0x10001108U); uint64_t r33 = cn_init_173;
+__auto_type cn_init_186 = cn_rd64u(m,0x10007ec8U); uint64_t s2009 = cn_init_186;
+__auto_type cn_init_199 = cn_rd64u(m,0x10007ed0U); uint64_t s2010 = cn_init_199;
+__auto_type cn_init_212 = cn_rd64u(m,0x10007ed8U); uint64_t s2011 = cn_init_212;
+__auto_type cn_init_225 = cn_rd64u(m,0x10007ee0U); uint64_t s2012 = cn_init_225;
+__auto_type cn_init_238 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_238;
+__auto_type cn_init_251 = cn_cell(vm,0); uint64_t v19 = cn_init_251;
+__auto_type cn_init_264 = cn_cell(vm,8); uint64_t v20 = cn_init_264;
+__auto_type cn_init_277 = cn_cell(vm,16); uint64_t v21 = cn_init_277;
+__auto_type cn_init_290 = cn_cell(vm,24); uint64_t v22 = cn_init_290;
+__auto_type cn_init_303 = cn_cell(vm,32); uint64_t v23 = cn_init_303;
+__auto_type cn_init_316 = cn_cell(vm,40); uint64_t v24 = cn_init_316;
+__auto_type cn_init_329 = cn_cell(vm,48); uint64_t v25 = cn_init_329;
+__auto_type cn_init_342 = cn_cell(vm,56); uint64_t v26 = cn_init_342;
+__auto_type cn_init_355 = cn_cell(vm,64); uint64_t v27 = cn_init_355;
+__auto_type cn_init_368 = cn_cell(vm,72); uint64_t v28 = cn_init_368;
+__auto_type cn_init_381 = cn_cell(vm,80); uint64_t v29 = cn_init_381;
+__auto_type cn_init_394 = cn_cell(vm,88); uint64_t v30 = cn_init_394;
+__auto_type cn_init_407 = cn_cell(vm,112); uint64_t v33 = cn_init_407;
+__auto_type cn_init_420 = cn_cell(vm,120); uint64_t v34 = cn_init_420;
+{
+{
+{
+{
+{
+__auto_type cn_init_438 = 0xffffffceU; __auto_type bv = cn_init_438;
+__auto_type cn_init_446 = rg[4]; __auto_type av = cn_init_446;
+__auto_type cn_init_464 = cn_alu(&fl,Alu_Add,av,bv,4); __auto_type r = cn_init_464;
+(rg[4]=r);
+}
+(m->xmm[0]=(CN_U2){r3,r4});
+{
+__auto_type cn_init_493 = r5; uint64_t s = cn_init_493;
+(m->xmm[1]=(CN_U2){s,0});
+}
+{
+__auto_type cn_init_523 = (CN_U2){v28,v29}; CN_U2 s = cn_init_523;
+__auto_type cn_init_533 = m->xmm[0]; __auto_type a = cn_init_533;
+(m->xmm[0]=(CN_U2){cn_bits(((cn_double(a[0])*cn_double(s[0])))),cn_bits(((cn_double(a[1])*cn_double(s[1]))))});
+}
+{
+__auto_type cn_init_603 = v28; uint64_t s = cn_init_603;
+__auto_type cn_init_616 = m->xmm[1][0]; __auto_type a = cn_init_616;
+(m->xmm[1][0]=cn_bits(((cn_double(a)*cn_double(s)))));
+}
+{
+__auto_type cn_init_663 = (CN_U2){v24,v25}; CN_U2 s = cn_init_663;
+__auto_type cn_init_673 = m->xmm[0]; __auto_type a = cn_init_673;
+(m->xmm[0]=(CN_U2){cn_bits(((cn_double(a[0])+cn_double(s[0])))),cn_bits(((cn_double(a[1])+cn_double(s[1]))))});
+}
+{
+__auto_type cn_init_743 = v26; uint64_t s = cn_init_743;
+__auto_type cn_init_756 = m->xmm[1][0]; __auto_type a = cn_init_756;
+(m->xmm[1][0]=cn_bits(((cn_double(a)+cn_double(s)))));
+}
+{
+__auto_type cn_init_793 = 0x0U; __auto_type bv = cn_init_793;
+__auto_type cn_init_810 = (((uint32_t)(((((v22>>32))&0xffffffffULL))))); __auto_type av = cn_init_810;
+__auto_type cn_init_828 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_828;
+}
+if(cn_cond(fl,4)){
+goto cn_break_b2;
+}
+{
+__auto_type cn_init_849 = r32; uint64_t s = cn_init_849;
+(m->xmm[5]=(CN_U2){s,0});
+}
+{
+__auto_type cn_init_871 = v28; uint64_t s = cn_init_871;
+__auto_type cn_init_884 = m->xmm[5][0]; __auto_type a = cn_init_884;
+(m->xmm[5][0]=cn_bits(((cn_double(a)*cn_double(s)))));
+}
+(r3=m->xmm[0][0]);
+(r4=m->xmm[0][1]);
+(r5=m->xmm[1][0]);
+(r32=m->xmm[5][0]);
+}
+cn_break_b2:;
+{
+__auto_type cn_init_980 = m->xmm[0][0]; uint64_t v = cn_init_980;
+(s2009=(((s2009&~((0xffffffffffffULL<<16))))|((((v&0xffffffffffffULL))<<16))));
+(s2010=(((s2010&~0xffffULL))|((((v>>48))&0xffffULL))));
+}
+{
+__auto_type cn_init_1039 = m->xmm[0][1]; uint64_t v = cn_init_1039;
+(s2010=(((s2010&~((0xffffffffffffULL<<16))))|((((v&0xffffffffffffULL))<<16))));
+(s2011=(((s2011&~0xffffULL))|((((v>>48))&0xffffULL))));
+}
+{
+__auto_type cn_init_1098 = m->xmm[1][0]; uint64_t v = cn_init_1098;
+(s2011=(((s2011&~((0xffffffffffffULL<<16))))|((((v&0xffffffffffffULL))<<16))));
+(s2012=(((s2012&~0xffffULL))|((((v>>48))&0xffffULL))));
+}
+(f[0]=cn_double(((((((s2010>>16))|((s2011<<48))))&0xffffffffffffffffULL))));
+(f[1]=cn_double(((((((s2009>>16))|((s2010<<48))))&0xffffffffffffffffULL))));
+(f[0]=atan2(f[0],f[1]));
+(f[1]=cn_double(((((((s2010>>16))|((s2011<<48))))&0xffffffffffffffffULL))));
+(f[1]=(f[1]*f[1]));
+(f[2]=cn_double(((((((s2009>>16))|((s2010<<48))))&0xffffffffffffffffULL))));
+(f[2]=(f[2]*f[2]));
+(f[1]=(f[1]+f[2]));
+(f[1]=sqrt(f[1]));
+{
+__auto_type cn_init_1345 = cn_bits(f[1]); uint64_t v = cn_init_1345;
+(s2009=(((s2009&~((0xffffffffffffULL<<16))))|((((v&0xffffffffffffULL))<<16))));
+(s2010=(((s2010&~0xffffULL))|((((v>>48))&0xffffULL))));
+}
+{
+__auto_type cn_init_1403 = cn_bits(f[0]); uint64_t v = cn_init_1403;
+(s2010=(((s2010&~((0xffffffffffffULL<<16))))|((((v&0xffffffffffffULL))<<16))));
+(s2011=(((s2011&~0xffffULL))|((((v>>48))&0xffffULL))));
+}
+(f[0]=cn_double(v34));
+(r14=cn_bits(f[0]));
+(rg[2]=((uint32_t)(((((v19>>32))&0xffffffffULL)))));
+cn_continue_l3:;
+{
+{
+{
+(f[0]=cn_double(((((((s2010>>16))|((s2011<<48))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_1535 = cn_double(v33); __auto_type v = cn_init_1535;
+(f[0]=(f[0]+v));
+}
+{
+__auto_type cn_init_1563 = cn_bits(f[0]); uint64_t v = cn_init_1563;
+(s2010=(((s2010&~((0xffffffffffffULL<<16))))|((((v&0xffffffffffffULL))<<16))));
+(s2011=(((s2011&~0xffffULL))|((((v>>48))&0xffffULL))));
+}
+{
+__auto_type cn_init_1628 = (((double)(((int32_t)(((uint32_t)(((((v22>>0))&0xffffffffULL))))))))); __auto_type v = cn_init_1628;
+(f[0]=(f[0]/v));
+}
+{
+__auto_type cn_init_1656 = cn_bits(f[0]); uint64_t v = cn_init_1656;
+(s2012=(((s2012&~((0xffffffffffffULL<<16))))|((((v&0xffffffffffffULL))<<16))));
+(s2013=(((s2013&~0xffffULL))|((((v>>48))&0xffffULL))));
+}
+{
+__auto_type cn_init_1721 = (((double)(((int32_t)(((uint32_t)(((((v21>>32))&0xffffffffULL))))))))); __auto_type v = cn_init_1721;
+(f[0]=(f[0]*v));
+}
+(f[0]=cos(f[0]));
+(fsw&=~0x0400);
+{
+__auto_type cn_init_1764 = cn_double(v20); __auto_type v = cn_init_1764;
+(f[0]=(f[0]*v));
+}
+{
+__auto_type cn_init_1804 = cn_double(((((((s2009>>16))|((s2010<<48))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1804;
+(f[0]=(f[0]+v));
+}
+{
+__auto_type cn_init_1828 = cn_double(v30); __auto_type v = cn_init_1828;
+(f[0]=(f[0]-v));
+}
+(f[0]=(f[0]*f[0]));
+(f[1]=cn_double(((((((s2012>>16))|((s2013<<48))))&0xffffffffffffffffULL))));
+{
+__auto_type cn_init_1906 = (((double)(((int32_t)(((uint32_t)(((((v21>>0))&0xffffffffULL))))))))); __auto_type v = cn_init_1906;
+(f[1]=(f[1]*v));
+}
+(f[1]=sin(f[1]));
+(fsw&=~0x0400);
+{
+__auto_type cn_init_1949 = cn_double(v20); __auto_type v = cn_init_1949;
+(f[1]=(f[1]*v));
+}
+{
+__auto_type cn_init_1989 = cn_double(((((((s2011>>16))|((s2012<<48))))&0xffffffffffffffffULL))); __auto_type v = cn_init_1989;
+(f[1]=(f[1]+v));
+}
+{
+__auto_type cn_init_2013 = cn_double(v30); __auto_type v = cn_init_2013;
+(f[1]=(f[1]-v));
+}
+(f[1]=(f[1]*f[1]));
+(f[0]=(f[0]+f[1]));
+(f[0]=sqrt(f[0]));
+(fsw=cn_compare(f[0],cn_double(r14)));
+(rg[EAX]=(((rg[EAX]&0xFFFF0000))|((uint32_t)(((fsw|0x3800))))));
+cn_shift_reg_l(rg,&fl,Shift_Shr,4,1,1);
+if(cn_cond(fl,3)){
+goto cn_break_b5;
+}
+(r14=cn_bits(f[0]));
+goto cn_break_b6;
+}
+cn_break_b5:;
+(f[0]=f[0]);
+}
+cn_break_b6:;
+{
+__auto_type cn_init_2177 = rg[2]; __auto_type v = cn_init_2177;
+__auto_type cn_init_2184 = fl.cf; __auto_type cf = cn_init_2184;
+__auto_type cn_init_2202 = cn_alu(&fl,Alu_Sub,v,1,4); __auto_type r = cn_init_2202;
+(fl.cf=cf);
+(rg[2]=r);
+}
+if(cn_cond(fl,15)){
+(steps+=1);
+if((steps>limit)){
+return 1;
+}
+goto cn_continue_l3;
+}
+goto cn_break_b7;
+}
+goto cn_continue_l3;
+cn_break_l3:;
+}
+cn_break_b7:;
+(f[0]=cn_double(r14));
+{
+__auto_type cn_init_2274 = cn_double(v23); __auto_type v = cn_init_2274;
+(f[0]=(f[0]-v));
+}
+{
+__auto_type cn_init_2293 = 0x0U; __auto_type bv = cn_init_2293;
+__auto_type cn_init_2310 = (((uint32_t)(((((v22>>32))&0xffffffffULL))))); __auto_type av = cn_init_2310;
+__auto_type cn_init_2328 = cn_alu(&fl,Alu_Cmp,av,bv,4); __auto_type r = cn_init_2328;
+}
+if(cn_cond(fl,5)){
+goto cn_break_b9;
+}
+{
+__auto_type cn_init_2352 = cn_double(v28); __auto_type v = cn_init_2352;
+(f[0]=(f[0]/v));
+}
+}
+cn_break_b9:;
+(r14=cn_bits(f[0]));
+{
+__auto_type cn_init_2383 = 0x32U; __auto_type bv = cn_init_2383;
+__auto_type cn_init_2391 = rg[4]; __auto_type av = cn_init_2391;
+__auto_type cn_init_2409 = cn_alu(&fl,Alu_Add,av,bv,4); __auto_type r = cn_init_2409;
+(rg[4]=r);
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64u(m,0x10001018U,r3);
+cn_wr64u(m,0x10001020U,r4);
+cn_wr64u(m,0x10001028U,r5);
+cn_wr64u(m,0x10001070U,r14);
+cn_wr64u(m,0x10001100U,r32);
+cn_wr64u(m,0x10007ec8U,s2009);
+cn_wr64u(m,0x10007ed0U,s2010);
+cn_wr64u(m,0x10007ed8U,s2011);
+cn_wr64u(m,0x10007ee0U,s2012);
+cn_wr64u(m,0x10007ee8U,s2013);
+((*regs)=rg);
+(*regs)=rg; m->regs=rg; return 0;
+}
+int cn_f_ff9c8cad98242cf2(CN_Machine *m, CN_U8 *regs, uint32_t pvar) { CN_U8 cn_initial_regs=*regs; uint64_t max_steps=2000000;
+
+__auto_type cn_init_16 = (CN_D8){0}; __auto_type f = cn_init_16;
+__auto_type cn_init_25 = (*regs); __auto_type rg = cn_init_25;
+__auto_type cn_init_35 = (CN_Flags){0}; __auto_type fl = cn_init_35;
+__auto_type cn_init_41 = 0U; __auto_type fsw = cn_init_41;
+__auto_type cn_init_51 = ((uint32_t)(pvar-256)); __auto_type vb = cn_init_51;
+__auto_type cn_init_71 = cn_ptr(m,((uint32_t)(vb+240))); unsigned char * vm = cn_init_71;
+__auto_type cn_init_88 = cn_rd64(m,CN_REC+8*(3)); uint64_t r3 = cn_init_88;
+__auto_type cn_init_105 = cn_rd64(m,CN_REC+8*(4)); uint64_t r4 = cn_init_105;
+__auto_type cn_init_122 = cn_rd64(m,CN_REC+8*(5)); uint64_t r5 = cn_init_122;
+__auto_type cn_init_139 = cn_rd64(m,CN_REC+8*(13)); uint64_t r13 = cn_init_139;
+__auto_type cn_init_152 = cn_rd64u(m,0x10007ee8U); uint64_t s2013 = cn_init_152;
+__auto_type cn_init_165 = cn_rd64u(m,0x10007ef0U); uint64_t s2014 = cn_init_165;
+__auto_type cn_init_178 = cn_rd64u(m,0x10007ef8U); uint64_t s2015 = cn_init_178;
+__auto_type cn_init_191 = cn_cell(vm,0); uint64_t v30 = cn_init_191;
+{
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2014=(((s2014&~((0xffffffffULL<<0))))|(((((((uint64_t)(rg[5])))&0xffffffffULL))<<0))));
+}
+(rg[5]=rg[4]);
+{
+(rg[ESP]=((uint32_t)(rg[ESP]-4)));
+(s2013=(((s2013&~((0xffffffffULL<<32))))|(((((((uint64_t)(rg[6])))&0xffffffffULL))<<32))));
+}
+(rg[6]=((uint32_t)(((((s2015>>0))&0xffffffffULL)))));
+(rg[6]=((uint32_t)(((((r13>>0))&0xffffffffULL)))));
+(f[0]=cn_double(v30));
+(f[1]=cn_double(r5));
+(f[2]=f[1]);
+(f[2]=(f[2]-f[0]));
+(f[2]=fabs(f[2]));
+cn_swap(f,2,1);
+(f[2]=(f[2]+f[0]));
+(f[2]=fabs(f[2]));
+(f[1]=(f[2]-f[1]));
+{
+__auto_type cn_init_459 = cn_double(r5); __auto_type v = cn_init_459;
+(f[1]=(f[1]-v));
+}
+(r5=cn_bits(f[1]));
+(f[1]=cn_double(r4));
+(f[2]=f[1]);
+(f[2]=(f[2]-f[0]));
+(f[2]=fabs(f[2]));
+cn_swap(f,2,1);
+(f[2]=(f[2]+f[0]));
+(f[2]=fabs(f[2]));
+(f[1]=(f[2]-f[1]));
+{
+__auto_type cn_init_598 = cn_double(r4); __auto_type v = cn_init_598;
+(f[1]=(f[1]-v));
+}
+(r4=cn_bits(f[1]));
+(f[1]=cn_double(r3));
+(f[2]=f[1]);
+(f[2]=(f[2]-f[0]));
+(f[2]=fabs(f[2]));
+cn_swap(f,2,1);
+(f[2]=(f[2]+f[0]));
+(f[2]=fabs(f[2]));
+(f[1]=(f[2]-f[1]));
+{
+__auto_type cn_init_737 = cn_double(r3); __auto_type v = cn_init_737;
+(f[1]=(f[1]-v));
+}
+(r3=cn_bits(f[1]));
+(f[0]=f[0]);
+{
+(rg[6]=((uint32_t)(((((s2013>>32))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+{
+(rg[5]=((uint32_t)(((((s2014>>0))&0xffffffffULL)))));
+(rg[ESP]=((uint32_t)(rg[ESP]+4)));
+}
+(rg[ESP]=((uint32_t)(rg[ESP]+12)));
+goto cn_break_body;
+}
+cn_break_body:;
+cn_wr64(m,CN_REC+8*(3),r3);
+cn_wr64(m,CN_REC+8*(4),r4);
+cn_wr64(m,CN_REC+8*(5),r5);
+cn_wr64u(m,0x10007ee8U,s2013);
+cn_wr64u(m,0x10007ef0U,s2014);
+(*regs)=rg; m->regs=rg; return 0;
+}

@@ -1,0 +1,11 @@
+#define main app_main_unused
+#import "../App.m"
+#undef main
+#include <assert.h>
+int main(void){@autoreleasepool{
+ [NSApplication sharedApplication];AppDelegate *app=[AppDelegate new];[app ensureWindow];[app.window orderOut:nil];RenderOptions o;char error[512];assert(read_scene_settings("example.m3i",&o,error));app.formulaSettings=o;[app showFormulas:nil];[app.formulasWindow orderOut:nil];
+ assert(!app.formulaMoveLeft.enabled&&app.formulaMoveRight.enabled);[app.formulaTabs selectTabViewItemAtIndex:FORMULA_UI_SLOTS-1];assert(app.formulaMoveLeft.enabled&&!app.formulaMoveRight.enabled);[app.formulaTabs selectTabViewItemAtIndex:0];
+ app.formulaCountFields[0].intValue=7;app.formulaCountFields[1].intValue=2;[app.formulaTabs selectTabViewItemAtIndex:0];NSButton *move=[NSButton new];move.tag=1;[app moveFormulaSlot:move];assert(app.formulaCountFields[1].intValue==7&&app.formulaCountFields[0].intValue==2);assert([app.formulaTabs indexOfTabViewItem:app.formulaTabs.selectedTabViewItem]==1);move.tag=-1;[app moveFormulaSlot:move];assert(app.formulaCountFields[0].intValue==7);[app moveFormulaSlot:move];assert(app.formulaCountFields[0].intValue==7);
+ NSButton *clip=[NSButton new];clip.tag=0;[app formulaClipboardAction:clip];[app.formulaTabs selectTabViewItemAtIndex:1];clip.tag=1;[app formulaClipboardAction:clip];assert(app.formulaCountFields[1].intValue==7&&app.formulaClipboard.length==sizeof(FormulaSlot));
+ [app ensureAnimationWindow];[app.animationKeys addObject:@{@"frames":@10}];app.animationFields[4].intValue=60;app.animationLoop.state=1;app.animationOutputFolder=@"/private/tmp";[app.animationSampling selectItemAtIndex:2];app.animationWindow.title=@"test.m3a";NSButton *clear=[NSButton new];clear.tag=7;[app animationKeyAction:clear];assert(app.animationKeys.count==0&&app.animationTable.selectedRow==0&&[app numberOfRowsInTableView:app.animationTable]==1);assert(app.animationFields[4].intValue==24&&app.animationFields[0].intValue==30&&[app.animationFields[7].stringValue isEqual:@"last"]);assert(app.animationLoop.state==0&&app.animationSampling.indexOfSelectedItem==0&&app.animationPreviewScale.indexOfSelectedItem==1&&!app.animationOutputFolder);assert(!app.animationView.image&&!app.animationPause.enabled);puts("Clear and formula movement passed");
+ }return 0;}

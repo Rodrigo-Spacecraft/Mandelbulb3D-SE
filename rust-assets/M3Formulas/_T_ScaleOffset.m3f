@@ -1,0 +1,19 @@
+[OPTIONS]
+.Version = 2
+.DEoption = -1
+.Double Scale_X = 1.0
+.Double Scale_Y = 1.0
+.Double Scale_Z = 1.0
+.Double Offset_X = 0.0
+.Double Offset_Y = 0.0
+.Double Offset_Z = 0.0
+[CODE]
+558BEC568B75088B7630DD00DC4EF0DC46D8DD18DD02DC4EE8DC46D0DD1ADD01
+DC4EE0DC46C8DD195E5DC20800
+[END]
+_T_ScaleOffset
+==============
+
+Created by Luka Sladakovic / Spiraldiver
+https://linktr.ee/Spiraldive
+2026

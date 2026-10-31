@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>0</key>
+	<string>The triplex math sine bulb, as suggested by Daniel White and Paul Nylander.  These are fast implementions of powers of 2,3,4,5,6,7 and 8.
+
+If you want to make an animation with smooth power changings, please use the 'Real Power' formula.</string>
+	<key>1</key>
+	<string>The sine bulb where arbitrary power values can be used, the calculation is slower than of integer powers.
+
+r  = sqrt(x*x + y*y + z*z)
+th = ArcTan2(y, x) * Float_power
+ph = ArcSin(z/r) * Float_power
+r  = Power(r, Float_power)
+x  = r * cos(ph) * cos(th) + Cx
+y  = r * cos(ph) * sin(th) + Cy
+z  = Z_multiplier * r * sin(ph) + Cz</string>
+	<key>2</key>
+	<string>A 4d quaternion formula, one iteration:
+
+x' = x*x - y*y - z*z - w*w + Cx
+y' = 2*(y*x + z*w) + Cy
+z' = 2*(z*x + YW_multiplier*y*w) + Cz
+w' = 2*(w*x + y*z) + W_add + Cw</string>
+	<key>3</key>
+	<string></string>
+	<key>4</key>
+	<string>The 'Amazing Box' aka Mandbox formula, invented by TGlad at fractalforums.com.
+
+The formula for one iteration looks like this:
+
+x = abs(x+Fold) - abs(x-Fold) - x
+y = abs(y+Fold) - abs(y-Fold) - y
+z = abs(z+Fold) - abs(z-Fold) - z
+rr = x*x + y*y + z*z
+if rr &lt; sqr(Min_R) then m = Scale/sqr(Min_R) else
+if rr &lt; 1 then m = Scale/rr else m = Scale
+x = x * m + Cx
+y = y * m + Cy
+z = z * m + Cz</string>
+	<key>5</key>
+	<string>A hybrid of a sine power 2 bulb and the amazing box, the 3d vector length decides which formula is used:
+If it is bigger than 'Box/Bulb R threshold' the amazing box is used, else if smaller than '..threshold 2' the sine bulb,
+inbetween both formulas will be interpolated.  Make the second threshold a little smaller than the first for more smoothness.</string>
+	<key>6</key>
+	<string>A sine integer power bulb with foldings before, like in the amazing box.</string>
+	<key>7</key>
+	<string></string>
+	<key>8</key>
+	<string></string>
+	<key>9</key>
+	<string>A bulb formula as suggested by Aexion:
+http://www.fractalforums.com/the-3d-mandelbulb/iterating-c/
+
+Added two options to power-rotate the Constant by the distance of the current vectors of Z and C (Cond Phi=1),
+and the following Mode options:
+(Bits of Mode value)
+Bit1: Flip atan theta components
+Bit2: Flip atan phi components
+Bit3: Flip theta and phi
+Bit4: Flip CyCz for angle calc
+Bit5: Multiply powerC by the distance of vector Z and C</string>
+</dict>
+</plist>

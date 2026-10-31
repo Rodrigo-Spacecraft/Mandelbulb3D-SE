@@ -1,0 +1,22 @@
+[OPTIONS]
+.Version = 2
+.DEoption = -1
+.Double AmpXY = 0.2
+.Double FreqX = 3.0
+.Double FreqY = 3.0
+.Double PhaseXY = 0.0
+[CODE]
+558BEC56578B75088B7E30DD00DC4FE8DD02DC4FE0DEC1DC47D8D9FEDC4FF0DC
+01DD195F5E5DC20800
+[END]
+_T_Wobble
+=========
+Created by Luka Sladakovic / Spiraldiver
+Ported from Fragmentarium GLSL
+
+https://linktr.ee/Spiraldive
+2026
+
+Wobble sine-like distortion. Original code found somewhere on shadertoy.
+
+Use Phase XY to see visible wobble!

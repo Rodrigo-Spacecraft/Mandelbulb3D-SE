@@ -1,0 +1,15 @@
+[OPTIONS]
+.Version = 2
+.DEoption = -1
+.Double Scale_X = 0.1
+.Double Scale_Y = 0.1
+.Double Scale_Z = 0.1
+[CODE]
+558BEC568B75088B7630DD00D9E1D9FADC4EF0DC00DD18DD02D9E1D9FADC4EE8
+DC02DD1ADD01D9E1D9FADC4EE0DC01DD195E5DC20800
+[END]
+_T_SqrtAdd
+==========
+Created by Luka Sladakovic / Spiraldiver
+https://linktr.ee/Spiraldive
+2026

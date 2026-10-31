@@ -1,0 +1,16 @@
+[OPTIONS]
+.Version = 2
+.DEoption = -1
+.Double Offset_X = 0.0
+.Double Offset_Y = 0.0
+.Double Offset_Z = 0.0
+[CODE]
+558BEC568B75088B7630DD00D9E1DC46F0DD18DD02D9E1DC46E8DD1ADD01D9E1
+DC46E0DD195E5DC20800
+[END]
+_T_AbsOffset
+============
+
+Created by Luka Sladakovic / Spiraldiver
+https://linktr.ee/Spiraldive
+2026

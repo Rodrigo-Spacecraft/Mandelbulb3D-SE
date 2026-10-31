@@ -1,0 +1,7 @@
+/* The runtime under test is entirely C; vector oracles are independent files. */
+#include "renderer.c"
+#include <assert.h>
+int main(void){int scenario=getenv("CF_SCENARIO")?atoi(getenv("CF_SCENARIO")):0;int failures=0,tested=0;for(int index=38;index<formula_menu_count();index++){
+ scene_defaults();FormulaSlot f=formula_slot_default(formula_menu_kind(index));f.count=1;if(scenario==2&&formula_parameter_count(f.kind)){const FormulaParameter *p=formula_parameter(f.kind,0);formula_slot_set_value(&f,0,formula_slot_value(f,0)+(p->integer?1:.125));}scene.program=legacy_program();for(int j=0;j<8;j++)scene.program.slots[j].count=0;scene.program.slots[0]=f;scene.program_enabled=1;scene.width=64;scene.height=48;scene.iterations=20;atomic_store(&cf_error,0);Vec point=scenario==1?(Vec){-.713,.827,-1.131}:(Vec){.371,.213,.419},j={.137,-.283,.317};cf_begin(point,j,.173,20);double w=scenario==1?-.317:.193,dr=1,power=2;Vec result=cf_step(point,&j,.173,&w,f,&dr,&power);tested++;
+ if(atomic_load(&cf_error)){fprintf(stderr,"FAIL %s: %s\n",formula_name(f.kind),cf_error_message);failures++;}else {CFormulaVM *vm=cf_vm();printf("%s\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\n",formula_name(f.kind),result.x,result.y,result.z,w,dr,cf_rd(vm,CF_REC+112),cf_rd(vm,CF_REC+272));unsigned char buf[1024];cf_var_buffer(f,cf_code_for(f.kind),buf);fprintf(stderr,"BUF\t%s\t",formula_name(f.kind));for(int k=0;k<1024;k++)fprintf(stderr,"%02x",buf[k]);fputc('\n',stderr);}
+ }fprintf(stderr,"C executor: %d formulas, %d execution errors\n",tested,failures);return failures?1:0;}

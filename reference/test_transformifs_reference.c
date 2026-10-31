@@ -1,0 +1,7 @@
+#include <stdio.h>
+#include <math.h>
+#include <string.h>
+#include <assert.h>
+extern void transformifs_reference(void*,void*);
+static void pd(char*p,int i,double v){memcpy(p+i,&v,8);}static void pf(char*p,int i,float v){memcpy(p+i,&v,4);}static void pi(char*p,int i,int v){memcpy(p+i,&v,4);}
+int main(){FILE*f=fopen("test_transformifs_vectors.h","w");assert(f);fputs("/* Original transformIFS x87 golden vectors. */\nstatic const TransformIFSVector transformifs_vectors[]={\n",f);for(int i=0;i<240;i++){double in[]={sin(i*.37+.1)*4,cos(i*.21)*3,sin(i*.17)*4},v[10]={0};v[0]=sin(i*.3);v[1]=.2;v[2]=-.1;for(int j=3;j<6;j++)v[j]=i%4?sin(i*.17+j)*90:0;v[6]=i%2?-2:0;v[7]=i%3?1:0;v[8]=i%5?0:3;v[9]=i%3?1.7:-2;char state[512]={0},constants[512]={0};char*s=state+128,*p=constants+256;for(int j=0;j<3;j++)pd(s,-120+j*8,in[j]);pd(s,112,1);pd(p,-16,v[0]);pd(p,-24,v[1]);pd(p,-32,v[2]);double sx=sin(v[3]*M_PI/180),cx=cos(v[3]*M_PI/180),sy=sin(v[4]*M_PI/180),cy=cos(v[4]*M_PI/180),sz=sin(v[5]*M_PI/180),cz=cos(v[5]*M_PI/180);double m[]={cy*cz,-cy*sz,sy,sx*sy*cz+cx*sz,cx*cz-sx*sy*sz,-sx*cy,sx*sz-cx*sy*cz,cx*sy*sz+sx*cz,cx*cy};for(int j=0;j<9;j++)pf(p,-36-j*4,m[j]);pi(p,-72,v[6]);pi(p,-76,v[7]);pi(p,-80,v[8]);pd(p,-88,v[9]);transformifs_reference(s,p);double scale,xyz[3];memcpy(&scale,s+112,8);memcpy(xyz,s-120,24);fprintf(f,"{{%.17g,%.17g,%.17g},{",in[0],in[1],in[2]);for(int j=0;j<10;j++)fprintf(f,"%.17g,",v[j]);fprintf(f,"},{%.17g,%.17g,%.17g},%.17g},\n",xyz[0],xyz[1],xyz[2],scale);}fputs("};\n",f);fclose(f);}

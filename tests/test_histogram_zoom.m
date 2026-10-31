@@ -1,0 +1,11 @@
+#define main app_main_unused
+#import "../App.m"
+#undef main
+#include <assert.h>
+@interface CalculationProbe:AppDelegate
+@end
+@implementation CalculationProbe
+- (NSURL *)applicationMapsFolderURL {return [NSURL fileURLWithPath:@"/private/tmp/calculation219/Data/Library/Application Support/Mandelbulb3D SE/Maps" isDirectory:YES];}
+- (void)beginRenderPath:(NSString *)path options:(RenderOptions)options {(void)path;(void)options;}
+@end
+int main(void){@autoreleasepool{[NSApplication sharedApplication];CalculationProbe *a=[CalculationProbe new];[a ensureWindow];[a.window orderOut:nil];RenderOptions o;char error[512];assert(read_scene_settings("example.m3i",&o,error));[a loadParameterSettings:o path:@"example.m3i" source:@"Test"];[a showLighting:nil];a.objectFields[2].doubleValue=68;a.objectFields[3].doubleValue=72;a.cuttingColorFields[0].doubleValue=20;a.cuttingColorFields[1].doubleValue=60;for(int i=0;i<2;i++){NSButton *button=a.histogramZoomButtons[i];NSArray *sliders=i?a.cuttingColorSliders:@[a.objectSliders[2],a.objectSliders[3]];NSArray *fields=i?a.cuttingColorFields:@[a.objectFields[2],a.objectFields[3]];double start=[fields[0] doubleValue],end=[fields[1] doubleValue];button.state=NSControlStateValueOn;[a histogramZoomChanged:button];double low=[sliders[0] minValue],high=[sliders[0] maxValue];assert(fabs((start-low)/(high-low)-.25)<1e-10&&fabs((end-low)/(high-low)-.75)<1e-10);assert([fields[0] doubleValue]==start&&[fields[1] doubleValue]==end);[a updateHistogramZoom];assert([sliders[0] minValue]==low);button.state=NSControlStateValueOff;[a histogramZoomChanged:button];assert([sliders[0] minValue]==(i?0:-30)&&[sliders[0] maxValue]==(i?127:90));}puts("Outside/inside zoom places start/end at 25%/75%, freezes bounds, and restores full range without changing values.");}return 0;}

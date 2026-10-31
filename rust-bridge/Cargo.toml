@@ -1,0 +1,16 @@
+[package]
+name = "mandelbulb3dx-engine"
+version = "0.1.0"
+edition = "2021"
+license = "LGPL-2.1-only"
+[lib]
+crate-type = ["staticlib"]
+[features]
+default = ["gpu"]
+gpu = ["mb3d/gpu"]
+[dependencies]
+mb3d = { path = "../vendor/mb3d-rs", default-features = false }
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

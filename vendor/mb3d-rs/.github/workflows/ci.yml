@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+    # (documentation alone, e.g. the README update after a release, has
+    # nothing to build or test)
+    paths-ignore: ["**.md", "docs/**", "LICENSE"]
+  pull_request:
+    paths-ignore: ["**.md", "docs/**", "LICENSE"]
+
+# a newer push to the same branch replaces a run still going
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2.9.2
+      # Windows: mach-dxcompiler-rs (the DirectX shader compiler) asks the
+      # GitHub API with curl, without a token, whether its download is an
+      # immutable release; on the shared runners that hits the anonymous
+      # rate limit and the build stops ("Refusing to download a mutable
+      # GitHub release").  curl's config file gives it this job's token
+      # (curl drops the header when a redirect leaves github.com; the
+      # download itself is checked against the SHA-256 pinned in the crate).
+      - name: GitHub token for curl (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          d="$RUNNER_TEMP/curlhome"
+          mkdir -p "$d"
+          printf 'header = "Authorization: Bearer %s"\n' "$GH_TOKEN" > "$d/.curlrc"
+          cp "$d/.curlrc" "$d/_curlrc"
+          echo "CURL_HOME=$d" >> "$GITHUB_ENV"
+      - name: Build
+        run: cargo build --release
+      - name: Build the renderer alone (no desktop application)
+        run: cargo build --release --no-default-features --bin mb3d
+      - name: Test
+        run: cargo test --release
+      # the GPU prototype must compile everywhere (the runners have no
+      # graphics card: the comparison test skips itself)
+      - name: Build and test with the GPU feature
+        run: cargo test --release --features gpu --lib gpu
+
+  mb3d-data:
+    # renders and compiles against the formulas, maps and parameter files of
+    # the original MB3D repository
+    name: test with the MB3D repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: mb3d-rs
+      - uses: actions/checkout@v7
+        with:
+          repository: thargor6/mb3d
+          path: mb3d
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2.9.2
+        with:
+          workspaces: mb3d-rs
+      - name: Test
+        working-directory: mb3d-rs
+        run: cargo test --release
+        env:
+          MB3D_REPO: ${{ github.workspace }}/mb3d
+      - name: Render all example parameter files (small)
+        working-directory: mb3d-rs
+        run: |
+          mkdir -p ../out
+          ./target/release/mb3d batch ../mb3d/M3Parameter/*.m3p --scale 0.05 -o ../out --formulas ../mb3d/M3Formulas --maps ../mb3d/M3Maps

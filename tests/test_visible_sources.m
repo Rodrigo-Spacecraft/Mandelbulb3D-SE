@@ -1,0 +1,10 @@
+#define main app_main_unused
+#import "App.m"
+#undef main
+#include <assert.h>
+int main(void){@autoreleasepool{
+[NSApplication sharedApplication];AppDelegate *app=[AppDelegate new];[app ensureWindow];[app.window orderOut:nil];char error[512];RenderOptions original;assert(read_scene_settings("example.m3i",&original,error));app.formulaSettings=original;[app showLighting:nil];[app.lightingWindow orderOut:nil];[app populateLights];
+NSArray *c=app.lightControls[0];assert(c.count==12);[(NSPopUpButton *)c[1] selectItemAtIndex:0];[app syncLightSliders];assert(app.lightVisibilityControls[0].hidden&&app.lightVisibilityControls[1].hidden);[(NSPopUpButton *)c[1] selectItemAtIndex:1];[app syncLightSliders];assert(!app.lightVisibilityControls[0].hidden&&!app.lightVisibilityControls[1].hidden);assert(NSMaxX([(NSControl *)c[1] frame])<NSMinX(app.lightVisibilityControls[0].frame));
+int bits[]={0,16,24,8,0};for(int i=0;i<5;i++){[(NSPopUpButton *)c[11] selectItemAtIndex:i];RenderOptions o=original;if(![app readLights:&o]){fprintf(stderr,"UI: %s\n",app.lightingStatus.stringValue.UTF8String);abort();}assert((o.lights[0].option&24)==bits[i]&&((o.lights[0].function&128)!=0)==(i==4));unlink("/tmp/visible108.m3i");o.width=32;o.height=24;o.threads=2;o.iterations=8;if(!write_scene_parameters(NULL,o,"/tmp/visible108.m3i",error)){fprintf(stderr,"save mode %d: %s\n",i,error);abort();}RenderOptions saved;assert(read_scene_settings("/tmp/visible108.m3i",&saved,error));assert(saved.lights[0].option==o.lights[0].option&&saved.lights[0].function==o.lights[0].function);app.formulaSettings=saved;[app populateLights];assert([(NSPopUpButton *)c[11] indexOfSelectedItem]==i);RenderResult r=render_scene_with_options(NULL,o);if(!r.rgba)fprintf(stderr,"%s\n",r.error);assert(r.rgba);free(r.rgba);
+assert(!truncate("/tmp/visible108.m3i",840+32*24*18+1136));assert(read_scene_settings("/tmp/visible108.m3i",&saved,error));assert(saved.lights[0].option==o.lights[0].option&&saved.lights[0].function==o.lights[0].function);}
+unlink("/tmp/visible108.m3i");puts("Visible 0–4: conditional UI, flags, native/standard round trips and Rust renders pass.");}}

@@ -1,0 +1,1 @@
+The default map collection contains 209 images. The accompanying m3maps terms of use.txt is preserved unchanged. Images and their terms are installed into the writable Maps folder. Existing user files are not overwritten. Retain original numbered filenames when replacing maps.

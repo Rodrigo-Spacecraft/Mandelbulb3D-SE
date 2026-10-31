@@ -1,0 +1,8 @@
+target/
+out/
+*.png
+scenes/
+!docs/img/*.png
+!docs/img/themes/*.png
+!tools/mb3d-wine/btn_ready.png
+!assets/*.png

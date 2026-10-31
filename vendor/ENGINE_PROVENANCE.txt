@@ -1,0 +1,17 @@
+Mandelbulb3D SE rendering engine attribution and modification notice
+
+Based on mb3d-rs by Sebastian Paluch (thr32423):
+https://github.com/thr32423/mb3d-rs
+Original source snapshot: d32154faf83b3b785b448d63aaf6accfd7416aac
+Based in turn on Mandelbulb3D, originally developed by Jesse, with community contributions:
+https://github.com/thargor6/mb3d
+License: LGPL 2.1; license texts and original notices are retained.
+
+This is modified source, not an unmodified upstream distribution.
+Modification notice dated 2026-10-30, by Glenn Olander and contributors to Mandelbulb3D SE.
+Changes include native macOS integration, formula translations and support,
+color/map and fog compatibility, emissive lighting with cached repainting,
+GPU cancellation and reliability, bounded reflection memory, and formula
+execution safeguards. Formula definitions retain their respective author credits.
+
+Corresponding source: https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel2
