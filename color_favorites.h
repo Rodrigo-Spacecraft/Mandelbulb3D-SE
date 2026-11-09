@@ -77,11 +77,12 @@ static NSImage *colorFavoriteThumbnail(ColorFavorite f,NSString *mapFolder){
 @property(nonatomic,copy) void (^clearFavorite)(void);
 @end
 @implementation ColorFavoriteButton
+- (void)mouseDown:(NSEvent *)event {if(event.modifierFlags&NSEventModifierFlagControl){[self rightMouseDown:event];return;}[super mouseDown:event];}
 - (void)drawRect:(NSRect)dirty {
     if(!self.image){[super drawRect:dirty];return;}
     [self.image drawInRect:self.bounds fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:self.enabled?1:.45 respectFlipped:YES hints:nil];
     if(self.highlighted){[NSColor.selectedControlColor setStroke];NSFrameRectWithWidth(self.bounds,2);}
 }
-- (void)rightMouseDown:(NSEvent *)event {if(!self.clearFavorite)return;NSMenu *menu=[NSMenu new];NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:@"Clear favorite" action:@selector(clearSlot:) keyEquivalent:@""];item.target=self;[menu addItem:item];[NSMenu popUpContextMenu:menu withEvent:event forView:self];}
+- (void)rightMouseDown:(NSEvent *)event {if(!self.enabled||!self.clearFavorite)return;NSMenu *menu=[NSMenu new];NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:@"Clear favorite" action:@selector(clearSlot:) keyEquivalent:@""];item.target=self;[menu addItem:item];[NSMenu popUpContextMenu:menu withEvent:event forView:self];}
 - (void)clearSlot:(id)sender{(void)sender;if(self.clearFavorite)self.clearFavorite();}
 @end

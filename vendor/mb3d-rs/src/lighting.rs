@@ -1585,7 +1585,7 @@ impl LightVals {
 
     pub fn pixel_color_s_cancellable<S: Sample>(&self,si:&SiLight,x:i32,y:i32,cam:&PaintCamera,cancel:&(dyn Fn()->bool+Sync))->[S;3]{
         let plv = self.plv_for_pixel(si, x, y, cam);
-        let opts=ShadeOpts{cancel:Some(cancel),emission_sample:self.emission.as_ref().and_then(|e|e.primary.as_ref()).and_then(|v|v.get(y as usize*cam.width as usize+x as usize)).copied(),emission_point:self.emission.as_ref().and_then(|e|if e.primary.is_some(){Some(([0.;3],0.))}else{e.point(si,x,y)}),..ShadeOpts::default()};
+        let opts=ShadeOpts{emission_seed:(y as u32).wrapping_mul(cam.width as u32).wrapping_add(x as u32),cancel:Some(cancel),emission_sample:self.emission.as_ref().and_then(|e|e.primary.as_ref()).and_then(|v|v.get(y as usize*cam.width as usize+x as usize)).copied(),emission_point:self.emission.as_ref().and_then(|e|if e.primary.is_some(){Some(([0.;3],0.))}else{e.point(si,x,y)}),..ShadeOpts::default()};
         let sh = self.shade(si, &plv, cam, &opts);
         let out = sh.light;
         let sqr = self.sqr;
@@ -1934,9 +1934,19 @@ impl LightVals {
         }
         if let (Some(emission),Some((point,eps)))=(&self.emission,o.emission_point){
             let raw=si.normal.map(|v|v as f64/32767.);let n=crate::math::normalize(crate::math::rotate_vector_reverse(&raw,&crate::math::normalise_matrix_to(1.,&emission.p.vgrads)));
-            let (emitter,incoming)=o.emission_sample.unwrap_or_else(||emission.sample(point,n,plv.abs_view.map(|v|v as f64),eps,o.cancel.unwrap_or(&||false)));
-            if emitter {out=emission.color.map(|v|if self.sqr{v*v*255.}else{v*255.});spe_out=[0.;3];}
-            else {for c in 0..3{let col=if self.sqr{emission.color[c]*emission.color[c]}else{emission.color[c]};out[c]+=255.*dif_out[c]*self.s_diff*col*incoming;}}
+            let (emitter,incoming)=o.emission_sample.unwrap_or_else(||emission.sample(point,n,plv.abs_view.map(|v|v as f64),eps,o.emission_seed,o.cancel.unwrap_or(&||false)));
+            let strength=if emitter{emission.mask.strength(si,plv_zpos)}else{0.};
+            let receive=1.-strength;
+            let received=crate::emission::receiver_contrast(std::array::from_fn(|c|{
+                let col=if self.sqr{emission.color[c]*emission.color[c]}else{emission.color[c]};
+                dif_out[c]*self.s_diff*col*incoming*receive
+            }),self.sqr);
+            for c in 0..3{
+                let emitted=emission.color[c]*strength;
+                let radiance=if self.sqr{emitted*emitted}else{emitted};
+                out[c]=out[c]*receive+255.*radiance+255.*received[c]*crate::emission::ILLUMINATION_GAIN+255.*dif_out[c]*self.s_diff*emission.bounce[c]*receive;
+                spe_out[c]*=receive;
+            }
         }
         Shaded { light: out, result, spe: spe_out, spe_a, dif: dif_out }
     }
@@ -1965,6 +1975,7 @@ pub(crate) struct ShadeOpts<'a> {
     pub(crate) cancel:Option<&'a (dyn Fn()->bool+Sync)>,
     pub(crate) emission_point: Option<(crate::math::Vec3,f64)>,
     pub(crate) emission_sample: Option<(bool,f32)>,
+    pub(crate) emission_seed: u32,
     /// `bScaleAmbDiffDown`: ambient and diffuse light are reduced by the
     /// transparency (alpha) times this light amount
     pub(crate) scale_amb_diff_down: Option<f32>,

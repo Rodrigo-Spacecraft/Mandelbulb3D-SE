@@ -454,6 +454,7 @@ impl<'a, 'c> SrTracer<'a, 'c> {
         let o = ShadeOpts {
             cancel:Some(self.c.cancel),
             emission_sample:None,
+            emission_seed:self.m.it.c.iter().fold(0u32,|seed,v|seed.rotate_left(7)^(v.to_bits() as u32)),
             emission_point:Some((self.m.it.c,self.m.ms_de_stop as f64)),
             scale_amb_diff_down: if self.scale_amb_diff_down { Some(self.c.sr_light_amount) } else { None },
             inside_trans: inside,

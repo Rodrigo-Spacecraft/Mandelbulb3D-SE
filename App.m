@@ -299,13 +299,16 @@ static NSNumber *navigatorKeyOperation(NSEvent *event) {
 
 @interface RenderProgressPie : NSView
 @property(nonatomic) double fraction;
+@property(nonatomic) BOOL indeterminate;
+@property(nonatomic) double rotation;
 @end
 @implementation RenderProgressPie
 - (void)setFraction:(double)fraction {_fraction=fmax(0,fmin(1,fraction));self.needsDisplay=YES;}
 - (void)drawRect:(NSRect)dirtyRect {
     (void)dirtyRect;NSRect circle=NSInsetRect(self.bounds,1,1);NSPoint center=NSMakePoint(NSMidX(circle),NSMidY(circle));CGFloat radius=MIN(circle.size.width,circle.size.height)*.5;
     [NSColor.quaternaryLabelColor setFill];[[NSBezierPath bezierPathWithOvalInRect:circle]fill];
-    if(self.fraction>0){NSBezierPath *pie=[NSBezierPath bezierPath];[pie moveToPoint:center];[pie lineToPoint:NSMakePoint(center.x,center.y+radius)];[pie appendBezierPathWithArcWithCenter:center radius:radius startAngle:90 endAngle:90-360*self.fraction clockwise:YES];[pie closePath];[NSColor.controlAccentColor setFill];[pie fill];}
+    if(self.indeterminate){NSBezierPath *arc=[NSBezierPath bezierPath];[arc appendBezierPathWithArcWithCenter:center radius:radius-2 startAngle:self.rotation endAngle:self.rotation-90 clockwise:YES];arc.lineWidth=2;[NSColor.controlAccentColor setStroke];[arc stroke];}
+    else if(self.fraction>0){NSBezierPath *pie=[NSBezierPath bezierPath];[pie moveToPoint:center];[pie lineToPoint:NSMakePoint(center.x,center.y+radius)];[pie appendBezierPathWithArcWithCenter:center radius:radius startAngle:90 endAngle:90-360*self.fraction clockwise:YES];[pie closePath];[NSColor.controlAccentColor setFill];[pie fill];}
     [NSColor.secondaryLabelColor setStroke];NSBezierPath *outline=[NSBezierPath bezierPathWithOvalInRect:circle];outline.lineWidth=1;[outline stroke];
 }
 @end
@@ -404,12 +407,15 @@ static const BOOL NavigatorExploreControlsVisible=NO;
 @interface ExploreButton : NSButton
 @end
 @implementation ExploreButton
+- (void)mouseDown:(NSEvent *)event {if(event.modifierFlags&NSEventModifierFlagControl){[self rightMouseDown:event];return;}[super mouseDown:event];}
 - (void)rightMouseDown:(NSEvent *)event {
     (void)event;if(self.enabled&&[self.title isEqual:@"Resume"])[NSApp sendAction:@selector(exploreSelectionChanged:) to:self.target from:self];
 }
 @end
 
 #include "color_favorites.h"
+#include "formula_thumbnails.h"
+#include "formula_menu_groups.h"
 
 #include "mutagen_engine.h"
 #include "mutagen_views.h"
@@ -625,6 +631,10 @@ static NSNumber *paletteShortcut(NSEvent *event){
     [NSGraphicsContext restoreGraphicsState];
 }
 - (void)mouseDown:(NSEvent *)event {
+    if(event.modifierFlags&NSEventModifierFlagControl){NSMenu *menu=[self menuForEvent:event];if(menu)[NSMenu popUpContextMenu:menu withEvent:event forView:self];return;}
+    [self selectStopForEvent:event];
+}
+- (void)selectStopForEvent:(NSEvent *)event {
     if(!self.enabled)return;[self.window makeFirstResponder:self];NSPoint p=[self convertPoint:event.locationInWindow fromView:nil];
     NSInteger nearest=0;double distance=1e20;
     for(int i=0;i<(self.stopCount?:10);i++){double x=paletteMarkerInset+(self.bounds.size.width-2*paletteMarkerInset)*MIN(32767,self.palette.stops[i].position)/32767.;if(fabs(x-p.x)<distance){distance=fabs(x-p.x);nearest=i;}}
@@ -632,7 +642,7 @@ static NSNumber *paletteShortcut(NSEvent *event){
 }
 - (NSMenu *)menuForEvent:(NSEvent *)event {
     if(!self.enabled||!self.markers||!self.stopCommand)return nil;
-    [self mouseDown:event];NSMenu *menu=[[NSMenu alloc]initWithTitle:@"Color stop"];
+    [self selectStopForEvent:event];NSMenu *menu=[[NSMenu alloc]initWithTitle:@"Color stop"];
     NSArray *titles=@[@"Copy",@"Paste",@"Paste Diffuse",@"Paste Specular"],*keys=@[@"c",@"v",@"g",@"b"];
     for(int i=0;i<4;i++){NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:titles[i] action:@selector(paletteStopCommand:) keyEquivalent:keys[i]];item.keyEquivalentModifierMask=NSEventModifierFlagCommand;item.tag=i;item.target=self;[menu addItem:item];}
     return menu;
@@ -688,6 +698,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 @interface FormulaCopyButton : NSButton
 @end
 @implementation FormulaCopyButton
+- (void)mouseDown:(NSEvent *)event {if(event.modifierFlags&NSEventModifierFlagControl){[self rightMouseDown:event];return;}[super mouseDown:event];}
 - (void)rightMouseDown:(NSEvent *)event {
     (void)event;if(self.enabled)[NSApp sendAction:@selector(copyActiveFormulaNames:) to:self.target from:self];
 }
@@ -697,6 +708,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 @property(nonatomic,copy) void (^redoAction)(void);
 @end
 @implementation LightingUndoButton
+- (void)mouseDown:(NSEvent *)event {if(event.modifierFlags&NSEventModifierFlagControl){[self rightMouseDown:event];return;}[super mouseDown:event];}
 - (void)rightMouseDown:(NSEvent *)event {(void)event;if(self.enabled&&self.redoAction)self.redoAction();}
 @end
 
@@ -785,6 +797,9 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 @property(nonatomic,strong) NSTextField *stepcountField;
 @property(nonatomic,strong) NSArray<NSStepper *> *calculationSteppers;
 @property(nonatomic,strong) NSArray<NSTextField *> *positionFields;
+@property(nonatomic,strong) NSArray<NSString *> *positionPasteValues;
+@property(nonatomic) CameraSettings positionPasteCamera;
+@property(nonatomic,strong) NSButton *positionCopyButton,*positionPasteButton;
 @property(nonatomic,strong) NSArray<NSString *> *positionBaseline;
 @property(nonatomic) BOOL midpointPicking;
 @property(nonatomic,strong) NSButton *dofAutomatic;
@@ -857,6 +872,8 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 @property(nonatomic,strong) NSArray<NSArray<NSTextField *> *> *boxFields;
 @property(nonatomic,strong) NSArray<NSTextField *> *zMultiplierFields,*formulaCountFields;
 @property(nonatomic,strong) NSTabView *formulaTabs;
+@property(nonatomic,strong) NSArray<NSTabViewItem *> *formulaSlotTabs;
+@property(nonatomic) NSInteger formulaClipboardMode;
 @property(nonatomic,strong) NSButton *formulaInfoButton;
 @property(nonatomic,strong) NSArray<NSScrollView *> *formulaInfoViews;
 @property(nonatomic,strong) NSData *formulaClipboard;
@@ -924,14 +941,15 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 @property(nonatomic,strong) NSArray<NSTextField *> *shadowFields;
 @property(nonatomic,strong) NSPopUpButton *ambientMethod;
 @property(nonatomic,strong) NSArray<NSSlider *> *ambientShadowSliders;
-@property(nonatomic) BOOL hardShadowsApplied,ambientShadowsApplied;
+@property(nonatomic) BOOL hardShadowsApplied,ambientShadowsApplied,resettingHardShadows,resettingAmbientShadows;
 @property(nonatomic,strong) NSArray<NSArray<NSSlider *> *> *lightSliders;
 @property(nonatomic) NSUInteger lightingPreviewGeneration;
-@property(nonatomic) BOOL lightingPreviewPending,lightingPreviewBusy,lightingSliderTracking,lightingRepaintRequested,cuttingColorRepaintPending;
+@property(nonatomic) BOOL lightingPreviewPending,lightingPreviewBusy,lightingSliderTracking,lightingRepaintRequested,cuttingColorRepaintPending,preserveNavigatorForLighting;
 @property(nonatomic,strong) NSWindow *navigatorWindow;
+@property(nonatomic,strong) NSSegmentedControl *navigatorTabControl;
 @property(nonatomic,strong) NSPopUpButton *navigatorFormulaMenu,*navigatorFormulaRange;
 @property(nonatomic) NSInteger navigatorFormulaRangeChoice;
-@property(nonatomic,strong) NSTextField *navigatorIterationField;
+@property(nonatomic,strong) NSTextField *navigatorIterationField,*navigatorIterationLabel;
 @property(nonatomic,strong) NSStepper *navigatorIterationStepper;
 @property(nonatomic,strong) NSArray<NSTextField *> *navigatorFormulaLabels,*navigatorFormulaFields;
 @property(nonatomic,strong) NSArray<NSButton *> *navigatorFormulaArrows;
@@ -1030,7 +1048,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     if([self.formulaCountFields containsObject:field]){[self refreshFormulaTabLabels];return;}
     if(field==self.navigatorIterationField) {
         double count;NSScanner *scanner=[NSScanner scannerWithString:numericInputString(field)];
-        if([scanner scanDouble:&count]&&scanner.isAtEnd&&isfinite(count)&&count==floor(count)&&count>=0&&count<=10000)self.navigatorIterationStepper.integerValue=(NSInteger)count;
+        if([scanner scanDouble:&count]&&scanner.isAtEnd&&isfinite(count)&&(self.navigatorFormulaSettings.program.mode==1||count==floor(count))&&count>=0&&count<=10000)self.navigatorIterationStepper.doubleValue=count;
         return;
     }
     if(field==self.calculationFields[0]||field==self.calculationFields[1])[self updateSizeFromField:field];
@@ -1315,7 +1333,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     NSArray *phases=@[@"Primary",@"Normals",@"Hit refinement",@"Hard shadows",@"Ambient shadows",@"Fog",@"Refl/transmission",@"Other / coloring"];
     unsigned long long total=0,formulas=0;for(int i=0;i<8;i++){total+=s.evaluations[i];formulas+=s.formula_calls[i];}
     [text appendFormat:@"Field evaluations: %llu\n",total];for(int i=0;i<8;i++)[text appendFormat:@"  %@: %llu\n",phases[i],s.evaluations[i]];
-    [text appendFormat:@"\nFormula executions: %llu\n",formulas];for(int i=0;i<8;i++)if(result.settings.program.slots[i].count||s.formula_calls[i])[text appendFormat:@"  Slot %d (%s × %d): %llu\n",i+1,formula_name(result.settings.program.slots[i].kind),result.settings.program.slots[i].count,s.formula_calls[i]];
+    [text appendFormat:@"\nFormula executions: %llu\n",formulas];for(int i=0;i<8;i++)if(result.settings.program.slots[i].count||s.formula_calls[i])[text appendFormat:@"  Slot %d (%s × %.9g): %llu\n",i+1,formula_name(result.settings.program.slots[i].kind),formula_iteration_value(result.settings.program,i),s.formula_calls[i]];
     [text appendString:@"Includes modifier calls and numerical-DE probes.\n"];
     [text appendFormat:@"\nPrimary rays: %llu\nSurface hits: %llu\nMarch loop passes: %llu\nAverage per ray: %.2f\nMaximum per ray: %llu\nRays reaching limit: %llu\n\nWall timings\n",s.rays,s.hits,s.steps,s.rays?(double)s.steps/s.rays:0,s.max_steps,s.capped_rays];
     NSArray *stages=@[@"Geometry",@"Surface lighting",@"Ambient post-pass",@"Hard shadow pass",@"Fog pass",@"Refl/transmission",@"Depth of field",@"Setup / other"];
@@ -1331,11 +1349,14 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 - (void)addPositionTab:(NSTabView *)tabs {
     NSTabViewItem *tab=[[NSTabViewItem alloc]initWithIdentifier:@"position"];tab.label=@"Position";
     NSScrollView *scroll=[[NSScrollView alloc]initWithFrame:NSMakeRect(0,0,260,130)];scroll.hasVerticalScroller=YES;scroll.autoresizingMask=NSViewWidthSizable|NSViewHeightSizable;
-    CalculationPanel *panel=[[CalculationPanel alloc]initWithFrame:NSMakeRect(0,0,240,215)];scroll.documentView=panel;
+    CalculationPanel *panel=[[CalculationPanel alloc]initWithFrame:NSMakeRect(0,0,240,245)];scroll.documentView=panel;
     NSMutableArray *fields=[NSMutableArray array];NSArray *names=@[@"X mid",@"Y mid",@"Z mid",@"Z start",@"Z end",@"Zoom"];
     for(int i=0;i<6;i++){NSTextField *label=[NSTextField labelWithString:names[i]];label.frame=NSMakeRect(10,5+i*29,65,22);[panel addSubview:label];NSTextField *field=[[NumericTextField alloc]initWithFrame:NSMakeRect(78,1+i*29,158,25)];field.accessibilityLabel=names[i];field.stringValue=i==3?@"-2":i==4?@"30":i==5?@"1":@"0";[panel addSubview:field];[fields addObject:field];}
     self.positionFields=fields;self.positionBaseline=[fields valueForKey:@"stringValue"];
-    NSButton *pick=[NSButton buttonWithTitle:@"Get midpoint" target:self action:@selector(getMidpoint:)];pick.frame=NSMakeRect(8,178,132,28);[panel addSubview:pick];NSButton *reset=[NSButton buttonWithTitle:@"Reset" target:self action:@selector(resetPosition:)];reset.frame=NSMakeRect(145,178,90,28);[panel addSubview:reset];tab.view=scroll;[tabs addTabViewItem:tab];
+    NSButton *pick=[NSButton buttonWithTitle:@"Get mid" target:self action:@selector(getMidpoint:)];pick.frame=NSMakeRect(8,178,132,28);[panel addSubview:pick];NSButton *reset=[NSButton buttonWithTitle:@"Reset" target:self action:@selector(resetPosition:)];reset.frame=NSMakeRect(145,178,90,28);[panel addSubview:reset];
+    self.positionCopyButton=[NSButton buttonWithTitle:@"Copy" target:self action:@selector(copyPosition:)];self.positionCopyButton.frame=NSMakeRect(8,210,110,28);self.positionCopyButton.toolTip=@"Copy this view to the temporary Position buffer.";[panel addSubview:self.positionCopyButton];
+    self.positionPasteButton=[NSButton buttonWithTitle:@"Paste" target:self action:@selector(pastePosition:)];self.positionPasteButton.frame=NSMakeRect(125,210,110,28);self.positionPasteButton.enabled=self.positionPasteValues!=nil;self.positionPasteButton.toolTip=@"Restore the copied position and render.";[panel addSubview:self.positionPasteButton];
+    tab.view=scroll;[tabs addTabViewItem:tab];
 }
 - (void)populatePosition {
     if(!self.positionFields)return;RenderOptions settings=self.formulaSettings;double values[6];memcpy(values,settings.position,sizeof values);
@@ -1348,6 +1369,20 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     if(v[4]<=v[3]||v[5]<1e-12||v[5]>1e12){self.statusLabel.stringValue=@"Z end must exceed Z start; Zoom must be 0.000000000001–1000000000000.";return NO;}
     CameraSettings c=options->camera;if(c.zoom<=0){c=(CameraSettings){.axes={1,0,0,0,1,0,0,0,1},.fov=30};}
     for(int i=0;i<3;i++)c.origin[i]=v[i]+c.axes[6+i]*(v[3]-v[2]);c.distance=v[4]-v[3];c.zoom=v[5];options->camera=c;options->camera_override=1;memcpy(options->position,v,sizeof v);return YES;
+}
+- (void)copyPosition:(id)sender {
+    (void)sender;if(self.calculating)return;
+    [self.window makeFirstResponder:nil];
+    RenderOptions options=self.formulaSettings;NSArray *baseline=self.positionBaseline;self.positionBaseline=nil;
+    BOOL valid=[self readPosition:&options];self.positionBaseline=baseline;if(!valid)return;
+    self.positionPasteValues=[self.positionFields valueForKey:@"stringValue"];self.positionPasteCamera=options.camera;self.positionPasteButton.enabled=YES;
+}
+- (void)pastePosition:(id)sender {
+    (void)sender;if(self.calculating||!self.positionPasteValues)return;
+    [self.window makeFirstResponder:nil];
+    for(int i=0;i<6;i++)self.positionFields[i].stringValue=self.positionPasteValues[i];
+    RenderOptions options=self.formulaSettings;options.camera=self.positionPasteCamera;options.camera_override=1;self.formulaSettings=options;self.positionBaseline=nil;
+    [self calculate:self.renderButton];
 }
 - (void)resetPosition:(id)sender {
     (void)sender;if(self.calculating)return;double v[]={0,0,0,-2,30,1};for(int i=0;i<6;i++)self.positionFields[i].stringValue=[NSString stringWithFormat:@"%.17g",v[i]];RenderOptions settings=self.formulaSettings;double axes[]={1,0,0,0,1,0,0,0,1};memcpy(settings.camera.axes,axes,sizeof axes);settings.camera.fov=30;settings.camera.optic=0;self.formulaSettings=settings;self.positionBaseline=nil;
@@ -1430,13 +1465,17 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     self.navigatorRotationSliders=sliders;self.navigatorRotationFields=fields;self.navigatorRotationLabels=labels;
     self.navigatorRotationTab.view=panel;[tabs addTabViewItem:self.navigatorRotationTab];[self populateNavigatorRotation];
 }
-- (void)syncRotationTabSegments:(NSView *)view {
-    if([view isKindOfClass:NSSegmentedControl.class]){NSSegmentedControl *segments=(NSSegmentedControl *)view;for(NSInteger i=0;i<segments.segmentCount;i++)if([[segments labelForSegment:i] isEqual:@"4D Rotation"])[segments setEnabled:!self.navigatorRotationTab.dimmed forSegment:i];}
-    for(NSView *child in view.subviews)[self syncRotationTabSegments:child];
+- (void)navigatorTabChanged:(NSSegmentedControl *)sender {
+    [self.navigatorRotationTab.tabView selectTabViewItemAtIndex:sender.selectedSegment];
 }
 - (void)populateNavigatorRotation {
     BOOL enabled=[self navigatorHas4DFormula]&&!self.calculating;
-    self.navigatorRotationTab.dimmed=![self navigatorHas4DFormula];[self syncRotationTabSegments:self.navigatorRotationTab.tabView];[self.navigatorRotationTab.tabView setNeedsDisplay:YES];
+    self.navigatorRotationTab.dimmed=![self navigatorHas4DFormula];
+    if(self.navigatorTabControl){
+        NSInteger index=[self.navigatorRotationTab.tabView indexOfTabViewItem:self.navigatorRotationTab];
+        [self.navigatorTabControl setEnabled:!self.navigatorRotationTab.dimmed forSegment:index];
+        self.navigatorTabControl.needsDisplay=YES;
+    }
     for(int i=0;i<self.navigatorRotationSliders.count;i++){
         double degrees=self.navigatorFormulaSettings.rotation4[i]*180/M_PI;
         self.navigatorRotationSliders[i].minValue=fmin(-180,degrees);self.navigatorRotationSliders[i].maxValue=fmax(180,degrees);self.navigatorRotationSliders[i].doubleValue=degrees;
@@ -1449,7 +1488,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     double degrees=sender.doubleValue;if(!isfinite(degrees)){self.navigatorStatus.stringValue=@"4D rotation must be finite.";return;}
     RenderOptions settings=self.navigatorFormulaSettings;settings.rotation4_override=1;settings.rotation4[sender.tag]=degrees*M_PI/180;
     if(!isfinite(settings.rotation4[sender.tag]))return;
-    self.navigatorFormulaSettings=settings;[self populateNavigatorRotation];[self requestNavigatorPreviewAdaptingDistance:NO];
+    self.navigatorFormulaSettings=settings;[self rememberNavigatorValue:@{@"rotation4":@(sender.tag)}];[self populateNavigatorRotation];[self requestNavigatorPreviewAdaptingDistance:NO];
 }
 - (void)addNavigatorJuliaTab:(NSTabView *)tabs {
     NSTabViewItem *tab=[[NSTabViewItem alloc] initWithIdentifier:@"julia-values"];tab.label=@"Julia Values";
@@ -1511,14 +1550,13 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
             NSArray *categories=@[@"3D",@"3Da",@"4D",@"4Da",@"Ads",@"dIFS",@"dIFSa"];
             NSArray *hints=@[@"Escape-time 3D formulas",@"3D formulas with analytic DE",@"Escape-time 4D formulas",@"4D formulas with analytic DE",@"Additional transformations",@"dIFS shapes",@"dIFS transformations"];
             for(int category=0;category<7;category++){
-                NSMenuItem *group=[[NSMenuItem alloc]initWithTitle:categories[category] action:nil keyEquivalent:@""];group.toolTip=hints[category];NSMenu *children=[[NSMenu alloc]initWithTitle:categories[category]];children.autoenablesItems=NO;
                 NSMutableArray<NSMenuItem*> *leaves=[NSMutableArray array];
-                for(int index=0;index<formula_menu_count();index++){int kind=formulaKindForMenu(index);if(formulaCategory(kind)!=category)continue;NSMenuItem *leaf=[[NSMenuItem alloc]initWithTitle:[NSString stringWithUTF8String:formula_name(kind)] action:@selector(navigatorFormulaTypeChosen:) keyEquivalent:@""];leaf.tag=kind;leaf.target=self;[leaves addObject:leaf];}
-                [leaves sortUsingComparator:^NSComparisonResult(NSMenuItem *a,NSMenuItem *b){return [a.title localizedStandardCompare:b.title];}];for(NSMenuItem *leaf in leaves)[children addItem:leaf];group.submenu=children;[menu.menu addItem:group];
+                for(int index=0;index<formula_menu_count();index++){int kind=formulaKindForMenu(index);if(formulaCategory(kind)!=category)continue;NSMenuItem *leaf=[[NSMenuItem alloc]initWithTitle:[NSString stringWithUTF8String:formula_name(kind)] action:@selector(navigatorFormulaTypeChosen:) keyEquivalent:@""];leaf.tag=kind;leaf.target=self;[[FormulaThumbnails shared]addItem:leaf kind:kind];[leaves addObject:leaf];}
+                addFormulaMenuGroups(menu.menu,leaves,category,categories[category],hints[category]);
             }
     [self addFormulaSearch:menu slot:-1];
     menu.accessibilityLabel=@"Navigator formula type";menu.toolTip=@"Choose the formula for the selected slot";[panel addSubview:menu];
-    NSTextField *iterationLabel=[NSTextField labelWithString:@"Iterations"];iterationLabel.frame=NavigatorExploreControlsVisible?NSMakeRect(310,6,70,22):NSMakeRect(372,6,78,22);[panel addSubview:iterationLabel];
+    NSTextField *iterationLabel=[NSTextField labelWithString:@"Iterations"];self.navigatorIterationLabel=iterationLabel;iterationLabel.frame=NavigatorExploreControlsVisible?NSMakeRect(310,6,70,22):NSMakeRect(372,6,78,22);[panel addSubview:iterationLabel];
     self.navigatorIterationField=[[NumericTextField alloc] initWithFrame:NavigatorExploreControlsVisible?NSMakeRect(372,2,30,26):NSMakeRect(452,2,38,26)];
     numericIntegerField(self.navigatorIterationField,YES);
     self.navigatorIterationField.target=self;self.navigatorIterationField.action=@selector(navigatorFormulaEdited:);self.navigatorIterationField.delegate=self;
@@ -1626,15 +1664,22 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 - (void)populateNavigatorFormulaValues {
     [self resetNavigatorExplore];[self populateNavigatorRotation];[self populateNavigatorCutting];
     if(!self.navigatorFormulaMenu)return;
+    BOOL interpolate=self.navigatorFormulaSettings.program.mode==1;
+    self.navigatorIterationLabel.stringValue=interpolate?@"weight":@"Iterations";
+    self.navigatorIterationField.accessibilityLabel=interpolate?@"Navigator interpolation weight":@"Navigator formula iterations per pass";
+    self.navigatorIterationField.toolTip=interpolate?@"Blend weight for the selected formula. Fractional values are supported; zero disables its contribution.":@"Iterations per pass for the selected slot: 0–10000; zero disables it.";
     if(self.navigatorFormulaRange.indexOfSelectedItem>=0&&self.navigatorFormulaRange.indexOfSelectedItem<4)self.navigatorFormulaRangeChoice=self.navigatorFormulaRange.indexOfSelectedItem;
-    RenderOptions settings=self.navigatorFormulaSettings;NSInteger slot=self.navigatorFormulaSlot;
-    for(int i=0;i<FORMULA_UI_SLOTS;i++) {
+    RenderOptions settings=self.navigatorFormulaSettings;NSInteger available=settings.program.mode==1?2:FORMULA_UI_SLOTS;
+    self.navigatorFormulaSlot=MIN(self.navigatorFormulaSlot,available-1);NSInteger slot=self.navigatorFormulaSlot;
+    while(self.navigatorFormulaMenu.numberOfItems>available)[self.navigatorFormulaMenu removeItemAtIndex:self.navigatorFormulaMenu.numberOfItems-1];
+    while(self.navigatorFormulaMenu.numberOfItems<available)[self.navigatorFormulaMenu addItemWithTitle:@""];
+    for(int i=0;i<available;i++) {
         FormulaSlot f=settings.program.slots[i];NSString *title=[NSString stringWithFormat:@"%d%@",i+1,f.count>0?@"*":@""];
         NSMenuItem *item=[self.navigatorFormulaMenu itemAtIndex:i];item.representedObject=title;item.title=[NSString stringWithFormat:@"%@ — %s",title,formula_name(f.kind)];
     }
     [self.navigatorFormulaMenu selectItemAtIndex:slot];[self.navigatorFormulaMenu setNeedsDisplay:YES];[self syncNavigatorFormulaArrows];
     FormulaSlot f=settings.program.slots[slot];formulaSelectKind(self.navigatorFormulaTypeMenu,f.kind);int count=formula_parameter_count(f.kind);
-    self.navigatorIterationField.stringValue=[NSString stringWithFormat:@"%d",f.count];self.navigatorIterationStepper.minValue=0;self.navigatorIterationStepper.integerValue=f.count;self.navigatorIterationField.enabled=f.kind!=-1&&!self.calculating;self.navigatorIterationStepper.enabled=f.kind!=-1&&!self.calculating;
+    numericIntegerField(self.navigatorIterationField,settings.program.mode!=1);self.navigatorIterationField.stringValue=[NSString stringWithFormat:@"%.9g",formula_iteration_value(settings.program,(int)slot)];self.navigatorIterationStepper.minValue=0;self.navigatorIterationStepper.doubleValue=formula_iteration_value(settings.program,(int)slot);self.navigatorIterationField.enabled=f.kind!=-1&&!self.calculating;self.navigatorIterationStepper.enabled=f.kind!=-1&&!self.calculating;
     for(int i=0;i<16;i++) {
         BOOL hidden=i>=count;self.navigatorExploreChecks[i].hidden=hidden||!NavigatorExploreControlsVisible;self.navigatorFormulaLabels[i].hidden=hidden;self.navigatorFormulaFields[i].hidden=hidden;self.navigatorFormulaSliders[i].hidden=hidden;if(hidden)continue;
         FormulaParameter uiSpec=formulaUIParameter(f.kind,i);const FormulaParameter *spec=&uiSpec;NSString *name=[NSString stringWithUTF8String:spec->name];double value=formulaUIDisplayValue(f.kind,i,formula_slot_value(f,i));
@@ -1666,10 +1711,10 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     RenderOptions settings=self.navigatorFormulaSettings;FormulaSlot f=settings.program.slots[self.navigatorFormulaSlot];
     if(f.kind==-1)return YES;
     double count;NSScanner *countScanner=[NSScanner scannerWithString:numericInputString(self.navigatorIterationField)];
-    if(![countScanner scanDouble:&count]||!countScanner.isAtEnd||!isfinite(count)||count!=floor(count)||count<0||count>10000) {
+    if(![countScanner scanDouble:&count]||!countScanner.isAtEnd||!isfinite(count)||(settings.program.mode!=1&&count!=floor(count))||count<0||count>10000) {
         self.navigatorStatus.stringValue=@"Formula iterations must be an integer 0–10000; zero disables a slot.";return NO;
     }
-    f.count=(int)count;
+    f.count=settings.program.mode==1?formula_weight_word(count):(int)count;
     for(int i=0;i<formula_parameter_count(f.kind);i++) {
         double value;NSScanner *scanner=[NSScanner scannerWithString:numericInputString(self.navigatorFormulaFields[i])];FormulaParameter uiSpec=formulaUIParameter(f.kind,i);const FormulaParameter *spec=&uiSpec;
         if(![scanner scanDouble:&value]||!scanner.isAtEnd||!isfinite(value)||value<spec->minimum||value>spec->maximum||(spec->integer&&value!=floor(value))){self.navigatorStatus.stringValue=[NSString stringWithFormat:@"%s must be %@between %.9g and %.9g.",spec->name,spec->integer?@"an integer ":@"",spec->minimum,spec->maximum];return NO;}
@@ -1684,10 +1729,10 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 }
 - (void)syncNavigatorFormulaArrows {
     self.navigatorFormulaArrows.firstObject.enabled=!self.calculating&&self.navigatorFormulaSlot>0;
-    self.navigatorFormulaArrows.lastObject.enabled=!self.calculating&&self.navigatorFormulaSlot<FORMULA_UI_SLOTS-1;
+    self.navigatorFormulaArrows.lastObject.enabled=!self.calculating&&self.navigatorFormulaSlot<self.navigatorFormulaMenu.numberOfItems-1;
 }
 - (void)navigatorFormulaArrow:(NSButton *)sender {
-    NSInteger slot=self.navigatorFormulaSlot+sender.tag;if(self.calculating||slot<0||slot>=FORMULA_UI_SLOTS)return;
+    NSInteger slot=self.navigatorFormulaSlot+sender.tag;if(self.calculating||slot<0||slot>=self.navigatorFormulaMenu.numberOfItems)return;
     [self.navigatorFormulaMenu selectItemAtIndex:slot];[self navigatorFormulaSelected:self.navigatorFormulaMenu];
 }
 - (void)navigatorFormulaSelected:(NSPopUpButton *)sender {
@@ -1701,7 +1746,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     if([sender isKindOfClass:NSTextField.class])[self.navigatorWindow makeFirstResponder:self.navigatorView];
 }
 - (void)navigatorIterationsStepped:(NSStepper *)sender {
-    self.navigatorIterationField.stringValue=[NSString stringWithFormat:@"%ld",(long)sender.integerValue];
+    self.navigatorIterationField.stringValue=[NSString stringWithFormat:@"%.9g",sender.doubleValue];
     [self navigatorFormulaEdited:sender];[self.navigatorWindow makeFirstResponder:self.navigatorView];
 }
 - (void)navigatorBrightnessChanged:(NSSlider *)sender {
@@ -1835,7 +1880,8 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
             [weakSelf requestNavigatorPreview];
         };
         [panel addSubview:self.navigatorView];
-        NSTabView *tabs=[[NSTabView alloc] initWithFrame:NSMakeRect(12,424,696,230)];
+        NSTabView *tabs=[[NSTabView alloc] initWithFrame:NSMakeRect(12,452,696,202)];
+        tabs.tabViewType=NSNoTabsBezelBorder;tabs.delegate=self;
         NSTabViewItem *movement=[[NSTabViewItem alloc] initWithIdentifier:@"navigation"];movement.label=@"Navigation";
         CalculationPanel *controls=[[CalculationPanel alloc] initWithFrame:NSMakeRect(0,0,672,194)];
         NSArray *titles=@[@"Forward (W)",@"Back (S)",@"Left (A)",@"Right (D)",@"Down (C)",@"Up (E)",
@@ -1878,10 +1924,14 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
             NSButton *button=[NSButton buttonWithTitle:i?@"Apply to Main":@"Reset from Main" target:self action:@selector(navigatorControl:)];
             button.tag=14+i;button.frame=NSMakeRect(i?570:16,708,134,28);[panel addSubview:button];if(i)self.applyNavigatorButton=button;
         }
-        self.navigatorResetValueButton=[NSButton buttonWithTitle:@"Reset Value" target:self action:@selector(resetNavigatorValue:)];self.navigatorResetValueButton.frame=NSMakeRect(156,708,134,28);self.navigatorResetValueButton.enabled=NO;self.navigatorResetValueButton.toolTip=@"Restore the most recently edited formula or Julia value from Main, keeping other Navigator edits.";[panel addSubview:self.navigatorResetValueButton];
+        self.navigatorResetValueButton=[NSButton buttonWithTitle:@"Reset Value" target:self action:@selector(resetNavigatorValue:)];self.navigatorResetValueButton.frame=NSMakeRect(156,708,134,28);self.navigatorResetValueButton.enabled=NO;self.navigatorResetValueButton.toolTip=@"Restore the most recently edited formula, Julia, or 4D rotation value from Main, keeping other Navigator edits.";[panel addSubview:self.navigatorResetValueButton];
         self.navigatorResetPosButton=[NSButton buttonWithTitle:@"Reset Pos" target:self action:@selector(resetNavigatorPosition:)];self.navigatorResetPosButton.frame=NSMakeRect(296,708,128,28);self.navigatorResetPosButton.toolTip=@"Reset position, rotation and FOV to the original starting view; zoom out further when bailout exceeds 500. Keep Navigator formula edits.";[panel addSubview:self.navigatorResetPosButton];
         self.navigatorAddAnimationButton=[NSButton buttonWithTitle:@"Add to Anim" target:self action:@selector(addNavigatorToAnimation:)];self.navigatorAddAnimationButton.frame=NSMakeRect(430,708,134,28);[panel addSubview:self.navigatorAddAnimationButton];
         movement.view=controls;[tabs addTabViewItem:movement];[self addNavigatorFormulaTab:tabs];[self addNavigatorJuliaTab:tabs];[self addNavigatorRotationTab:tabs];[self addNavigatorCuttingTab:tabs];[panel addSubview:tabs];
+        self.navigatorTabControl=[NSSegmentedControl segmentedControlWithLabels:@[@"Navigation",@"Formula Values",@"Julia Values",@"4D Rotation",@"Cutting"] trackingMode:NSSegmentSwitchTrackingSelectOne target:self action:@selector(navigatorTabChanged:)];
+        self.navigatorTabControl.segmentStyle=NSSegmentStyleRounded;self.navigatorTabControl.font=[NSFont systemFontOfSize:12];[self.navigatorTabControl sizeToFit];
+        NSRect tabFrame=self.navigatorTabControl.frame;tabFrame.origin=NSMakePoint((720-tabFrame.size.width)/2,424);self.navigatorTabControl.frame=tabFrame;
+        self.navigatorTabControl.selectedSegment=0;[panel addSubview:self.navigatorTabControl];[self populateNavigatorRotation];
         self.navigatorStatus=[NSTextField wrappingLabelWithString:@"W/S/A/D/C/E move, J/L/I/K or arrows look, U/O roll; Shift fine, +/− zoom, F1/F2 far plane."];
         self.navigatorStatus.frame=NSMakeRect(8,150,650,40);self.navigatorStatus.font=[NSFont systemFontOfSize:12];
         self.navigatorStatus.textColor=NSColor.secondaryLabelColor;[controls addSubview:self.navigatorStatus];
@@ -1952,7 +2002,9 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 - (void)resetNavigatorValue:(id)sender {
     (void)sender;if(self.calculating||!self.formulaKnown||!self.navigatorResetTarget)return;
     NSDictionary *target=self.navigatorResetTarget;RenderOptions options=self.navigatorFormulaSettings,main=self.formulaSettings;
-    if(target[@"julia"]){NSInteger i=[target[@"julia"] integerValue];
+    if(target[@"rotation4"]){NSInteger i=[target[@"rotation4"] integerValue];
+        options.rotation4[i]=main.rotation4[i];options.rotation4_override=1;self.navigatorFormulaSettings=options;[self populateNavigatorRotation];
+    }else if(target[@"julia"]){NSInteger i=[target[@"julia"] integerValue];
         if(i<0){options.julia=main.julia;self.navigatorFormulaSettings=options;}
         else if([target[@"spherical"] boolValue]){
             double x=main.julia_c[0],y=main.julia_c[1],z=main.julia_c[2],r=hypot(hypot(x,y),z);double original[]={r,atan2(x,z)*180/M_PI,r?asin(fmax(-1,fmin(1,y/r)))*180/M_PI:0};
@@ -1975,6 +2027,11 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     for(int i=0;i<3;i++)camera.origin[i]=camera.axes[6+i]*start;
     self.navigatorCamera=camera;self.navigatorFOVField.stringValue=@"30";self.navigatorLocalDistance=0;self.navigatorMotionEpoch++;[self.navigatorMoves removeAllObjects];
     [self rebaseNavigatorSteps];self.navigatorMoveFraction=.1;[self requestNavigatorPreview];[self.navigatorWindow makeFirstResponder:self.navigatorView];
+}
+- (void)refreshNavigatorAfterMainRenderPreservingEdits:(BOOL)preserve {
+    if(!preserve){[self resetNavigator];return;}
+    // Lighting belongs to Main; pending Navigator geometry and camera stay local.
+    if(self.navigatorWindow.visible)[self requestNavigatorPreviewAdaptingDistance:NO];
 }
 - (void)resetNavigator {
     if(!self.formulaKnown||!self.navigatorWindow)return;
@@ -2301,7 +2358,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     double values[]={rf.amount,rf.depth,rf.absorption,rf.refractive_index,rf.scattering};for(int i=0;i<5;i++)self.reflectionFields[i].stringValue=[NSString stringWithFormat:@"%.17g",values[i]];
 }
 - (BOOL)readReflections:(RenderOptions *)options {
-    if(self.diffuseWells.count==10&&self.specularWells.count==10){if(!options->reflections.depth)options->reflections=(ReflectionSettings){.depth=2,.amount=1,.absorption=.2,.refractive_index=1.5,.scattering=1};options->reflections_override=1;options->reflections.opacity_set=1;for(int i=0;i<10;i++){options->reflections.opacity[0][i]=1;options->reflections.opacity[1][i]=self.specularWells[i].color.alphaComponent;}}
+    if(self.diffuseWells.count==10&&self.specularWells.count==10){if(!options->reflections.depth)options->reflections=(ReflectionSettings){.depth=2,.amount=1,.absorption=.2,.refractive_index=1.5,.scattering=1};options->reflections_override=1;options->reflections.opacity_set=1;for(int i=0;i<10;i++){options->reflections.opacity[0][i]=self.diffuseWells[i].color.alphaComponent;options->reflections.opacity[1][i]=self.specularWells[i].color.alphaComponent;}}
     if(!self.reflectionFields.count)return YES;ReflectionSettings previous=options->reflections;double values[5],low[]={0,1,0,.1,0},high[]={100,30,1e10,10,1e30};
     for(int i=0;i<5;i++){NSScanner *scanner=[NSScanner scannerWithString:numericInputString(self.reflectionFields[i])];if(![scanner scanDouble:&values[i]]||!scanner.isAtEnd||!isfinite(values[i])||values[i]<low[i]||values[i]>high[i]||(i==1&&values[i]!=floor(values[i]))){self.statusLabel.stringValue=@"Check Reflections + Transparency values and ranges.";return NO;}}
     options->reflections_override=1;options->reflections=(ReflectionSettings){.enabled=!self.resettingReflections&&(self.reflectionsApplied||self.reflectionAutomatic.state==NSControlStateValueOn),.automatic=self.reflectionAutomatic.state==NSControlStateValueOn,.transparency=self.reflectionTransparency.state==NSControlStateValueOn,.only_difs=self.reflectionOnlyDIFS.state==NSControlStateValueOn,.depth=(int)values[1],.amount=values[0],.absorption=values[2],.refractive_index=values[3],.scattering=values[4]};options->reflections.opacity_set=previous.opacity_set;memcpy(options->reflections.opacity,previous.opacity,sizeof previous.opacity);return YES;
@@ -2348,8 +2405,8 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     options->dof_override=1;options->dof=(DepthOfFieldSettings){.enabled=self.dofApplied||self.dofAutomatic.state==NSControlStateValueOn,.automatic=self.dofAutomatic.state==NSControlStateValueOn,.passes=(int)self.dofPasses.indexOfSelectedItem+1,.focus1=values[0],.focus2=values[1],.aperture=values[2],.clip_radius=values[3]};return YES;
 }
 - (void)disableDepthOfField {
-    self.dofApplied=NO;self.dofAutomatic.state=NSControlStateValueOff;
-    RenderOptions settings=self.formulaSettings;settings.dof.enabled=0;settings.dof.automatic=0;settings.dof_override=1;self.formulaSettings=settings;
+    self.dofApplied=NO;
+    RenderOptions settings=self.formulaSettings;settings.dof.enabled=0;settings.dof.automatic=self.dofAutomatic.state==NSControlStateValueOn;settings.dof_override=1;self.formulaSettings=settings;
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(finishLightingSlider) object:nil];
     self.lightingPreviewGeneration++;self.lightingPreviewPending=NO;
     if(self.sharpRenderImage){self.imageView.image=self.sharpRenderImage;self.completedRender=(NSBitmapImageRep *)self.sharpRenderImage.representations.firstObject;}
@@ -2415,8 +2472,8 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     }
     ShadowSettings s=options->shadows;double stored[]={s.hard_length,s.hard_radius,s.ambient_strength,s.ambient_length,s.ambient_rays,s.ambient_steps};
     for(int i=0;i<6;i++)values[i]=unchangedFieldValue(self.shadowFields[i],values[i],stored[i],@"%.17g");
-    s.hard_auto=(int)self.shadowAutoChecks[0].state;s.ambient_auto=(int)self.shadowAutoChecks[1].state;s.hard_enabled=self.hardShadowsApplied||self.shadowAutoChecks[0].state==NSControlStateValueOn;
-    s.ambient_enabled=self.ambientShadowsApplied||self.shadowAutoChecks[1].state==NSControlStateValueOn;
+    s.hard_auto=(int)self.shadowAutoChecks[0].state;s.ambient_auto=(int)self.shadowAutoChecks[1].state;s.hard_enabled=!self.resettingHardShadows&&(self.hardShadowsApplied||self.shadowAutoChecks[0].state==NSControlStateValueOn);
+    s.ambient_enabled=!self.resettingAmbientShadows&&(self.ambientShadowsApplied||self.shadowAutoChecks[1].state==NSControlStateValueOn);
     s.hard_mask=0;for(int i=0;i<6;i++)if(self.shadowLightChecks[i].state==NSControlStateValueOn)s.hard_mask|=1<<i;
     s.soft=self.softShadowCheck.state==NSControlStateValueOn;s.cosine=self.cosineShadowCheck.state==NSControlStateValueOn;
     s.hard_length=values[0];s.hard_radius=values[1];s.ambient_strength=values[2];s.ambient_length=values[3];s.ambient_rays=(int)values[4];s.ambient_steps=(int)values[5];s.ambient_method=(int)self.ambientMethod.indexOfSelectedItem;
@@ -2425,8 +2482,9 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 - (void)postProcessAction:(NSButton *)sender {
     BOOL ambient=sender.tag>=2,calculate=sender.tag%2;
     if(ambient)self.ambientShadowsApplied=calculate;else self.hardShadowsApplied=calculate;
-    if(!calculate)self.shadowAutoChecks[ambient?1:0].state=NSControlStateValueOff;
+    self.resettingHardShadows=!calculate&&!ambient;self.resettingAmbientShadows=!calculate&&ambient;
     [self syncPostProcessLabels];[self calculate:nil];
+    self.resettingHardShadows=self.resettingAmbientShadows=NO;
 }
 
 - (void)addLightTabs:(NSTabView *)tabs {
@@ -2605,7 +2663,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
         for(int row=0;row<2;row++) {
             NSTextField *label=[NSTextField labelWithString:row?@"Specular":@"Diffuse"];
             label.frame=NSMakeRect(16,16+row*88,120,22);[panel addSubview:label];
-            PaletteView *bar=[[PaletteView alloc] initWithFrame:NSMakeRect(16,40+row*88,748,60)];bar.markers=YES;bar.specular=row;bar.showOpacityBand=row;bar.enabled=YES;
+            PaletteView *bar=[[PaletteView alloc] initWithFrame:NSMakeRect(16,40+row*88,748,60)];bar.markers=YES;bar.specular=row;bar.showOpacityBand=YES;bar.enabled=YES;
             bar.accessibilityLabel=row?@"Specular palette stops":@"Diffuse palette stops";
             bar.clicked=^(NSInteger stop,BOOL pick){
                 AppDelegate *owner=weakSelf;[owner.colorStopMenu selectItemAtIndex:stop];[owner refreshPaletteViews];
@@ -2623,7 +2681,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
         for(int i=0;i<10;i++)[self.colorStopMenu addItemWithTitle:[NSString stringWithFormat:@"Stop %d",i+1]];
         self.colorStopMenu.target=self;self.colorStopMenu.action=@selector(refreshColorSelection:);self.colorStopMenu.accessibilityLabel=@"Selected palette stop";[panel addSubview:self.colorStopMenu];
         self.colorPosition=[[NumericTextField alloc] initWithFrame:NSMakeRect(150,222,190,26)];numericIntegerField(self.colorPosition,YES);self.colorPosition.target=self;self.colorPosition.action=@selector(colorPositionEdited:);self.colorPosition.accessibilityLabel=@"Selected stop position";[panel addSubview:self.colorPosition];
-        self.colorDiffuseWell=[[AdjustmentColorWell alloc] initWithFrame:NSMakeRect(390,222,170,28)];self.colorDiffuseWell.target=self;self.colorDiffuseWell.action=@selector(adjustmentColorEdited:);self.colorDiffuseWell.accessibilityLabel=@"Selected diffuse color";[panel addSubview:self.colorDiffuseWell];
+        self.colorDiffuseWell=[[AdjustmentColorWell alloc] initWithFrame:NSMakeRect(390,222,170,28)];((AdjustmentColorWell *)self.colorDiffuseWell).allowsOpacity=YES;self.colorDiffuseWell.target=self;self.colorDiffuseWell.action=@selector(adjustmentColorEdited:);self.colorDiffuseWell.accessibilityLabel=@"Selected diffuse color";self.colorDiffuseWell.toolTip=@"Opacity controls DIFS emissive strength; re-render after changing it.";[panel addSubview:self.colorDiffuseWell];
         self.colorSpecularWell=[[AdjustmentColorWell alloc] initWithFrame:NSMakeRect(580,222,184,28)];((AdjustmentColorWell *)self.colorSpecularWell).allowsOpacity=YES;self.colorSpecularWell.target=self;self.colorSpecularWell.action=@selector(adjustmentColorEdited:);self.colorSpecularWell.accessibilityLabel=@"Selected specular color";[panel addSubview:self.colorSpecularWell];
         self.glueColors=[NSButton checkboxWithTitle:@"Glue sliders" target:nil action:nil];self.glueColors.frame=NSMakeRect(16,268,180,24);self.glueColors.toolTip=@"Stretch neighboring stop positions proportionally while moving a stop.";[panel addSubview:self.glueColors];
         NSMutableArray *references=[NSMutableArray array],*amounts=[NSMutableArray array],*buttons=[NSMutableArray array],*amountSliders=[NSMutableArray array];
@@ -2650,7 +2708,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     [self.objectColorsMenu selectItemAtIndex:[sender isKindOfClass:NSNumber.class]?[sender integerValue]:0];
     [self refreshPaletteViews];[self setCalculating:self.calculating];[self positionWindowRightOfMain:self.colorWindow];[self.colorWindow makeKeyAndOrderFront:nil];
 }
-/* Copy the pair, including specular opacity, without moving either stop. */
+/* Copy the pair, including both opacity channels, without moving either stop. */
 - (NSArray<NSColor *> *)colorStopClipboardColors {
     NSPasteboard *pb=self.palettePasteboard?self.palettePasteboard:NSPasteboard.generalPasteboard;
     id data=[pb propertyListForType:@"org.codex.mandelbulb3d.palette-stop"];
@@ -2688,9 +2746,11 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
         BOOL inside=self.objectColorsMenu.indexOfSelectedItem==1;
         if(inside){object=self.formulaSettings.cutting_colors;object.no_interpolation=self.interpolationCheck.state==NSControlStateValueOn;}
         NSInteger count=inside?4:10;self.colorSpecularBar.opacityStops=inside?@[@1,@1,@1,@1]:opacity;
+        NSMutableArray *diffuseOpacity=[NSMutableArray array];for(NSColorWell *well in self.diffuseWells)[diffuseOpacity addObject:@(well.color.alphaComponent)];self.colorDiffuseBar.opacityStops=inside?@[@1,@1,@1,@1]:diffuseOpacity;
         if(self.colorStopMenu.numberOfItems!=count){[self.colorStopMenu removeAllItems];for(int i=0;i<count;i++)[self.colorStopMenu addItemWithTitle:[NSString stringWithFormat:@"Stop %d",i+1]];selected=0;}
         selected=MIN(count-1,selected);[self.colorStopMenu selectItemAtIndex:selected];
         self.colorDiffuseBar.stopCount=self.colorSpecularBar.stopCount=count;
+        ((AdjustmentColorWell *)self.colorDiffuseWell).allowsOpacity=!inside;
         ((AdjustmentColorWell *)self.colorSpecularWell).allowsOpacity=!inside;
         self.colorDiffuseBar.palette=object;self.colorSpecularBar.palette=object;
         self.colorDiffuseBar.selected=selected;self.colorSpecularBar.selected=selected;
@@ -2854,7 +2914,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
             [panel addSubview:position];[positions addObject:position];
             for(int channel=0;channel<2;channel++) {
                 NSColorWell *well=[[AdjustmentColorWell alloc] initWithFrame:NSMakeRect(channel?408:260,y,128,26)];
-                ((AdjustmentColorWell *)well).allowsOpacity=channel!=0;well.toolTip=channel?@"Solid area shows the RGB color; the narrow checkerboard strip shows transparency.":@"Object diffuse color (RGB).";well.target=self;well.action=@selector(paletteEdited:);
+                ((AdjustmentColorWell *)well).allowsOpacity=YES;well.toolTip=channel?@"Solid area shows the RGB color; the narrow checkerboard strip shows transparency.":@"Object diffuse color. Opacity controls DIFS emissive strength; re-render after changing it.";well.target=self;well.action=@selector(paletteEdited:);
                 well.accessibilityLabel=[NSString stringWithFormat:@"Palette stop %d %@ color",i+1,channel?@"specular":@"diffuse"];
                 [panel addSubview:well];[(channel?specular:diffuse) addObject:well];
             }
@@ -3193,7 +3253,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     self.orbitCheck.state=mode>0?NSControlStateValueOn:NSControlStateValueOff;
     RenderOptions settings=self.formulaSettings;settings.ssao_override=1;settings.color_option=(int)MAX(0,mode-1);settings.object_override=1;settings.object.orbit_trap=mode>0;self.formulaSettings=settings;
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(finishLightingSlider) object:nil];self.lightingPreviewGeneration++;self.lightingPreviewPending=NO;
-    self.lightingRepaintRequested=NO;[self calculate:self.renderButton];
+    self.lightingRepaintRequested=NO;self.preserveNavigatorForLighting=YES;[self calculate:self.renderButton];self.preserveNavigatorForLighting=NO;
 }
 - (void)objectMapChanged:(id)sender {
     if(sender==self.objectMapNumber){if(![self selectObjectMapNumber])return;self.objectMapEnabled.state=self.objectMapNumber.intValue?NSControlStateValueOn:NSControlStateValueOff;}
@@ -3315,10 +3375,9 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
             NSArray *categories=@[@"3D",@"3Da",@"4D",@"4Da",@"Ads",@"dIFS",@"dIFSa"];
             NSArray *hints=@[@"Escape-time 3D formulas",@"3D formulas with analytic DE",@"Escape-time 4D formulas",@"4D formulas with analytic DE",@"Additional transformations",@"dIFS shapes",@"dIFS transformations"];
             for(int category=0;category<7;category++){
-                NSMenuItem *group=[[NSMenuItem alloc]initWithTitle:categories[category] action:nil keyEquivalent:@""];group.toolTip=hints[category];NSMenu *children=[[NSMenu alloc]initWithTitle:categories[category]];children.autoenablesItems=NO;
                 NSMutableArray<NSMenuItem*> *leaves=[NSMutableArray array];
-                for(int index=0;index<formula_menu_count();index++){int kind=formulaKindForMenu(index);if(formulaCategory(kind)!=category)continue;NSMenuItem *leaf=[[NSMenuItem alloc]initWithTitle:[NSString stringWithUTF8String:formula_name(kind)] action:@selector(formulaMenuChosen:) keyEquivalent:@""];leaf.tag=kind;leaf.representedObject=@(i);leaf.target=self;[leaves addObject:leaf];}
-                [leaves sortUsingComparator:^NSComparisonResult(NSMenuItem *a,NSMenuItem *b){return [a.title localizedStandardCompare:b.title];}];for(NSMenuItem *leaf in leaves)[children addItem:leaf];group.submenu=children;[menu.menu addItem:group];
+                for(int index=0;index<formula_menu_count();index++){int kind=formulaKindForMenu(index);if(formulaCategory(kind)!=category)continue;NSMenuItem *leaf=[[NSMenuItem alloc]initWithTitle:[NSString stringWithUTF8String:formula_name(kind)] action:@selector(formulaMenuChosen:) keyEquivalent:@""];leaf.tag=kind;leaf.representedObject=@(i);leaf.target=self;[[FormulaThumbnails shared]addItem:leaf kind:kind];[leaves addObject:leaf];}
+                addFormulaMenuGroups(menu.menu,leaves,category,categories[category],hints[category]);
             }
             formulaSelectKind(menu,f.kind);
             [self addFormulaSearch:menu slot:i];
@@ -3361,7 +3420,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
             NSScrollView *randScroll=[[NSScrollView alloc] initWithFrame:NSMakeRect(0,38,584,210)];randScroll.hasVerticalScroller=YES;randScroll.autohidesScrollers=YES;randScroll.documentView=randPanel;[content addSubview:randScroll];[randGroups addObject:randScroll];[randFields addObject:randValues];
 
             NSTextField *countLabel=[NSTextField labelWithString:@"Iterations per pass"];
-            countLabel.frame=NSMakeRect(10,168,190,22);[content addSubview:countLabel];
+            countLabel.tag=90;countLabel.frame=NSMakeRect(10,168,190,22);[content addSubview:countLabel];
             NSTextField *count=[[NumericTextField alloc] initWithFrame:NSMakeRect(230,164,145,26)];
             count.stringValue=[NSString stringWithFormat:@"%d",f.count];
             count.toolTip=@"0 disables this slot; 1–10000 applications per pass or interpolation weight.";
@@ -3376,7 +3435,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
         self.formulaInfoViews=infoViews;self.randFormulaFields=randFields;self.randFormulaGroups=randGroups;
         self.formulaMenus=menus;self.integerGroups=integerGroups;self.boxGroups=boxGroups;self.boxFields=boxes;
         self.powerPopups=powers;self.zMultiplierFields=multipliers;self.formulaCountFields=counts;for(NSTextField *field in counts)field.delegate=self;
-        [panel addSubview:tabs];
+        self.formulaSlotTabs=[tabs.tabViewItems copy];[panel addSubview:tabs];
         NSArray *globalNames=@[@"Min iterations",@"Max iterations",@"R bailout",@"Maxits part 2",@"Smooth DEcomb",@"Fpow"];NSMutableArray *fields=[NSMutableArray array];
         for(int i=0;i<6;i++){CGFloat x=16+(i%3)*208,y=538+(i/3)*40;NSTextField *label=[NSTextField labelWithString:globalNames[i]];label.frame=NSMakeRect(x,y+4,112,22);[panel addSubview:label];NSTextField *field=[[NumericTextField alloc] initWithFrame:NSMakeRect(x+114,y,80,26)];numericIntegerField(field,i==0||i==1||i==3);field.accessibilityLabel=globalNames[i];field.target=self;field.action=@selector(calculate:);[panel addSubview:field];[fields addObject:field];}
         self.formulaGlobalFields=fields;
@@ -3389,22 +3448,28 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     [self setCalculating:self.calculating];[self positionWindowRightOfMain:self.formulasWindow];[self.formulasWindow makeKeyAndOrderFront:nil];
 }
 - (void)formulaModeChanged:(id)sender {
-    (void)sender;BOOL combined=self.formulaMode.indexOfSelectedItem==2;
+    (void)sender;BOOL combined=self.formulaMode.indexOfSelectedItem==2,interpolate=self.formulaMode.indexOfSelectedItem==1;
+    NSInteger available=interpolate?2:FORMULA_UI_SLOTS;
+    if([self.formulaTabs indexOfTabViewItem:self.formulaTabs.selectedTabViewItem]>=available)[self.formulaTabs selectTabViewItemAtIndex:0];
+    while(self.formulaTabs.numberOfTabViewItems>available)[self.formulaTabs removeTabViewItem:self.formulaTabs.tabViewItems.lastObject];
+    while(self.formulaTabs.numberOfTabViewItems<available)[self.formulaTabs addTabViewItem:self.formulaSlotTabs[self.formulaTabs.numberOfTabViewItems]];
+    for(NSTextField *count in self.formulaCountFields){numericIntegerField(count,!interpolate);NSTextField *label=(NSTextField *)[count.superview viewWithTag:90];label.stringValue=interpolate?@"Interpolation weight":@"Iterations per pass";count.toolTip=interpolate?@"Interpolation weight, 0–10000. Fractional weights are supported.":@"Iterations per pass, 0–10000.";}
+    self.repeatPopup.enabled=!interpolate&&!self.calculating;[self updateFormulaMoveButtons];[self refreshFormulaTabLabels];
     if(combined&&self.formulaRepeat2.indexOfSelectedItem<self.formulaSplit.indexOfSelectedItem+1)[self.formulaRepeat2 selectItemAtIndex:self.formulaSplit.indexOfSelectedItem+1];
     self.formulaCombine.enabled=combined;self.formulaSplit.enabled=combined;self.formulaRepeat2.enabled=combined;self.formulaGlobalFields[3].enabled=combined;self.formulaGlobalFields[4].enabled=combined;self.formulaGlobalFields[5].enabled=self.formulaNumerical.state==NSControlStateValueOn||(combined&&self.formulaCombine.indexOfSelectedItem==5);
-    self.formulaStatus.stringValue=self.formulaMode.indexOfSelectedItem==1?@"Interpolate blends active formulas each iteration, using their counts as weights.":combined?@"DEcombinate evaluates two groups. Mix runs escape-time part 1, then direct-distance IFS part 2.":@"Alternate runs enabled slots in order, then returns to Repeat from. Zero disables a slot.";
+    self.formulaStatus.stringValue=self.formulaMode.indexOfSelectedItem==1?@"Interpolate blends slots 1 and 2 each iteration, using their values as weights.":combined?@"DEcombinate evaluates two groups. Mix runs escape-time part 1, then direct-distance IFS part 2.":@"Alternate runs enabled slots in order, then returns to Repeat from. Zero disables a slot.";
 }
 - (void)populateFormulaWindow {
     if(!self.formulasWindow)return;FormulaProgram p=self.formulaSettings.program;
     self.populatingFormulas=YES;
-    for(int i=0;i<FORMULA_UI_SLOTS;i++){FormulaSlot f=p.slots[i];formulaSelectKind(self.formulaMenus[i],f.kind);[self formulaSelectionChanged:self.formulaMenus[i]];[self.powerPopups[i] selectItemWithTitle:[NSString stringWithFormat:@"%d",f.power]];self.zMultiplierFields[i].stringValue=[NSString stringWithFormat:@"%.17g",f.z_multiplier];double values[]={f.scale,f.min_radius,f.fold};for(int j=0;j<3;j++)self.boxFields[i][j].stringValue=[NSString stringWithFormat:@"%.17g",values[j]];self.formulaCountFields[i].stringValue=[NSString stringWithFormat:@"%d",f.count];if(usesGenericFormulaEditor(f.kind))for(int j=0;j<formula_parameter_count(f.kind);j++)self.randFormulaFields[i][j].stringValue=[NSString stringWithFormat:@"%.17g",formulaUIDisplayValue(f.kind,j,formula_slot_value(f,j))];}
+    for(int i=0;i<FORMULA_UI_SLOTS;i++){FormulaSlot f=p.slots[i];formulaSelectKind(self.formulaMenus[i],f.kind);[self formulaSelectionChanged:self.formulaMenus[i]];[self.powerPopups[i] selectItemWithTitle:[NSString stringWithFormat:@"%d",f.power]];self.zMultiplierFields[i].stringValue=[NSString stringWithFormat:@"%.17g",f.z_multiplier];double values[]={f.scale,f.min_radius,f.fold};for(int j=0;j<3;j++)self.boxFields[i][j].stringValue=[NSString stringWithFormat:@"%.17g",values[j]];self.formulaCountFields[i].stringValue=[NSString stringWithFormat:@"%.9g",formula_iteration_value(p,i)];if(usesGenericFormulaEditor(f.kind))for(int j=0;j<formula_parameter_count(f.kind);j++)self.randFormulaFields[i][j].stringValue=[NSString stringWithFormat:@"%.17g",formulaUIDisplayValue(f.kind,j,formula_slot_value(f,j))];}
     [self.formulaMode selectItemAtIndex:p.mode];[self.formulaRenderMode selectItemAtIndex:p.render_mode];[self.formulaCombine selectItemAtIndex:p.combine];[self.repeatPopup selectItemAtIndex:p.repeat_from];[self.formulaSplit selectItemAtIndex:p.split-1];[self.formulaRepeat2 selectItemAtIndex:p.repeat2];self.formulaNumerical.state=p.numerical_de?NSControlStateValueOn:NSControlStateValueOff;
     double values[]={p.min_iterations,self.formulaSettings.iterations,p.bailout,p.max_iterations2,p.smooth,p.formula_power};for(int i=0;i<6;i++)self.formulaGlobalFields[i].stringValue=[NSString stringWithFormat:@"%.17g",values[i]];self.formulaMaxBaseline=self.formulaGlobalFields[1].stringValue;[self formulaModeChanged:nil];
     self.populatingFormulas=NO;[self refreshFormulaTabLabels];
 }
 - (void)copyActiveFormulaNames:(id)sender {
     (void)sender;NSMutableArray<NSString *> *names=[NSMutableArray array];
-    for(NSUInteger slot=0;slot<self.formulaMenus.count;slot++)if(self.formulaCountFields[slot].doubleValue>0)
+    for(NSUInteger slot=0;slot<(self.formulaMode.indexOfSelectedItem==1?2:self.formulaMenus.count);slot++)if(self.formulaCountFields[slot].doubleValue>0)
         [names addObject:[NSString stringWithUTF8String:formula_name(formulaSelectedKind(self.formulaMenus[slot]))]];
     NSPasteboard *clipboard=NSPasteboard.generalPasteboard;[clipboard clearContents];[clipboard setString:[names componentsJoinedByString:@", "] forType:NSPasteboardTypeString];
     self.formulaStatus.stringValue=@"Active formula names copied to clipboard.";
@@ -3415,22 +3480,23 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     if(sender.tag&&!self.formulaClipboard){self.formulaStatus.stringValue=@"Copy a formula slot before pasting.";return;}
     [self.formulasWindow makeFirstResponder:nil];RenderOptions settings=self.formulaSettings;
     if(![self readFormulaWindow:&settings])return;settings.iterations=self.formulaGlobalFields[1].intValue;
-    if(sender.tag){FormulaSlot copied;[self.formulaClipboard getBytes:&copied length:sizeof copied];settings.program.slots[slot]=copied;}
-    else self.formulaClipboard=[NSData dataWithBytes:&settings.program.slots[slot] length:sizeof(FormulaSlot)];
+    if(sender.tag){FormulaSlot copied;[self.formulaClipboard getBytes:&copied length:sizeof copied];FormulaProgram from={.mode=(int)self.formulaClipboardMode};from.slots[0]=copied;double value=formula_iteration_value(from,0);copied.count=settings.program.mode==1?formula_weight_word(value):(int)lround(value);settings.program.slots[slot]=copied;}
+    else {self.formulaClipboardMode=settings.program.mode;self.formulaClipboard=[NSData dataWithBytes:&settings.program.slots[slot] length:sizeof(FormulaSlot)];}
     self.formulaSettings=settings;[self populateFormulaWindow];self.formulaStatus.stringValue=sender.tag?@"Formula slot pasted.":@"Formula slot copied.";
 }
 - (void)updateFormulaMoveButtons {
     NSInteger slot=[self.formulaTabs indexOfTabViewItem:self.formulaTabs.selectedTabViewItem];
     self.formulaMoveLeft.enabled=!self.calculating&&slot>0;
-    self.formulaMoveRight.enabled=!self.calculating&&slot>=0&&slot<FORMULA_UI_SLOTS-1;
+    self.formulaMoveRight.enabled=!self.calculating&&slot>=0&&slot<self.formulaTabs.numberOfTabViewItems-1;
 }
 - (void)tabView:(NSTabView *)tabView didSelectTabViewItem:(NSTabViewItem *)item {
     (void)item;if(tabView==self.formulaTabs){[self updateFormulaMoveButtons];[self syncFormulaInfo];}
+    if(tabView==self.navigatorRotationTab.tabView)self.navigatorTabControl.selectedSegment=[tabView indexOfTabViewItem:item];
 }
 - (void)moveFormulaSlot:(NSButton *)sender {
     if(self.calculating)return;
     NSInteger slot=[self.formulaTabs indexOfTabViewItem:self.formulaTabs.selectedTabViewItem],destination=slot+sender.tag;
-    if(slot<0||destination<0||destination>=FORMULA_UI_SLOTS)return;
+    if(slot<0||destination<0||destination>=self.formulaTabs.numberOfTabViewItems)return;
     [self.formulasWindow makeFirstResponder:nil];RenderOptions settings=self.formulaSettings;
     if(![self readFormulaWindow:&settings])return;
     settings.iterations=self.formulaGlobalFields[1].intValue;
@@ -3442,18 +3508,18 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 }
 - (BOOL)readFormulaWindow:(RenderOptions *)options {
     [self refreshFormulaTabLabels];
-    FormulaProgram p=options->program;
-    for(int i=0;i<FORMULA_UI_SLOTS;i++){FormulaSlot f=p.slots[i];f.kind=formulaSelectedKind(self.formulaMenus[i]);if(f.kind==-1){p.slots[i]=formula_slot_default(-1);continue;}f.power=self.powerPopups[i].selectedItem.title.intValue;double values[5];NSArray *fields=@[self.zMultiplierFields[i],self.boxFields[i][0],self.boxFields[i][1],self.boxFields[i][2],self.formulaCountFields[i]];
+    FormulaProgram p=options->program;BOOL interpolate=self.formulaMode.indexOfSelectedItem==1;
+    for(int i=0;i<FORMULA_UI_SLOTS;i++){if(interpolate&&i>=2){p.slots[i].count=0;continue;}FormulaSlot f=p.slots[i];f.kind=formulaSelectedKind(self.formulaMenus[i]);if(f.kind==-1){p.slots[i]=formula_slot_default(-1);continue;}f.power=self.powerPopups[i].selectedItem.title.intValue;double values[5];NSArray *fields=@[self.zMultiplierFields[i],self.boxFields[i][0],self.boxFields[i][1],self.boxFields[i][2],self.formulaCountFields[i]];
         for(int j=0;j<5;j++){NSScanner *scanner=[NSScanner scannerWithString:numericInputString(fields[j])];if(![scanner scanDouble:&values[j]]||!scanner.isAtEnd||!isfinite(values[j])){self.formulaStatus.stringValue=@"Enter finite numbers in all formula fields.";return NO;}}
-        if((!usesGenericFormulaEditor(f.kind)&&(fabs(values[0])>100||fabs(values[1])>100||fabs(values[2])>100||fabs(values[3])>100))||values[4]<0||values[4]>10000||values[4]!=floor(values[4])){self.formulaStatus.stringValue=@"Counts: 0–10000; Z multiplier/Scale/Fold: −100..100; Min R: −100..100.";return NO;}
-        f.z_multiplier=values[0];f.scale=values[1];f.min_radius=values[2];f.fold=values[3];f.count=(int)values[4];
+        if((!usesGenericFormulaEditor(f.kind)&&(fabs(values[0])>100||fabs(values[1])>100||fabs(values[2])>100||fabs(values[3])>100))||values[4]<0||values[4]>10000||(!interpolate&&values[4]!=floor(values[4]))){self.formulaStatus.stringValue=@"Counts: 0–10000; Z multiplier/Scale/Fold: −100..100; Min R: −100..100.";return NO;}
+        f.z_multiplier=values[0];f.scale=values[1];f.min_radius=values[2];f.fold=values[3];f.count=interpolate?formula_weight_word(values[4]):(int)values[4];
         if(usesGenericFormulaEditor(f.kind))for(int j=0;j<formula_parameter_count(f.kind);j++){NSScanner *scanner=[NSScanner scannerWithString:numericInputString(self.randFormulaFields[i][j])];double v;FormulaParameter uiSpec=formulaUIParameter(f.kind,j);const FormulaParameter *spec=&uiSpec;if(![scanner scanDouble:&v]||!scanner.isAtEnd||!isfinite(v)||v<spec->minimum||v>spec->maximum||(spec->integer&&floor(v)!=v)){self.formulaStatus.stringValue=[NSString stringWithFormat:@"%s: enter %@%.9g..%.9g.",spec->name,spec->integer?@"an integer ":@"",spec->minimum,spec->maximum];return NO;}formula_slot_set_value(&f,j,v);}
         p.slots[i]=f;
     }
     double values[6],minimum[]={0,1,1.000001,1,1e-12,1.000001},maximum[]={10000,10000,1e10,10000,1e6,100};
     for(int i=0;i<6;i++){NSScanner *scanner=[NSScanner scannerWithString:numericInputString(self.formulaGlobalFields[i])];if(![scanner scanDouble:&values[i]]||!scanner.isAtEnd||!isfinite(values[i])||values[i]<minimum[i]||values[i]>maximum[i]||((i==0||i==1||i==3)&&floor(values[i])!=values[i])){self.formulaStatus.stringValue=@"Check iteration limits, bailout (>1), smooth distance (>0) and numerical formula power (>1).";return NO;}}
-    p.mode=(int)self.formulaMode.indexOfSelectedItem;p.repeat_from=(int)self.repeatPopup.indexOfSelectedItem;p.render_mode=(int)self.formulaRenderMode.indexOfSelectedItem;p.combine=(int)self.formulaCombine.indexOfSelectedItem;p.split=(int)self.formulaSplit.indexOfSelectedItem+1;p.repeat2=(int)self.formulaRepeat2.indexOfSelectedItem;p.min_iterations=(int)values[0];p.bailout=values[2];p.max_iterations2=(int)values[3];p.smooth=values[4];p.formula_power=values[5];p.numerical_de=self.formulaNumerical.state==NSControlStateValueOn;
-    options->program_override=1;options->program=p;return YES;
+    p.mode=(int)self.formulaMode.indexOfSelectedItem;p.repeat_from=interpolate?0:(int)self.repeatPopup.indexOfSelectedItem;p.render_mode=(int)self.formulaRenderMode.indexOfSelectedItem;p.combine=(int)self.formulaCombine.indexOfSelectedItem;p.split=(int)self.formulaSplit.indexOfSelectedItem+1;p.repeat2=(int)self.formulaRepeat2.indexOfSelectedItem;p.min_iterations=(int)values[0];p.bailout=values[2];p.max_iterations2=(int)values[3];p.smooth=values[4];p.formula_power=values[5];p.numerical_de=self.formulaNumerical.state==NSControlStateValueOn;
+    options->iterations=(int)values[1];options->program_override=1;options->program=p;return YES;
 }
 - (void)refreshFormulaTabLabels {
     CGFloat width=24;
@@ -3532,11 +3598,11 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     }
     for(NSView *view in self.boxGroups[slot].subviews)if(view.frame.origin.y>=76)view.hidden=kind==100;
     NSTextField *count=self.formulaCountFields[slot];NSView *content=count.superview;NSRect f=count.frame;f.origin.y=rand?270:164;count.frame=f;
-    for(NSView *view in content.subviews)if([view isKindOfClass:NSTextField.class]&&![(NSTextField *)view isEditable]){NSTextField *label=(NSTextField *)view;NSRect frame=view.frame;if([label.stringValue isEqual:@"Iterations per pass"])frame.origin.y=rand?274:168;else if([label.stringValue hasPrefix:@"Zero disables"]){frame.origin.y=rand?304:208;label.hidden=rand;}view.frame=frame;}
+    for(NSView *view in content.subviews)if([view isKindOfClass:NSTextField.class]&&![(NSTextField *)view isEditable]){NSTextField *label=(NSTextField *)view;NSRect frame=view.frame;if((label.tag==90))frame.origin.y=rand?274:168;else if([label.stringValue hasPrefix:@"Zero disables"]){frame.origin.y=rand?304:208;label.hidden=rand;}view.frame=frame;}
     if((kind==100||kind==102||kind==6)&&self.formulaGlobalFields.count>2&&[self.formulaGlobalFields[2].stringValue isEqual:@"16"])self.formulaGlobalFields[2].stringValue=@"1024";
     if(!self.populatingFormulas&&formula_catalog_category(kind)>=0&&self.formulaGlobalFields.count>2&&[self.formulaGlobalFields[2].stringValue isEqual:@"16"]){double bailout=formula_catalog_bailout(kind);if(bailout>1&&bailout<=1e10)self.formulaGlobalFields[2].stringValue=[NSString stringWithFormat:@"%.17g",bailout];}
     count.hidden=kind==-1;
-    for(NSView *view in content.subviews)if([view isKindOfClass:NSTextField.class]&&![(NSTextField *)view isEditable]){NSString *text=[(NSTextField *)view stringValue];if([text isEqual:@"Iterations per pass"]||[text hasPrefix:@"Zero disables"])view.hidden=kind==-1||([text hasPrefix:@"Zero disables"]&&rand);}
+    for(NSView *view in content.subviews)if([view isKindOfClass:NSTextField.class]&&![(NSTextField *)view isEditable]){NSString *text=[(NSTextField *)view stringValue];if(view.tag==90||[text hasPrefix:@"Zero disables"])view.hidden=kind==-1||([text hasPrefix:@"Zero disables"]&&rand);}
     if(!self.populatingFormulas&&kind!=-1&&count.doubleValue==0)count.stringValue=@"1";
     [self refreshFormulaTabLabels];[self syncFormulaInfo];
 }
@@ -3551,7 +3617,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     for(NSArray<NSTextField *> *slot in self.boxFields)for(NSTextField *field in slot)field.enabled=!busy;
     for(NSTextField *field in self.zMultiplierFields)field.enabled=!busy;
     for(NSTextField *field in self.formulaCountFields)field.enabled=!busy;
-    self.repeatPopup.enabled=!busy;
+    self.repeatPopup.enabled=!busy&&self.formulaMode.indexOfSelectedItem!=1;
     for(NSTextField *field in self.objectFields)field.enabled=!busy;
     for(NSTextField *field in self.palettePositions)field.enabled=!busy;
     for(NSSlider *slider in self.objectSliders)slider.enabled=!busy;
@@ -3617,6 +3683,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     self.cpuOnlyCheck.enabled=!busy;
     for(NSTextField *field in self.calculationFields)field.enabled=!busy;
     for(NSTextField *field in self.positionFields)field.enabled=!busy;
+    self.positionCopyButton.enabled=!busy;self.positionPasteButton.enabled=!busy&&self.positionPasteValues!=nil;
 }
 - (void)calculate:(id)sender {
     if(self.parametersPendingRender&&sender!=self.renderButton){self.statusLabel.stringValue=@"Adjust image size, then press Render.";return;}
@@ -3698,12 +3765,13 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 }
 - (void)beginRenderPath:(NSString *)path options:(RenderOptions)options {
     BOOL omitReflections=self.lightingRepaintRequested;
+    BOOL preserveNavigator=omitReflections||self.preserveNavigatorForLighting;
     render_cancel(self.mainCancelToken);self.animationRunning=NO;self.animationRenderKind=0;self.animationStopRequested=NO;
     RenderCancelToken *token=render_cancel_create();self.mainCancelToken=token;options.cancel_token=token;
     render_cancel(self.navigatorCancelToken);self.navigatorGeneration++;self.previewPending=NO;
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(finishLightingSlider) object:nil];
     self.lightingPreviewGeneration++;self.lightingPreviewPending=NO;
-    [self setCalculating:YES];self.renderProgressPie.fraction=0;self.renderProgressPie.hidden=NO;self.statusLabel.stringValue=@"Rendering… 0% — 0:00";
+    [self setCalculating:YES];self.renderProgressPie.indeterminate=NO;self.renderProgressPie.fraction=0;self.renderProgressPie.hidden=NO;self.statusLabel.stringValue=@"Geometry — 0:00";
     self.formulaStatus.stringValue=@"Rendering…";self.lightingStatus.stringValue=@"Rendering…";
     NSUInteger generation=++self.generation;
     NSString *savePath=self.pendingSavePath;self.pendingSavePath=nil;
@@ -3711,7 +3779,7 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
     self.window.title=[NSString stringWithFormat:@"%@ — %@",APP_TITLE,name];
     [self.mainProgressTimer invalidate];__weak AppDelegate *progressOwner=self;
     NSTimeInterval renderStarted=NSProcessInfo.processInfo.systemUptime;
-    self.mainProgressTimer=[NSTimer timerWithTimeInterval:.1 repeats:YES block:^(NSTimer *timer){AppDelegate *owner=progressOwner;if(!owner||owner.generation!=generation||owner.mainCancelToken!=token){[timer invalidate];return;}owner.renderProgressPie.fraction=render_progress_percent(token)/100.;if(owner.stopButton.enabled)owner.statusLabel.stringValue=[NSString stringWithFormat:@"Rendering… %d%% — %ld:%02ld",render_progress_percent(token),(long)((NSProcessInfo.processInfo.systemUptime-renderStarted)/60),(long)(NSProcessInfo.processInfo.systemUptime-renderStarted)%60];}];[[NSRunLoop mainRunLoop]addTimer:self.mainProgressTimer forMode:NSRunLoopCommonModes];
+    self.mainProgressTimer=[NSTimer timerWithTimeInterval:.1 repeats:YES block:^(NSTimer *timer){AppDelegate *owner=progressOwner;if(!owner||owner.generation!=generation||owner.mainCancelToken!=token){[timer invalidate];return;}int percent=render_progress_percent(token);double elapsed=NSProcessInfo.processInfo.systemUptime-renderStarted;owner.renderProgressPie.indeterminate=percent<0;owner.renderProgressPie.rotation=90-elapsed*240;owner.renderProgressPie.fraction=percent<0?0:percent/100.;if(owner.stopButton.enabled)owner.statusLabel.stringValue=[NSString stringWithFormat:@"%s%@ — %ld:%02ld",render_progress_stage(token),percent<0?@"…":[NSString stringWithFormat:@" %d%%",percent],(long)(elapsed/60),(long)elapsed%60];}];[[NSRunLoop mainRunLoop]addTimer:self.mainProgressTimer forMode:NSRunLoopCommonModes];
     dispatch_async(self.renderQueue, ^{
         @autoreleasepool {
             unsigned char *sharp=NULL;RenderOptions rendering=options;if(omitReflections){rendering.reflections_override=1;rendering.reflections.enabled=0;}RenderResult result=render_scene_capturing_sharp(path.fileSystemRepresentation,rendering,savePath.fileSystemRepresentation,&sharp);if(omitReflections)result.settings.reflections=options.reflections;
@@ -3739,9 +3807,9 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
                 self.imageView.image=image;self.completedRender=(NSBitmapImageRep *)image.representations.firstObject;self.pngButton.enabled=YES;
                 self.currentPath=savePath?savePath:path;
                 RenderOptions settings=result.settings;
-                self.parametersPendingRender=NO;self.formulaKnown=YES;self.formulaSettings=settings;[self recordLightingRepaint:settings];self.navigatorLocalDistance=result.local_distance;
+                self.parametersPendingRender=NO;self.formulaKnown=YES;self.formulaSettings=settings;[self recordLightingRepaint:settings];if(!preserveNavigator)self.navigatorLocalDistance=result.local_distance;
                 self.applyNavigatorButton.enabled=YES;
-                [self resetNavigator];
+                [self refreshNavigatorAfterMainRenderPreservingEdits:preserveNavigator];
                 self.renderColorHistograms=[NSData dataWithBytes:result.color_histogram length:sizeof result.color_histogram];[self updateColorHistograms];
                 self.colorFitValid=result.color_fit_valid;
                 self.fitStart=result.color_fit[0][0];self.fitEnd=result.color_fit[0][1];
@@ -3832,15 +3900,16 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 - (void)showMandelbulbSECredits:(id)sender {
     (void)sender;NSAlert *alert=[NSAlert new];alert.alertStyle=NSAlertStyleInformational;
     alert.messageText=@"Mandelbulb3D SE";
-    NSString *body=@"Version 2.0.1\n\nmacOS application, interface, and additional rendering features by Glenn Olander.\nwww.facebook.com/RodrigoSpacecraft\n\nBased on Mandelbulb3D, originally developed by Jesse, with contributions from the Mandelbulb3D community.\n\nRendering engine adapted from mb3d-rs by Sebastian Paluch.\n\nIncludes formulas by their respective authors.\n\nPrivacy policy: https://greenoak-software.com/PrivacyPolicy.html\n\nSource code: https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel2";
+    NSString *body=@"Version 2.0.2\n\nSupport: https://greenoak-software.com/m3dse_support.html\n\nmacOS application, interface, and additional rendering features by Glenn Olander.\nwww.facebook.com/RodrigoSpacecraft\n\nBased on Mandelbulb3D, originally developed by Jesse, with contributions from the Mandelbulb3D community.\n\nRendering engine adapted from mb3d-rs by Sebastian Paluch.\n\nIncludes formulas by their respective authors.\n\nPrivacy policy: https://greenoak-software.com/PrivacyPolicy.html\n\nSource code: https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel3";
     NSTextView *credits=[[NSTextView alloc]initWithFrame:NSMakeRect(0,0,560,240)];
     credits.editable=NO;credits.selectable=YES;credits.drawsBackground=NO;
     credits.textContainerInset=NSZeroSize;credits.textContainer.lineFragmentPadding=0;
     credits.textContainer.containerSize=NSMakeSize(560,CGFLOAT_MAX);
     NSMutableAttributedString *text=[[NSMutableAttributedString alloc]initWithString:body attributes:@{NSFontAttributeName:[NSFont systemFontOfSize:13],NSForegroundColorAttributeName:NSColor.labelColor}];
+    [text addAttributes:@{NSLinkAttributeName:[NSURL URLWithString:@"https://greenoak-software.com/m3dse_support.html"],NSForegroundColorAttributeName:NSColor.linkColor,NSUnderlineStyleAttributeName:@(NSUnderlineStyleSingle)} range:[body rangeOfString:@"https://greenoak-software.com/m3dse_support.html"]];
     [text addAttributes:@{NSLinkAttributeName:[NSURL URLWithString:@"https://www.facebook.com/RodrigoSpacecraft"],NSForegroundColorAttributeName:NSColor.linkColor,NSUnderlineStyleAttributeName:@(NSUnderlineStyleSingle)} range:[body rangeOfString:@"www.facebook.com/RodrigoSpacecraft"]];
     [text addAttributes:@{NSLinkAttributeName:[NSURL URLWithString:@"https://greenoak-software.com/PrivacyPolicy.html"],NSForegroundColorAttributeName:NSColor.linkColor,NSUnderlineStyleAttributeName:@(NSUnderlineStyleSingle)} range:[body rangeOfString:@"https://greenoak-software.com/PrivacyPolicy.html"]];
-    [text addAttributes:@{NSLinkAttributeName:[NSURL URLWithString:@"https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel2"],NSForegroundColorAttributeName:NSColor.linkColor,NSUnderlineStyleAttributeName:@(NSUnderlineStyleSingle)} range:[body rangeOfString:@"https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel2"]];
+    [text addAttributes:@{NSLinkAttributeName:[NSURL URLWithString:@"https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel3"],NSForegroundColorAttributeName:NSColor.linkColor,NSUnderlineStyleAttributeName:@(NSUnderlineStyleSingle)} range:[body rangeOfString:@"https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel3"]];
     [credits.textStorage setAttributedString:text];
     [credits.layoutManager ensureLayoutForTextContainer:credits.textContainer];
     credits.frame=NSMakeRect(0,0,560,ceil([credits.layoutManager usedRectForTextContainer:credits.textContainer].size.height)+4);
@@ -3850,10 +3919,9 @@ static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[
 }
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
     (void)notification;
-    NSString *iconPath=[[NSBundle mainBundle] pathForResource:@"AppIcon" ofType:@"icns"];
-    NSImage *icon=iconPath?[[NSImage alloc] initWithContentsOfFile:iconPath]:nil;
-    if(icon)NSApp.applicationIconImage=icon;
+    // Let macOS retain its system-presented Dock icon instead of replacing it with raw artwork.
     [self ensureWindow];
+    [[FormulaThumbnails shared]start];
     if(!self.receivedFile)[self renderPath:self.initialPath];
     [NSApp activateIgnoringOtherApps:YES];
 }
@@ -3894,6 +3962,8 @@ static int number(const char *s,int low,int high) {
 }
 int main(int argc,char **argv) {
     @autoreleasepool {
+        if(argc==5&&!strcmp(argv[1],"--formula-thumbnail"))return renderFormulaThumbnailInResources(atoi(argv[2]),[NSString stringWithUTF8String:argv[3]],[NSString stringWithUTF8String:argv[4]]);
+        if(argc==4&&!strcmp(argv[1],"--formula-thumbnail"))return renderFormulaThumbnail(atoi(argv[2]),[NSString stringWithUTF8String:argv[3]]);
         AppDelegate *delegate=[AppDelegate new];
         for(int i=1;i<argc;i++) {
             if(!strcmp(argv[i],"--help")) {

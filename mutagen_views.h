@@ -11,7 +11,7 @@ static NSRect mutagenTileFrame(NSSize size,int index){double ux=size.width/5,uy=
 @implementation MutagenTile
 - (BOOL)isFlipped{return YES;}
 - (void)drawRect:(NSRect)dirty{(void)dirty;[NSColor.controlBackgroundColor setFill];NSRectFill(self.bounds);if(self.image)[self.image drawInRect:self.bounds fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1 respectFlipped:YES hints:nil];[(self.selected?NSColor.controlAccentColor:NSColor.separatorColor) setStroke];NSFrameRectWithWidth(self.bounds,self.selected?3:1);if(self.caption.length){[[NSColor.blackColor colorWithAlphaComponent:.6]setFill];NSRectFill(NSMakeRect(0,self.bounds.size.height-18,self.bounds.size.width,18));[self.caption drawInRect:NSMakeRect(4,self.bounds.size.height-17,self.bounds.size.width-8,16) withAttributes:@{NSFontAttributeName:[NSFont systemFontOfSize:10],NSForegroundColorAttributeName:NSColor.whiteColor}];}}
-- (void)mouseDown:(NSEvent *)event{if(self.choose)self.choose(event.clickCount>1);}
+- (void)mouseDown:(NSEvent *)event{if(event.modifierFlags&NSEventModifierFlagControl){[self rightMouseDown:event];return;}if(self.choose)self.choose(event.clickCount>1);}
 - (void)rightMouseDown:(NSEvent *)event{if(!self.image)return;NSMenu *menu=[NSMenu new];for(int i=0;i<2;i++){NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:i?@"To clipboard":@"Send to Main" action:i?@selector(copyScene:):@selector(sendScene:) keyEquivalent:@""];item.target=self;[menu addItem:item];}[NSMenu popUpContextMenu:menu withEvent:event forView:self];}
 - (void)sendScene:(id)sender{(void)sender;if(self.sendToMain)self.sendToMain();}
 - (void)copyScene:(id)sender{(void)sender;if(self.copyParameters)self.copyParameters();}

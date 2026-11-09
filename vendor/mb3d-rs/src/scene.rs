@@ -40,6 +40,8 @@ pub enum CameraOptic {
 #[derive(Clone, Debug)]
 pub struct Scene {
     pub emissive_difs: Option<[f32;3]>,
+    /// App diffuse opacity; independent of specular transparency.
+    pub emissive_opacity: [f32;10],
     pub emission_cache: std::sync::Arc<std::sync::Mutex<Option<(String,std::sync::Arc<Vec<(bool,f32)>>)>>>,
     pub width: i32,
     pub height: i32,
@@ -251,6 +253,7 @@ impl Default for Scene {
     fn default() -> Self {
         Scene {
             emissive_difs: None,
+            emissive_opacity: [1.;10],
             emission_cache: Default::default(),
             width: 800,
             height: 600,

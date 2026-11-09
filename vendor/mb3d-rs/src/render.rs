@@ -1491,7 +1491,7 @@ pub(crate) fn light_vals(sc: &Scene, l: &crate::lighting::Lighting, cam: &PaintC
         }
         None => (make(sc, l, false), l),
     };
-    if let Some(color)=sc.emissive_difs {if let Ok(p)=CalcParams::new(sc){lv.emission=Some(std::sync::Arc::new(crate::emission::Emission{p,color,primary:None}));}}
+    if let Some(color)=sc.emissive_difs {if let Ok(p)=CalcParams::new(sc){lv.emission=Some(std::sync::Arc::new(crate::emission::Emission{p,color,mask:crate::emission::EmissionMask::new(&lv,cam.zz_stmit_dif as f32,sc.emissive_opacity),bounce:[0.;3],primary:None}));}}
     lv.rotate_object_lights(l, &normalise_matrix_to(1.0, &sc.vgrads));
     let vz = normalise_matrix_to(1.0, &sc.vgrads)[2];
     lv.place_lights(l, sc.stereo_mid(), cam, z_range, vz);
@@ -1808,14 +1808,20 @@ fn paint_with<S: crate::lighting::Sample>(
                     Ok(v)=>{samples=Some(v);let status=crate::gpu::last_status();crate::gpu::set_status(format!("GPU emission; {status}"));eprintln!("Emissive illumination: GPU visibility rays");}
                     Err(reason)=>eprintln!("Emissive illumination: CPU fallback ({reason})"),
                 }}
-                if samples.is_none()&&!cancel(){samples=crate::emission::prepare_cpu(emission,gbuf,&cam,thread_count(sc),cancel).ok();}
-                if let Some(samples)=samples.filter(|_|!cancel()){
+                if samples.is_none()&&!cancel(){samples=crate::emission::prepare_cpu(emission,gbuf,&cam,thread_count(sc),progress,cancel).ok();}
+                if let Some(mut samples)=samples.filter(|_|!cancel()){
+                    stage("emissive illumination");
+                    if !crate::emission::filter_primary(&mut samples,gbuf,p,&emission.mask,&cam,cancel){return(vec![S::default();(w*h*3) as usize],None)}
                     let samples=std::sync::Arc::new(samples);
                     if let Ok(mut cache)=sc.emission_cache.lock(){*cache=Some((key,samples.clone()));}
                     std::sync::Arc::make_mut(emission).primary=Some(samples);
                 }
             }
         }
+    }
+    if full&&sc.emissive_difs.is_some(){
+        let bounce=crate::emission::indirect_fill(&lv,gbuf,&cam,cancel);
+        if let Some(e)=lv.emission.as_mut(){std::sync::Arc::make_mut(e).bounce=bounce;}
     }
     if cancel(){return(vec![S::default();(w*h*3) as usize],None)}
     let threads = thread_count(sc).min(h as usize).max(1);

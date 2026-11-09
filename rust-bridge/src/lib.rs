@@ -112,6 +112,7 @@ pub extern "C" fn mb3dx_rust_render(
     reuse: i32,
     map_scale: f64,
     emission: *const f64,
+    emission_opacity: *const f64,
     token: *mut c_void,
     cancel: extern "C" fn(*mut c_void) -> i32,
     progress: extern "C" fn(*mut c_void, i32, i32),
@@ -156,6 +157,7 @@ pub extern "C" fn mb3dx_rust_render(
             }
             let mut sc = loaded.scene;
             if !emission.is_null(){sc.emissive_difs=Some(unsafe{[(*emission) as f32,(*emission.add(1)) as f32,(*emission.add(2)) as f32]});}
+            if !emission_opacity.is_null(){sc.emissive_opacity=std::array::from_fn(|i|unsafe{(*emission_opacity.add(i)).clamp(0.,1.) as f32});}
             if map_scale.is_finite() && map_scale > 0.0 { sc.lighting.diff_map_scale_exact = Some(map_scale); }
             sc.threads = threads.max(0) as usize;
             let token = token as usize;
@@ -163,9 +165,12 @@ pub extern "C" fn mb3dx_rust_render(
             let report = |done: usize, total: usize| {
                 progress(token as *mut c_void, done.min(i32::MAX as usize) as i32, total.min(i32::MAX as usize) as i32);
             };
-            if stop() {
-                return Err("cancelled".into());
-            }
+            let stage = |name: &str| {
+                let id=if name.contains("emissive") {1} else if name.contains("reflection") {3} else if name.contains("depth of field") {4} else if name.contains("hard shadows") {2} else {5};
+                progress(token as *mut c_void, -id-1, 0);
+            };
+            progress(token as *mut c_void, -1, 0);
+            if stop() { return Err("cancelled".into()); }
             let index = usize::from(preview != 0);
             let mut caches = caches().lock().map_err(|_| "Rust cache lock failed")?;
             let key = format!("{}\nCPU_ONLY={cpu_only}",geometry_key(&sc));
@@ -193,17 +198,20 @@ pub extern "C" fn mb3dx_rust_render(
             let reuse_post=geometry_reused&&c.post_key==post_key&&c.gbuf.len()==c.raw.len();
             let mut gbuf = if reuse_post {c.gbuf.clone()} else {c.raw.clone()};
             mb3d::diagnostics::phase(7);
-            let post_times=if reuse_post {mb3d::render::StageTimes::default()} else {mb3d::render::post_process_cancellable(&sc, &c.p, &mut gbuf, mb3d_threads(&sc), &stop)?};
+            let post_times=if reuse_post {mb3d::render::StageTimes::default()} else {mb3d::render::post_process_reporting(&sc, &c.p, &mut gbuf, mb3d_threads(&sc), &report, &stage, &stop)?};
             let post_time=post_start.elapsed();let paint_start=std::time::Instant::now();
             // Paint once without DoF to retain the exact sharp result, including R/T/fog.
             let dof = sc.dof.take();
             mb3d::diagnostics::phase(6);
-            let (mut rgb, reflection_time) = mb3d::render::paint_timed_cancellable(&sc, &c.p, &gbuf, &stop);
+            stage("emissive illumination");
+            let (mut rgb, reflection_time) = mb3d::render::paint_reporting(&sc, &c.p, &gbuf, &report, &stage, &stop);
+            if sc.emissive_difs.is_some(){stage("emissive illumination");}
             mb3d::emission::glow(&sc,&c.p,&gbuf,&mut rgb,&stop)?;
             rgba(&rgb, sharp);
             sc.dof = dof;
             let paint_time=paint_start.elapsed().as_secs_f64();let dof_start=std::time::Instant::now();
             if let Some(d) = sc.dof.as_ref() {
+                stage("depth of field");
                 mb3d::dof::apply(
                     &mut rgb,
                     &gbuf,

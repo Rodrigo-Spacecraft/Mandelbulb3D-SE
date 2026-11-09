@@ -22,10 +22,12 @@
 #include <ImageIO/ImageIO.h>
 #include <CoreGraphics/CoreGraphics.h>
 
-struct RenderCancelToken { atomic_int cancelled,rows,total; };
+struct RenderCancelToken { atomic_int cancelled,rows,total,stage; };
 static RenderCancelToken *active_cancel;
-RenderCancelToken *render_cancel_create(void) { RenderCancelToken *t=calloc(1,sizeof *t);if(t){atomic_init(&t->cancelled,0);atomic_init(&t->rows,0);atomic_init(&t->total,0);}return t; }
-int render_progress_percent(RenderCancelToken *t){if(!t)return 0;int total=atomic_load(&t->total);return total? (int)fmin(99,95.0*atomic_load(&t->rows)/total):0;}
+RenderCancelToken *render_cancel_create(void) { RenderCancelToken *t=calloc(1,sizeof *t);if(t){atomic_init(&t->cancelled,0);atomic_init(&t->rows,0);atomic_init(&t->total,0);atomic_init(&t->stage,0);}return t; }
+int render_progress_percent(RenderCancelToken *t){if(!t)return 0;int total=atomic_load(&t->total);return total? (int)fmin(100,100.0*atomic_load(&t->rows)/total):-1;}
+const char *render_progress_stage(RenderCancelToken *t){static const char *names[]={"Geometry","Radiance","HShadows","Reflections","DOF","AShadows"};int s=t?atomic_load(&t->stage):0;return names[s>=0&&s<6?s:0];}
+static void render_stage(int stage,int total){if(active_cancel){atomic_store(&active_cancel->total,0);atomic_store(&active_cancel->rows,0);atomic_store(&active_cancel->stage,stage);atomic_store(&active_cancel->total,total);}}
 void render_cancel(RenderCancelToken *t) { if(t)atomic_store_explicit(&t->cancelled,1,memory_order_relaxed); }
 void render_cancel_destroy(RenderCancelToken *t) { free(t); }
 static int render_cancelled(void) { return active_cancel&&atomic_load_explicit(&active_cancel->cancelled,memory_order_relaxed); }
@@ -129,7 +131,7 @@ static void saveM3IHeaders(int width,int height) {
     put16(h+135,program.min_iterations);put32(h+418,program.max_iterations2);put32f(h+378,program.smooth);
     for(int i=0;i<6;i++) {
         unsigned char *q=a+8+i*188;FormulaSlot f=program.slots[i];if(!standardActive&&!i){f=formula_slot_default(0);f.count=1;}
-        put32(q,(!endSlot&&i==0&&!f.count)?1:f.count);put32(q+4,formula_serial_id(f.kind));put32(q+8,formula_parameter_count(f.kind));
+        if(program.mode==1)put32f(q,i<2?formula_iteration_value(program,i):0);else put32(q,(!endSlot&&i==0&&!f.count)?1:f.count);put32(q+4,formula_serial_id(f.kind));put32(q+8,formula_parameter_count(f.kind));
         const char *name=formula_name(f.kind);memcpy(q+12,name,strlen(name));
         for(int j=0;j<formula_parameter_count(f.kind);j++){put64f(q+60+j*8,formula_slot_value(f,j));q[44+j]=formula_option_type(f.kind,j);}
     }
@@ -165,11 +167,11 @@ static void saveM3IHeaders(int width,int height) {
     if(rf.opacity_set)for(int i=0;i<10;i++)l[260+i*10+9]=(l[260+i*10+9]&7)|((unsigned)lround((1-rf.opacity[1][i])*31)<<3);
     memcpy(extra+3656,"RFL1",4);put32(extra+3660,rf.enabled);put32(extra+3664,rf.automatic);put32(extra+3668,rf.transparency);put32(extra+3672,rf.only_difs);put32(extra+3676,rf.depth);put64f(extra+3680,rf.amount);put64f(extra+3688,rf.absorption);put64f(extra+3696,rf.refractive_index);put64f(extra+3704,rf.scattering);
     FogSettings fog=scene.fog;h[223]=fog.iterations;h[343]=((fog.map_size+2)<<4)|(fog.mode==1?fog.light:0);
-    put16(l+8,lround(fog.mode==3?128:fog.offset));put16(l+10,lround(fog.mode==3?128:fog.far_offset));put32(l+20,lround(fog.mode>=2?53:fog.strength));l[92]=(l[92]&~3)|fog.blend|(fog.only_add<<1);
+    put16(l+8,lround(fog.mode==3?128:fog.offset));put16(l+10,lround(fog.mode==3?128:fog.far_offset));put32(l+20,lround(fog.mode>=2?53:fog.strength));l[92]=(l[92]&~3)|fog.blend|((fog.only_add&FOG_ONLY_ADD)<<1);
     l[55]=lround(fog.colors[0][0]*255);l[59]=lround(fog.colors[0][1]*255);l[63]=lround(fog.colors[0][2]*255);
     for(int i=0;i<3;i++)l[4+i]=lround(fog.colors[1][i]*255);
     memcpy(extra+3984,"SSA1",4);put64f(extra+3992,scene.ssao.threshold);put64f(extra+4000,scene.ssao.mirror);put32(extra+4008,scene.ssao.samples);put64f(extra+4016,scene.color_multiplier);
-    memcpy(extra+3880,"FOG1",4);int fv[]={fog.mode,fog.light,fog.iterations,fog.blend,fog.only_add,fog.map_size};
+    memcpy(extra+3880,"FOG1",4);int fv[]={fog.mode,fog.light,fog.iterations,fog.blend,fog.only_add&FOG_ONLY_ADD,fog.map_size};
     for(int i=0;i<6;i++)put32(extra+3884+i*4,fv[i]);
     put64f(extra+3912,fog.strength);put64f(extra+3920,fog.offset);put64f(extra+3928,fog.far_offset);
     for(int c=0;c<2;c++)for(int i=0;i<3;i++)put64f(extra+3936+(c*3+i)*8,fog.colors[c][i]);
@@ -391,9 +393,10 @@ static OrbitResult program_orbit_ref(Vec c,const FormulaProgram *p,int begin,int
 #endif
         if(render_cancelled())break;
         old=r;
-        if(p->mode==1){Vec sum={0};double total=0,derivative=0,sumW=0,oldW=w;Vec oldConstant=constant;
-            for(int j=begin;j<=end;j++)if(p->slots[j].count){double d=dr,pow=2,nextW=oldW;Vec nextConstant=oldConstant;info_local.formula_calls[j]++;Vec next=slot_step_prepared(z,&nextConstant,constantW,&nextW,p->slots[j],&d,&pow,&surfScale,j);sumW+=nextW*p->slots[j].count;sum=add(sum,mul(next,p->slots[j].count));derivative+=d*p->slots[j].count;total+=p->slots[j].count;if(!formula_modifier(p->slots[j].kind)){power=pow;lastKind=p->slots[j].kind;}}
-            z=mul(sum,1/total);dr=derivative/total;w=sumW/total;
+        if(p->mode==1){Vec sum={0};double total=0,derivative=0,sumW=0,oldW=w,length=0;Vec oldConstant=constant;
+            for(int j=0;j<2;j++)if(p->slots[j].count){double weight=formula_iteration_value(*p,j),d=dr,pow=2,nextW=oldW;Vec nextConstant=oldConstant;info_local.formula_calls[j]++;Vec next=slot_step_prepared(z,&nextConstant,constantW,&nextW,p->slots[j],&d,&pow,&surfScale,j);sumW+=(fourD?nextW:fabs(nextW))*weight;sum=add(sum,mul(next,weight));length+=sqrt(dot(next,next)+(fourD?nextW*nextW:0))*weight;derivative+=fabs(d)*weight;total+=weight;if(!formula_modifier(p->slots[j].kind)){power=pow;lastKind=p->slots[j].kind;}}
+            total=fmax(total,1e-300);z=mul(sum,1/total);dr=derivative/total;w=sumW/total;
+            double blended=length/total,actual=sqrt(dot(z,z)+(fourD?w*w:0));double rescale=blended/sqrt(actual*actual+1e-40);z=mul(z,rescale);if(fourD)w*=rescale;
         }else{
             if(!left){slot++;if(slot>end)slot=repeat;while(slot<=end&&!p->slots[slot].count)slot++;if(slot>end){slot=repeat;while(slot<=end&&!p->slots[slot].count)slot++;}if(slot>end){slot=begin;while(!p->slots[slot].count)slot++;}left=p->slots[slot].count;}
             if(!formula_modifier(p->slots[slot].kind))lastKind=p->slots[slot].kind;info_local.formula_calls[slot]++;z=slot_step_prepared(z,&constant,constantW,&w,p->slots[slot],&dr,&power,&surfScale,slot);left--;
@@ -483,7 +486,7 @@ static ProgramPartPlan make_part_plan(const FormulaProgram *p,int begin,int end)
     plan.repeat=p->mode==2&&begin==p->split?p->repeat2:p->repeat_from;plan.stationary_maps=1;plan.last_map=end;
     int first=begin;while(first<=end&&!p->slots[first].count)first++;
     plan.single_board=first<=end&&p->slots[first].kind==114&&p->slots[first].parameters[6]==0;
-    for(int j=begin;j<=end;j++){plan.cycle_steps+=p->slots[j].count;if(j!=first&&p->slots[j].count)plan.single_board=0;}
+    for(int j=begin;j<=end;j++){plan.cycle_steps+=p->mode==1?(p->slots[j].count!=0):p->slots[j].count;if(j!=first&&p->slots[j].count)plan.single_board=0;}
     while(plan.last_map>=plan.repeat&&!p->slots[plan.last_map].count)plan.last_map--;
     for(int j=plan.repeat;j<=end;j++)if(p->slots[j].count&&!stationary_map_formula(p->slots[j].kind))plan.stationary_maps=0;
     for(int i=begin;i<=end;i++)if(p->slots[i].count&&formula_difs(p->slots[i].kind))plan.difs=1;
@@ -492,13 +495,13 @@ static ProgramPartPlan make_part_plan(const FormulaProgram *p,int begin,int end)
 #ifdef USE_C_FORMULA_VM
         if(rust_formula(f.kind))factor=cf_de_scale(f.kind);
 #endif
-        deScale+=f.count*factor;weight+=f.count;}}
+        double count=formula_iteration_value(*p,i);deScale+=count*factor;weight+=count;}}
     int automaticNumerical=torus||quadratics||folding||(bulbs&&(linear||modifiers));
 #ifdef USE_C_FORMULA_VM
     for(int i=begin;i<=end;i++)if(p->slots[i].count&&rust_formula(p->slots[i].kind)&&!formula_modifier(p->slots[i].kind)&&!formula_linear(p->slots[i].kind))automaticNumerical=1;
 #endif
     plan.numerical=p->numerical_de||automaticNumerical;plan.weight=weight;plan.de_scale=deScale;
-    double ade=0,total=0;for(int i=begin;i<=end;i++)if(p->slots[i].count){if(formula_four_d(p->slots[i].kind))plan.four_d=1;if(rust_formula(p->slots[i].kind))plan.custom=1;if(!formula_modifier(p->slots[i].kind)){plan.has_base=1;total+=p->slots[i].count;ade+=p->slots[i].count*analytic_de_factor(p->slots[i]);}}
+    double ade=0,total=0;for(int i=begin;i<=end;i++)if(p->slots[i].count){if(formula_four_d(p->slots[i].kind))plan.four_d=1;if(rust_formula(p->slots[i].kind))plan.custom=1;if(!formula_modifier(p->slots[i].kind)){plan.has_base=1;double count=formula_iteration_value(*p,i);total+=count;ade+=count*analytic_de_factor(p->slots[i]);}}
     plan.ade=total?ade/total:1;return plan;
 }
 static OrbitResult program_part_ref(Vec c,const FormulaProgram *p,int begin,int end,int repeat,int maxits) {
@@ -828,7 +831,7 @@ static double color_de_correction(double eps){
     FormulaProgram p=scene.program_enabled?scene.program:legacy_program();double sum=0,weight=0;
     for(int i=0;i<8;i++){FormulaSlot f=p.slots[i];if(!f.count||formula_modifier(f.kind))continue;double factor=.6;
         if(formula_linear(f.kind)){double scale=formula_slot_value(f,0);if(fabs(scale)<=1)continue;if(fabs(scale)<1.2)scale=1.1+pow(fabs(scale)-1,2)*2.5;factor=.5/(log(fabs(scale))+.03);}
-        sum+=factor*f.count;weight+=f.count;
+        double count=formula_iteration_value(p,i);sum+=factor*count;weight+=count;
     }
     return (weight?sum/weight:.6)*log(fmax(eps,1e-300));
 }
@@ -836,7 +839,7 @@ static double color_de_correction(double eps){
    Workers write distinct pixels; cache dependency flags are immutable per pass. */
 static double color_scale_offset(void){
     FormulaProgram p=scene.program_enabled?scene.program:legacy_program();double sum=0,count=0;
-    for(int i=0;i<8;i++)if(p.slots[i].count&&!formula_modifier(p.slots[i].kind)&&scale_de_formula(p.slots[i])){sum+=p.slots[i].count*fabs(formula_slot_value(p.slots[i],0));count+=p.slots[i].count;}
+    for(int i=0;i<8;i++)if(p.slots[i].count&&!formula_modifier(p.slots[i].kind)&&scale_de_formula(p.slots[i])){double weight=formula_iteration_value(p,i);sum+=weight*fabs(formula_slot_value(p.slots[i],0));count+=weight;}
     return count?pow(sum/count,.25)*40-49:0;
 }
 static Sample surface_color_sample(Vec point,double eps){
@@ -856,7 +859,7 @@ static Sample surface_color_sample(Vec point,double eps){
     return sample;
 }
 typedef struct {Vec point,ray,normal;double depth,eps,roughness,ambient_visibility;Sample sample;double hard_visibility[6];int hit,prepared,emissive,emission_valid,emission_source;double emission_irradiance;} SurfacePixel;
-typedef struct {SurfacePixel *pixels;Scene geometry,ambient_scene,hard_scene;int ambient_valid,hard_valid;double local_distance;} SurfaceCache;
+typedef struct {SurfacePixel *pixels;Scene geometry,ambient_scene,hard_scene;int ambient_valid,hard_valid,emission_filtered;double local_distance;} SurfaceCache;
 static SurfaceCache surface_caches[2];
 static SurfaceCache *active_surface_cache=&surface_caches[0];
 #define surface_cache (*active_surface_cache)
@@ -941,6 +944,7 @@ static _Thread_local int reflection_secondary,reflection_cached_lighting;
 static _Thread_local Vec last_specular_lighting;
 static int fog_in_shading;
 #ifndef USE_RUST_ENGINE
+static double reflection_palette_opacity(Sample sample,double depth,int channel);
 #include "emission_lighting.h"
 #endif
 static Vec fog_shade_primary(Vec color,const SurfacePixel *surface);
@@ -1050,19 +1054,16 @@ static Vec shade(Vec p,Vec ray,double ypos,double depth,double eps,int hit,int w
     Vec lit=add(direct,bounce);
     if(scene.light_mixing){double amount=(1-ao)*(1-ao)*scene.indirect,luminance=dot(direct,(Vec){.3,.59,.11})*255+4;lit=add(direct,mul(product(direct,dif),amount));double out=fmax(0,dot(lit,(Vec){.3,.59,.11})*255);lit=mul(lit,(luminance+(luminance+128)*(amount+.11)*.04)/(out+3));}
 #ifndef USE_RUST_ENGINE
-    /* C-only emission experiment: DIFS hits are self-lit red. This changes
-       outgoing surface color (also on secondary rays), not scene lighting. */
+    /* DIFS opacity blends emission with a normally shaded receiving surface. */
     int emissive=0;double irradiance=0;
     if(scene.fog.mode==2){
         if(cached&&cached->emission_valid){emissive=cached->emission_source;irradiance=cached->emission_irradiance;}
-        else{emissive=reflection_surface_difs(p);if(!emissive)irradiance=emission_red_irradiance(p,n,eps);
+        else{emissive=reflection_surface_difs(p);if(!emissive||(scene.reflections.opacity_set&&reflection_palette_opacity(sample,depth,0)<1))irradiance=emission_red_irradiance(p,n,eps);
             if(cached&&!render_cancelled()){cached->emission_source=emissive;cached->emission_irradiance=irradiance;cached->emission_valid=1;}}
     }
     if(cached)cached->emissive=emissive;
-    /* Display the selected RGB without HDR clipping; transport retains
-       the stronger radiance in emission_ray(). */
-    if(emissive){lit=lighting_color(emission_color());highlights=(Vec){0};}
-    else if(scene.fog.mode==2)lit=add(lit,mul(product(diffuse_obj,emission_color()),irradiance));
+    /* The displayed emitter and transported light use the same unit radiance. */
+    if(scene.fog.mode==2){double strength=emissive?(scene.reflections.opacity_set?reflection_palette_opacity(sample,depth,0):1):0;lit=add(mul(lit,1-strength),lighting_color(mul(emission_color(),strength)));lit=add(lit,mul(emission_receiver_contrast(mul(product(diffuse_obj,emission_color()),irradiance*(1-strength))),EMISSION_ILLUMINATION_GAIN));lit=add(lit,mul(product(diffuse_obj,emission_bounce),1-strength));highlights=mul(highlights,1-strength);}
 #endif
     double step=2.1345/(scene.zoom*w),zcorr=sin(fmax(scene.fov*PI/180,1)/h);
     double zpos=32767*(1-(sqrt(depth*zcorr/step+1)-1)/
@@ -1429,6 +1430,7 @@ static RenderResult render_scene_core(const char *input,RenderOptions options) {
     if(options.iterations)scene.iterations=options.iterations;
     if(options.de_stop)scene.de_stop=options.de_stop;
     if(options.ray_step)scene.ray_step=options.ray_step;
+    if(options.program_override&&options.program.mode==1){options.program.repeat_from=0;for(int i=2;i<8;i++)options.program.slots[i].count=0;}
     if(options.program_override){const char *formulaError=program_formula_error(options.program);if(formulaError){snprintf(result.error,sizeof result.error,"%s",formulaError);return result;}if(!valid_program(options.program)||options.program.min_iterations>scene.iterations){snprintf(result.error,sizeof result.error,"Invalid formula program or minimum iterations");return result;}scene.program_enabled=1;scene.program=options.program;scene.bailout=options.program.bailout;
         FormulaSlot f=options.program.slots[0],g=options.program.slots[1];scene.kind=f.kind;scene.power=f.power;scene.count1=f.count;scene.zmul=f.z_multiplier;scene.scale=f.scale;scene.min_radius=f.min_radius;scene.fold=f.fold;scene.kind2=g.kind;scene.power2=g.power;scene.count2=g.count;scene.zmul2=g.z_multiplier;scene.scale2=g.scale;scene.min_radius2=g.min_radius;scene.fold2=g.fold;scene.repeat_from=options.program.repeat_from;
     }else if(options.formula_override||options.sequence_override)scene.program_enabled=0;
@@ -1523,6 +1525,9 @@ static RenderResult render_scene_core(const char *input,RenderOptions options) {
     atomic_init(&job.next_row,0);atomic_init(&job.allocation_failed,0);
     for(int c=0;c<3;c++)for(int i=0;i<32768;i++)atomic_store(&color_histogram[c][i],0);
     surface_pass=0;surface_pixels=NULL;reuse_ambient=reuse_hard=0;
+#ifndef USE_RUST_ENGINE
+    emission_bounce=(Vec){0};
+#endif
     if(reuse){
         surface_pixels=surface_cache.pixels;surface_pass=1;reuse_ambient=ambient_cache_matches();reuse_hard=hard_cache_matches();
         result.reused_surface=1;result.reused_ambient=scene.ao_enabled&&reuse_ambient;result.reused_hard_shadows=scene.shadows.hard_enabled&&reuse_hard;
@@ -1539,10 +1544,22 @@ static RenderResult render_scene_core(const char *input,RenderOptions options) {
     info_total.seconds[4]+=info_clock()-info_stage;info_stage=info_clock();
     if(reuse&&scene.ao_enabled&&scene.shadows.ambient_method>=2&&!reuse_ambient&&!calculate_ssao(threads))atomic_store(&job.allocation_failed,1);
     info_total.seconds[2]+=info_clock()-info_stage;info_stage=info_clock();
-    render_image(&job,threads);
+    render_stage(reuse?1:0,h);render_image(&job,threads);
     info_total.seconds[reuse?1:0]+=info_clock()-info_stage;
     if(surface_pixels&&!render_cancelled()){
-        if(!reuse){info_stage=info_clock();if(scene.ao_enabled&&scene.shadows.ambient_method>=2&&!calculate_ssao(threads))atomic_store(&job.allocation_failed,1);if(scene.normal_zbuffer)compute_depth_normals(w,h);info_total.seconds[2]+=info_clock()-info_stage;surface_pass=1;atomic_store(&job.next_row,0);info_stage=info_clock();if(scene.fog.mode<2&&scene.fog.strength!=53&&!(scene.reflections.enabled&&scene.reflections.amount>0)){if(fog_prepare(threads,options.preview_cache))fog_in_shading=1;else atomic_store(&job.allocation_failed,1);}info_total.seconds[4]+=info_clock()-info_stage;info_stage=info_clock();render_image(&job,threads);info_total.seconds[1]+=info_clock()-info_stage;}
+        if(!reuse){render_stage(5,0);info_stage=info_clock();if(scene.ao_enabled&&scene.shadows.ambient_method>=2&&!calculate_ssao(threads))atomic_store(&job.allocation_failed,1);if(scene.normal_zbuffer)compute_depth_normals(w,h);info_total.seconds[2]+=info_clock()-info_stage;surface_pass=1;atomic_store(&job.next_row,0);info_stage=info_clock();if(scene.fog.mode<2&&scene.fog.strength!=53&&!(scene.reflections.enabled&&scene.reflections.amount>0)){if(fog_prepare(threads,options.preview_cache))fog_in_shading=1;else atomic_store(&job.allocation_failed,1);}info_total.seconds[4]+=info_clock()-info_stage;info_stage=info_clock();render_stage(1,h);render_image(&job,threads);info_total.seconds[1]+=info_clock()-info_stage;}
+#ifndef USE_RUST_ENGINE
+        if(scene.fog.mode==2&&!render_cancelled()){
+            if(!surface_cache.emission_filtered&&!filter_emission_primary(w,h)){if(!render_cancelled())atomic_store(&job.allocation_failed,1);}
+            else{
+                surface_cache.emission_filtered=1;
+                update_emission_bounce(w,h);
+                int ambient=reuse_ambient,hard=reuse_hard;reuse_ambient=reuse_hard=1;
+                atomic_store(&job.next_row,0);info_stage=info_clock();render_stage(1,h);render_image(&job,threads);info_total.seconds[1]+=info_clock()-info_stage;
+                reuse_ambient=ambient;reuse_hard=hard;
+            }
+        }
+#endif
         if(scene.ao_enabled){surface_cache.ambient_valid=1;surface_cache.ambient_scene=scene;}
         if(scene.shadows.hard_enabled){surface_cache.hard_valid=1;surface_cache.hard_scene=scene;}
         surface_pixels=NULL;surface_pass=0;
@@ -1579,13 +1596,16 @@ static RenderResult render_scene_core(const char *input,RenderOptions options) {
     info_stage=info_clock();
     if(scene.fog.mode<2&&scene.fog.strength!=53&&!fog_prepare(threads,options.preview_cache)){free(result.rgba);result.rgba=NULL;snprintf(result.error,sizeof result.error,"Could not calculate depth fog (cancelled or insufficient memory)");return result;}
     info_total.seconds[4]+=info_clock()-info_stage;info_stage=info_clock();
+    render_stage(3,0);
     if(!apply_reflections(&result,threads)){free(result.rgba);result.rgba=NULL;snprintf(result.error,sizeof result.error,"No cached surface data for Reflections + Transparency");return result;}
     info_total.seconds[5]+=info_clock()-info_stage;info_stage=info_clock();
+    render_stage(1,0);
     if(!apply_fog(&result,threads,options.preview_cache)){free(result.rgba);result.rgba=NULL;snprintf(result.error,sizeof result.error,"Could not calculate depth fog (cancelled or insufficient memory)");return result;}
     info_total.seconds[4]+=info_clock()-info_stage;info_stage=info_clock();
 #ifndef USE_RUST_ENGINE
     if(!apply_emission_glow(&result)){free(result.rgba);result.rgba=NULL;snprintf(result.error,sizeof result.error,"Could not calculate emission glow (cancelled or insufficient memory)");return result;}
 #endif
+    render_stage(4,0);
     if(!apply_depth_of_field(&result,threads)){free(result.rgba);result.rgba=NULL;snprintf(result.error,sizeof result.error,"Not enough memory for Depth of Field");}
     info_total.seconds[6]+=info_clock()-info_stage;info_total.threads=threads;
     return result;

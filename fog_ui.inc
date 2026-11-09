@@ -5,7 +5,7 @@
     NSMutableArray *controls=[NSMutableArray array],*fields=[NSMutableArray array],*sliders=[NSMutableArray array],*wells=[NSMutableArray array],*colorLabels=[NSMutableArray array],*fieldLabels=[NSMutableArray array];
     NSTextField *label=[NSTextField labelWithString:@"Mode"];label.frame=NSMakeRect(16,22,150,24);[panel addSubview:label];
     self.fogMode=[[NSPopUpButton alloc] initWithFrame:NSMakeRect(180,18,356,30) pullsDown:NO];[self.fogMode addItemsWithTitles:@[@"None",@"Dynamic fog on iterations",@"Volumetric lighting"]];
-    [self.fogMode addItemWithTitle:@"Emissive"];
+    [self.fogMode addItemWithTitle:@"Emissive DIFS"];
     int modeTags[]={3,0,1,2};for(int i=0;i<4;i++)[self.fogMode itemAtIndex:i].tag=modeTags[i];
     self.fogMode.target=self;self.fogMode.action=@selector(fogEdited:);[panel addSubview:self.fogMode];[controls addObject:self.fogMode];
     label=[NSTextField labelWithString:@"Volumetric light source"];self.fogLightLabel=label;label.frame=NSMakeRect(16,68,170,24);[panel addSubview:label];
@@ -48,12 +48,12 @@
     for(int i=0;i<5;i++){self.fogFields[i].stringValue=[NSString stringWithFormat:@"%.17g",v[i]];if(i<3)self.fogSliders[i].doubleValue=v[i];}
     for(NSControl *c in self.fogControls)if([c isKindOfClass:NSStepper.class])c.doubleValue=v[c.tag];
     for(int i=0;i<2;i++)self.fogWells[i].color=[NSColor colorWithSRGBRed:f.colors[i][0] green:f.colors[i][1] blue:f.colors[i][2] alpha:1];
-    self.fogBlend.state=f.blend;self.fogOnlyAdd.state=f.only_add;[self syncFogMode];
+    self.fogBlend.state=f.blend;self.fogOnlyAdd.state=(f.only_add&FOG_ONLY_ADD)?NSControlStateValueOn:NSControlStateValueOff;[self syncFogMode];
 }
 - (BOOL)readDepthFog:(RenderOptions *)options {
     if(!self.fogFields)return YES;FogSettings f=fog_settings_default();double v[5],maximum[]={159,256,256,255,9};
     for(int i=0;i<5;i++){NSScanner *scan=[NSScanner scannerWithString:numericInputString(self.fogFields[i])];if(![scan scanDouble:&v[i]]||!scan.isAtEnd||!isfinite(v[i])||v[i]<(i==4?-2:0)||v[i]>maximum[i]||(i>=3&&v[i]!=floor(v[i]))){self.statusLabel.stringValue=@"Check Depth Fog values: intensity 0–159, offsets 0–256, iteration 0–255, map size −2–9.";return NO;}}
-    f.mode=(int)self.fogMode.selectedItem.tag;f.light=(int)self.fogLight.indexOfSelectedItem+1;f.strength=v[0];f.offset=v[1];f.far_offset=v[2];f.iterations=(int)v[3];f.map_size=(int)v[4];f.blend=self.fogBlend.state==NSControlStateValueOn;f.only_add=self.fogOnlyAdd.state==NSControlStateValueOn;
+    f.mode=(int)self.fogMode.selectedItem.tag;f.light=(int)self.fogLight.indexOfSelectedItem+1;f.strength=v[0];f.offset=v[1];f.far_offset=v[2];f.iterations=(int)v[3];f.map_size=(int)v[4];f.blend=self.fogBlend.state==NSControlStateValueOn;f.only_add=(self.fogOnlyAdd.state==NSControlStateValueOn?FOG_ONLY_ADD:0);
     for(int i=0;i<2;i++){NSColor *c=[self.fogWells[i].color colorUsingColorSpace:NSColorSpace.sRGBColorSpace];f.colors[i][0]=c.redComponent;f.colors[i][1]=c.greenComponent;f.colors[i][2]=c.blueComponent;}
     options->fog_override=1;options->fog=f;return YES;
 }

@@ -1,7 +1,7 @@
 # Mandelbulb3D SE
 
 Source code for the native macOS fractal application Mandelbulb3D SE.
-The `rel2` tag identifies the corresponding version 2.0.1 release source.
+The `rel3` tag identifies the corresponding version 2.0.2 release source.
 This repository distributes source, build scripts, resources, and tests; no prebuilt application is included.
 
 ## Requirements
@@ -16,7 +16,7 @@ This repository distributes source, build scripts, resources, and tests; no preb
 ```sh
 git clone https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE.git
 cd Mandelbulb3D-SE
-git checkout rel2
+git checkout rel3
 make -j4
 open "Mandelbulb3D SE.app"
 ```

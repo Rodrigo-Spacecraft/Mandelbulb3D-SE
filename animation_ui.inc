@@ -32,7 +32,7 @@
         self.animationProcessingsButton=[NSButton buttonWithTitle:@"Processings…" target:self action:@selector(showAnimationProcessing:)];self.animationProcessingsButton.frame=NSMakeRect(742,378,132,28);self.animationProcessingsButton.accessibilityLabel=@"Open Processings window";[panel addSubview:self.animationProcessingsButton];[controls addObject:self.animationProcessingsButton];
         self.animationLoop=[NSButton checkboxWithTitle:@"Loop animation" target:self action:@selector(animationFieldEdited:)];self.animationLoop.frame=NSMakeRect(510,380,220,26);[panel addSubview:self.animationLoop];[controls addObject:self.animationLoop];
         NSTextField *interpLabel=[NSTextField labelWithString:@"Interp"];interpLabel.frame=NSMakeRect(670,416,44,22);[panel addSubview:interpLabel];
-        self.animationInterpolation=[[NSPopUpButton alloc]initWithFrame:NSMakeRect(716,412,158,28) pullsDown:NO];[self.animationInterpolation addItemsWithTitles:@[@"Linear",@"Quadratic Bezier"]];[panel addSubview:self.animationInterpolation];[controls addObject:self.animationInterpolation];
+        self.animationInterpolation=[[NSPopUpButton alloc]initWithFrame:NSMakeRect(716,412,158,28) pullsDown:NO];[self.animationInterpolation addItemsWithTitles:@[@"Linear",@"Quadratic Bezier"]];[self.animationInterpolation selectItemAtIndex:1];[panel addSubview:self.animationInterpolation];[controls addObject:self.animationInterpolation];
         NSTextField *samplingLabel=[NSTextField labelWithString:@"Oversampling"];samplingLabel.frame=NSMakeRect(510,416,100,22);[panel addSubview:samplingLabel];
         self.animationSampling=[[NSPopUpButton alloc]initWithFrame:NSMakeRect(610,412,54,28) pullsDown:NO];for(int i=1;i<=6;i++)[self.animationSampling addItemWithTitle:[NSString stringWithFormat:@"%d×",i]];[panel addSubview:self.animationSampling];[controls addObject:self.animationSampling];
         self.animationPreviewEstimate=[NSTextField labelWithString:@"Preview estimate: available after first frame"];self.animationPreviewEstimate.frame=NSMakeRect(510,448,364,22);self.animationPreviewEstimate.lineBreakMode=NSLineBreakByTruncatingTail;[panel addSubview:self.animationPreviewEstimate];
@@ -76,7 +76,14 @@
     NSInteger total=0;for(NSUInteger i=0;i<self.animationKeys.count;i++)if(i+1<self.animationKeys.count||self.animationLoop.state==NSControlStateValueOn)total+=[self.animationKeys[i][@"frames"] integerValue];
     return self.animationLoop.state==NSControlStateValueOn&&self.animationKeys.count>1?total:self.animationKeys.count?total+1:0;
 }
-- (void)animationScrub:(NSSlider *)sender {self.animationFields[1].integerValue=(NSInteger)lround(sender.doubleValue);}
+- (void)animationScrub:(NSSlider *)sender {
+    NSInteger number=(NSInteger)lround(sender.doubleValue);self.animationFields[1].integerValue=number;
+    if(self.animationPlaybackFrames.count){
+        [self seekAnimationPlayback:number];
+        // LiveSlider tracks in its own event loop; paint the cached frame now.
+        [self.animationView displayIfNeeded];
+    }
+}
 - (void)animationEstimateEdited:(id)sender {(void)sender;[self updateAnimationPreviewEstimate];}
 - (void)updateAnimationPreviewEstimate {
     if(!self.animationPreviewEstimate||self.animationFields.count<8)return;
@@ -113,7 +120,7 @@
     NSArray *defaults=@[@"30",@"1",[NSString stringWithFormat:@"%d",settings.width?MAX(16,settings.width/MAX(1,settings.oversampling)):480],[NSString stringWithFormat:@"%d",settings.height?MAX(16,settings.height/MAX(1,settings.oversampling)):360],@"24",@"1",@"1",@"last"];
     for(int i=0;i<8;i++)self.animationFields[i].stringValue=defaults[i];
     self.animationLoop.state=self.animationFrameOverlay.state=self.animationZBuffer.state=NSControlStateValueOff;
-    [self.animationInterpolation selectItemAtIndex:0];[self.animationSampling selectItemAtIndex:0];[self.animationPreviewScale selectItemAtIndex:1];[self.animationFrameColor selectItemAtIndex:0];[self animationOverlayChanged:nil];
+    [self.animationInterpolation selectItemAtIndex:1];[self.animationSampling selectItemAtIndex:0];[self.animationPreviewScale selectItemAtIndex:1];[self.animationFrameColor selectItemAtIndex:0];[self animationOverlayChanged:nil];
     self.animationOutputFolder=nil;self.animationOutputLabel.stringValue=@"Output folder: not chosen";
     self.animationWindow.representedURL=nil;self.animationWindow.title=@"Animation maker";
     self.animationSecondsPerPixel=0;self.animationView.image=nil;self.animationView.frameNumber=1;

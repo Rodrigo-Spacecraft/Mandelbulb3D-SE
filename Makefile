@@ -32,11 +32,11 @@ native-c/libformulas.a: $(C_NATIVE_OBJECTS)
 
 renderer.o: rust_engine.inc emission_lighting.h emission_glow.h render_statistics.h native-c/libformulas.a c_formula_vm.h c_formula_compact.h c_formula_native.h c_formula_code.h rust_formula_catalog.h ssao.h fog.h background.h reflections.h renderer.c renderer.h scene.h formula_support.h rand_cubes.h extra_formulas.h difs_formulas.h height_maps.h
 	$(CC) $(CFLAGS) -c renderer.c -o $@
-App.o: file_access.h window_identity.h mutagen_engine.h mutagen_views.h mutagen_ui.inc color_favorites.h default_maps.h file_dialog_history.h rust_formula_catalog.h render_history.h history_ui.inc fog_ui.inc App.m lighting_files.h lighting_history.inc background_ui.inc formula_ui.h formula_binary_parameters.h numeric_input.h renderer.h animation.h animation_ui.inc animation_processing.inc m3a_ui.inc
+App.o: formula_menu_groups.h formula_thumbnails.h file_access.h window_identity.h mutagen_engine.h mutagen_views.h mutagen_ui.inc color_favorites.h default_maps.h file_dialog_history.h rust_formula_catalog.h render_history.h history_ui.inc fog_ui.inc App.m lighting_files.h lighting_history.inc background_ui.inc formula_ui.h formula_binary_parameters.h numeric_input.h renderer.h animation.h animation_ui.inc animation_processing.inc m3a_ui.inc
 	$(CC) $(CFLAGS) -fobjc-arc -c App.m -o $@
 resources/AppIcon.icns: resources/AppIcon.png resources/make-icon.sh resources/icon-pixels.m
 	sh resources/make-icon.sh resources/AppIcon.png "$@"
-$(APP_TARGET)/Contents/MacOS/$(EXECUTABLE): $(OBJECTS) $(RUST_LIB) $(C_FORMULA_DEPS) Info.plist resources/AppIcon.icns resources/FormulaInfo.plist resources/DefaultMaps $(wildcard resources/Licenses/*) $(wildcard resources/DefaultMaps/*.png resources/DefaultMaps/*.jpg resources/DefaultMaps/*.jpeg resources/DefaultMaps/*.bmp resources/DefaultMaps/*.gif resources/DefaultMaps/*.tif resources/DefaultMaps/*.tiff resources/DefaultMaps/*.pgm)
+$(APP_TARGET)/Contents/MacOS/$(EXECUTABLE): $(OBJECTS) $(RUST_LIB) $(C_FORMULA_DEPS) Info.plist resources/app-store/ThumbnailHelper.entitlements resources/AppIcon.icns resources/FormulaInfo.plist resources/DefaultMaps $(wildcard resources/Licenses/*) $(wildcard resources/DefaultMaps/*.png resources/DefaultMaps/*.jpg resources/DefaultMaps/*.jpeg resources/DefaultMaps/*.bmp resources/DefaultMaps/*.gif resources/DefaultMaps/*.tif resources/DefaultMaps/*.tiff resources/DefaultMaps/*.pgm)
 	mkdir -p "$(APP)/Contents/MacOS"
 	cp Info.plist "$(APP)/Contents/Info.plist"
 ifeq ($(ENGINE),rust)
@@ -49,6 +49,7 @@ endif
 	mkdir -p "$(APP)/Contents/Resources"
 	cp resources/AppIcon.icns "$(APP)/Contents/Resources/AppIcon.icns"
 	cp resources/FormulaInfo.plist "$(APP)/Contents/Resources/FormulaInfo.plist"
+	rm -f "$(APP)/Contents/Resources/FormulaThumbnailFavorite.dat"
 	rm -rf "$(APP)/Contents/Resources/Licenses"
 	cp -R resources/Licenses "$(APP)/Contents/Resources/Licenses"
 	rm -rf "$(APP)/Contents/Resources/DefaultMaps"
@@ -67,6 +68,9 @@ ifeq ($(ENGINE),c)
 	cp rust-assets/M3Formulas/*.m3f "$(APP)/Contents/Resources/M3Formulas/"
 
 endif
+	mkdir -p "$(APP)/Contents/Helpers"
+	cp "$(APP)/Contents/MacOS/$(EXECUTABLE)" "$(APP)/Contents/Helpers/FormulaThumbnailRenderer"
+	codesign --force --sign - --identifier com.greenoak.m3dse.thumbnails --entitlements resources/app-store/ThumbnailHelper.entitlements "$(APP)/Contents/Helpers/FormulaThumbnailRenderer"
 	codesign --force --sign - "$(APP)"
 	touch "$(APP)"
 clean:
@@ -111,12 +115,12 @@ test-ssao: test_ssao.c ssao.h renderer.c renderer.h scene.h fog.h background.h
 	$(CC) $(CFLAGS) test_ssao.c $(C_FORMULA_LIBS) -lm -pthread -framework ImageIO -framework CoreGraphics -framework CoreFoundation -o test-ssao
 	./test-ssao
 
-RUST_SOURCES = $(shell rg --files rust-bridge/src vendor/mb3d-rs/src)
+RUST_SOURCES = $(shell find rust-bridge/src vendor/mb3d-rs/src -type f)
 rust-bridge/target/release/libmandelbulb3dx_engine.a: $(RUST_SOURCES) rust-bridge/Cargo.toml rust-bridge/Cargo.lock .cargo/config.toml vendor/mb3d-rs/Cargo.toml
 	./tools/cargo-local.sh build --manifest-path rust-bridge/Cargo.toml --release --locked
 renderer-rust.o: Makefile render_statistics.h rust_formula_catalog.h renderer.c renderer.h scene.h formula_support.h extra_formulas.h fog.h background.h reflections.h ssao.h rust_engine.h rust_engine.inc
 	$(CC) $(CFLAGS) -DUSE_RUST_ENGINE -c renderer.c -o $@
-App-rust.o: Makefile file_access.h window_identity.h mutagen_engine.h mutagen_views.h mutagen_ui.inc color_favorites.h default_maps.h file_dialog_history.h render_history.h history_ui.inc App.m lighting_files.h lighting_history.inc background_ui.inc formula_ui.h formula_binary_parameters.h renderer.h animation.h animation_ui.inc animation_processing.inc m3a_ui.inc fog_ui.inc numeric_input.h rust_engine.h
+App-rust.o: formula_menu_groups.h formula_thumbnails.h Makefile file_access.h window_identity.h mutagen_engine.h mutagen_views.h mutagen_ui.inc color_favorites.h default_maps.h file_dialog_history.h render_history.h history_ui.inc App.m lighting_files.h lighting_history.inc background_ui.inc formula_ui.h formula_binary_parameters.h renderer.h animation.h animation_ui.inc animation_processing.inc m3a_ui.inc fog_ui.inc numeric_input.h rust_engine.h
 	$(CC) $(CFLAGS) -DUSE_RUST_ENGINE -fobjc-arc -c App.m -o $@
 
 .PHONY: test-rust

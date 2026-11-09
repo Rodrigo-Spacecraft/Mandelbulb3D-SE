@@ -182,7 +182,7 @@ static Vec fog_mix(Vec color,double count,double depth) {
          * bits plus an exponent, saturating its accumulator at 16383. */
         if(f.mode){unsigned value=(unsigned)lrint(clamp(ir,0,16383)),shift=0;while((value>>shift)>127)shift++;ir=(value>>shift)<<shift;}
         double amount=(ir-offset-far*depth)*grad;
-        if(f.only_add)amount=fmax(0,amount);double intense=fmin(1,ir*second)*amount;
+        if(f.only_add&FOG_ONLY_ADD)amount=fmax(0,amount);double intense=fmin(1,ir*second)*amount;
         if(f.blend){amount=clamp(amount,0,1);intense=clamp(intense,0,1);}
     Vec a={f.colors[0][0],f.colors[0][1],f.colors[0][2]},b={f.colors[1][0],f.colors[1][1],f.colors[1][2]};
     a=lighting_color(a);b=lighting_color(b);

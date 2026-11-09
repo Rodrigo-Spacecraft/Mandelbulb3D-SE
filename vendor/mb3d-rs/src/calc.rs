@@ -1607,6 +1607,16 @@ impl<'a> Marcher<'a> {
         si
     }
 
+    /// Shared primary/secondary material palette coordinate, including DE colour offsets.
+    pub(crate) fn surface_color_gradient(&self, smooth: f32, de_limited: bool) -> u16 {
+        let p = self.p;
+        let smooth = if de_limited {
+            smooth + p.d_col_plus + p.col_var_de_stop_mul *
+                ((p.de_stop.max(self.ms_de_stop) as f64 * p.step_width).ln() as f32)
+        } else { smooth };
+        min_max_clip_15bit(32767.0 - smooth * p.mcts_m)
+    }
+
     /// `RMdoColor` – the orbit trap / 2nd colour choice.
     pub(crate) fn do_color(&self, si: &mut SiLight) {
         let it = &self.it;
@@ -1866,12 +1876,7 @@ impl<'a> Marcher<'a> {
             });
         }
         let nn = if p.normals_on_de { self.calculate_normals(si) } else { self.calculate_normals_on_smooth_it(si) };
-        let v = if de_limited {
-            32767.0 - (nn + p.d_col_plus + p.col_var_de_stop_mul * ((f32::max(p.de_stop, self.ms_de_stop) as f64 * p.step_width).ln() as f32)) * p.mcts_m
-        } else {
-            32767.0 - nn * p.mcts_m
-        };
-        si.si_gradient = min_max_clip_15bit(v);
+        si.si_gradient = self.surface_color_gradient(nn, de_limited);
         if p.color_on_it != 0 {
             self.do_color_on_it();
         }

@@ -79,15 +79,30 @@ typedef struct {
     int split,repeat2,max_iterations2,combine;
     double bailout,smooth,formula_power;
 } FormulaProgram;
+/* MB3D uses the iteration-count word as IEEE single weights in Interpolate.
+ * Keep the ABI and serialized word intact. Small integer words also support
+ * older native snapshots and callers that set integer interpolation weights. */
+static inline double formula_iteration_value(FormulaProgram p,int slot){
+    int word=p.slots[slot].count;
+    if(p.mode!=1||(word>=0&&word<=10000))return word;
+    union {unsigned int word;float weight;} value={.word=(unsigned int)word};
+    return value.weight;
+}
+static inline int formula_weight_word(double weight){
+    union {float weight;unsigned int word;} value={.weight=(float)weight};
+    return (int)value.word;
+}
+
 typedef struct {
     int enabled,automatic,transparency,only_difs,depth;
     double amount,absorption,refractive_index,scattering;
-    int opacity_set;double opacity[2][10]; /* diffuse/specular opacity */
+    int opacity_set;double opacity[2][10]; /* diffuse emission strength / specular transparency opacity */
 } ReflectionSettings;
 typedef struct {
     int mode,light,iterations,blend,only_add,map_size; /* modes: 0 dynamic, 1 volumetric, 2 emissive, 3 none; stable file IDs */
     double strength,offset,far_offset,colors[2][3];
 } FogSettings;
+enum { FOG_ONLY_ADD=1 };
 static inline FogSettings fog_settings_default(void) {
     return (FogSettings){.light=1,.strength=53,.offset=128,.far_offset=128,.colors={{1,1,1},{1,1,1}}};
 }
@@ -96,7 +111,9 @@ typedef struct RenderCancelToken RenderCancelToken;
 RenderCancelToken *render_cancel_create(void);
 void render_cancel(RenderCancelToken *token);
 void render_cancel_destroy(RenderCancelToken *token);
+/* Progress for the current stage; -1 means an unknown-length pass. */
 int render_progress_percent(RenderCancelToken *token);
+const char *render_progress_stage(RenderCancelToken *token);
 /* Serial: export cached depth as a 16-bit grayscale PNG, near white/background black. */
 int render_export_zbuffer(const char *path,int preview,int width,int height,char error[512]);
 typedef struct {

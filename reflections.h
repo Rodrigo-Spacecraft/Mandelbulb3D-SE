@@ -81,17 +81,17 @@ static Vec reflection_transport(SurfacePixel s,Vec base,Vec highlight,int remain
     if(scene.reflections.only_difs&&!reflection_surface_difs(s.point))return base;
     double roughness=0;Vec normal=s.prepared?s.normal:surface_normal(s.point,s.eps*.15,&roughness);if(dot(normal,s.ray)>0)normal=mul(normal,-1);
     Sample sample=s.prepared?s.sample:surface_color_sample(s.point,s.eps);Vec dif,spec;palette(sample.smooth,sample.orbit_trap,s.depth,&dif,&spec);
-    ReflectionSettings rf=scene.reflections;double diffuseOpacity=rf.opacity_set?reflection_palette_opacity(sample,s.depth,0):1,specularOpacity=rf.opacity_set?reflection_palette_opacity(sample,s.depth,1):1;Vec amount=mul(spec,rf.amount);
-    if(rf.transparency&&rf.opacity_set){double transmission=rf.amount*(1-diffuseOpacity*specularOpacity);amount=(Vec){fmax(amount.x,transmission),fmax(amount.y,transmission),fmax(amount.z,transmission)};}amount=(Vec){clamp(amount.x,0,1),clamp(amount.y,0,1),clamp(amount.z,0,1)};
+    ReflectionSettings rf=scene.reflections;double specularOpacity=rf.opacity_set?reflection_palette_opacity(sample,s.depth,1):1;Vec amount=mul(spec,rf.amount);
+    if(rf.transparency&&rf.opacity_set){double transmission=rf.amount*(1-specularOpacity);amount=(Vec){fmax(amount.x,transmission),fmax(amount.y,transmission),fmax(amount.z,transmission)};}amount=(Vec){clamp(amount.x,0,1),clamp(amount.y,0,1),clamp(amount.z,0,1)};
     if(fmax(amount.x,fmax(amount.y,amount.z))<.0001)return base;
-    /* Palette opacity controls transmission. Fully opaque stops remain
+    /* Specular opacity controls transmission. Fully opaque stops remain
        reflective; zero-opacity glass retains physical Fresnel reflection. */
-    int transmit=rf.transparency&&(!rf.opacity_set||diffuseOpacity*specularOpacity<1);Vec transmitted={0};double fresnel=1;
+    int transmit=rf.transparency&&(!rf.opacity_set||specularOpacity<1);Vec transmitted={0};double fresnel=1;
     /* Hits lie on the eps isosurface. A large offset can jump completely
        across a thin DIFS shell, losing its entry/exit refraction pair. */
     double offset=reflection_offset(s.eps);Vec refracted;
     if(transmit&&reflection_refract(s.ray,normal,inside?rf.refractive_index:1/rf.refractive_index,&refracted)){
-        fresnel=reflection_fresnel(-dot(s.ray,normal),inside?rf.refractive_index:1/rf.refractive_index);if(rf.opacity_set)fresnel+=(1-fresnel)*diffuseOpacity*specularOpacity;
+        fresnel=reflection_fresnel(-dot(s.ray,normal),inside?rf.refractive_index:1/rf.refractive_index);if(rf.opacity_set)fresnel+=(1-fresnel)*specularOpacity;
         double distance;transmitted=reflection_ray(add(s.point,mul(refracted,offset)),refracted,!inside,s.eps,remaining-1,budget,&distance);
         if(!inside){Vec attenuation={exp(-rf.absorption*distance*fmax(0,1-dif.x)),exp(-rf.absorption*distance*fmax(0,1-dif.y)),exp(-rf.absorption*distance*fmax(0,1-dif.z))};Vec scatter=mul(product(dif,(Vec){1-attenuation.x,1-attenuation.y,1-attenuation.z}),(-expm1(-fmin(700,rf.scattering*distance)))*.1);transmitted=add(product(transmitted,attenuation),scatter);}
     }

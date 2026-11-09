@@ -23,7 +23,7 @@ static int apply_emission_glow(RenderResult *result){
     if(!mask||!tmp){free(mask);free(tmp);return 0;}
     for(int y=0;y<h;y++)for(int x=0;x<w;x++){
         SurfacePixel *p=&surface_cache.pixels[(size_t)y*w+x];
-        if(p->hit&&p->emissive){unsigned char *q=result->rgba+(size_t)y*result->stride+4*x;mask[(size_t)y*w+x]=fmax(q[0],fmax(q[1],q[2]))/255.f;}
+        if(p->hit&&p->emissive){Vec color=emission_color();double strength=scene.reflections.opacity_set?reflection_palette_opacity(p->sample,p->depth,0):1;mask[(size_t)y*w+x]=strength*fmax(color.x,fmax(color.y,color.z));}
     }
     int radius=(int)fmax(1,lround(fmin(w,h)*.015));
     for(int pass=0;pass<3;pass++)if(!emission_glow_blur(mask,tmp,w,h,radius,0)||!emission_glow_blur(tmp,mask,w,h,radius,1)){free(mask);free(tmp);return 0;}

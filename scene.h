@@ -31,7 +31,7 @@ static int valid_program(FormulaProgram p) {
     if(p.slots[6].count||p.slots[7].count)return 0;
     if(p.mode<0||p.mode>2||p.repeat_from<0||p.repeat_from>5||p.min_iterations<0||p.min_iterations>10000||p.numerical_de<0||p.numerical_de>1||p.render_mode<0||p.render_mode>2||p.split<1||p.split>5||p.repeat2<0||p.repeat2>5||p.max_iterations2<1||p.max_iterations2>10000||p.combine<0||p.combine>5||!isfinite(p.bailout)||p.bailout<=1||p.bailout>1e10||!isfinite(p.smooth)||p.smooth<1e-12||p.smooth>1e6||!isfinite(p.formula_power)||p.formula_power<1.000001||p.formula_power>100)return 0;
     int first=0,second=0,repeat=0,repeat2=0,repeatFirst=0;
-    for(int i=0;i<8;i++){FormulaSlot f=p.slots[i];if(f.kind==-1&&!f.count)continue;if(!formula_supported(f.kind)||f.power<2||f.power>8||f.count<0||f.count>10000||!isfinite(f.z_multiplier)||fabs(f.z_multiplier)>100||(!formula_generic(f.kind)&&(!isfinite(f.scale)||fabs(f.scale)>100||!isfinite(f.min_radius)||fabs(f.min_radius)>100||!isfinite(f.fold)||fabs(f.fold)>100)))return 0;if(formula_generic(f.kind))for(int j=0;j<formula_parameter_count(f.kind);j++){const FormulaParameter *spec=formula_parameter(f.kind,j);double v=formula_slot_value(f,j);if(!isfinite(v)||v<spec->minimum||v>spec->maximum||(spec->integer&&v!=floor(v)))return 0;}if(f.count){first+=i<p.split;second+=i>=p.split;repeat+=i>=p.repeat_from;repeat2+=i>=p.repeat2;repeatFirst+=i>=p.repeat_from&&i<p.split;}}
+    for(int i=0;i<8;i++){FormulaSlot f=p.slots[i];if(f.kind==-1&&!f.count)continue;if(!formula_supported(f.kind)||f.power<2||f.power>8||(p.mode==1?(!isfinite(formula_iteration_value(p,i))||formula_iteration_value(p,i)<0||formula_iteration_value(p,i)>10000):(f.count<0||f.count>10000))||!isfinite(f.z_multiplier)||fabs(f.z_multiplier)>100||(!formula_generic(f.kind)&&(!isfinite(f.scale)||fabs(f.scale)>100||!isfinite(f.min_radius)||fabs(f.min_radius)>100||!isfinite(f.fold)||fabs(f.fold)>100)))return 0;if(formula_generic(f.kind))for(int j=0;j<formula_parameter_count(f.kind);j++){const FormulaParameter *spec=formula_parameter(f.kind,j);double v=formula_slot_value(f,j);if(!isfinite(v)||v<spec->minimum||v>spec->maximum||(spec->integer&&v!=floor(v)))return 0;}if(f.count){first+=i<p.split;second+=i>=p.split;repeat+=i>=p.repeat_from;repeat2+=i>=p.repeat2;repeatFirst+=i>=p.repeat_from&&i<p.split;}}
     return (first+second)>0&&repeat&&(p.mode!=2||(first&&second&&repeatFirst&&repeat2&&p.repeat2>=p.split&&p.repeat_from<p.split));
 }
 static const char *program_formula_error(FormulaProgram p) {
@@ -57,7 +57,7 @@ static int valid_dof(DepthOfFieldSettings d){return !(d.enabled&~1)&&!(d.automat
 static ReflectionSettings default_reflections(void){return (ReflectionSettings){.depth=2,.amount=1,.absorption=.2,.refractive_index=1.5,.scattering=1};}
 static int valid_reflections(ReflectionSettings v){if(v.opacity_set&~1)return 0;if(v.opacity_set)for(int c=0;c<2;c++)for(int i=0;i<10;i++)if(!isfinite(v.opacity[c][i])||v.opacity[c][i]<0||v.opacity[c][i]>1)return 0;return !(v.enabled&~1)&&!(v.automatic&~1)&&!(v.transparency&~1)&&!(v.only_difs&~1)&&v.depth>=1&&v.depth<=30&&isfinite(v.amount)&&v.amount>=0&&v.amount<=100&&isfinite(v.absorption)&&v.absorption>=0&&v.absorption<=1e10&&isfinite(v.refractive_index)&&v.refractive_index>=.1&&v.refractive_index<=10&&isfinite(v.scattering)&&v.scattering>=0&&v.scattering<=1e30;}
 static int valid_fog(FogSettings f) {
-    if(f.mode<0||f.mode>3||f.light<1||f.light>6||f.iterations<0||f.iterations>255||f.blend<0||f.blend>1||f.only_add<0||f.only_add>1||f.map_size< -2||f.map_size>9)return 0;
+    if(f.mode<0||f.mode>3||f.light<1||f.light>6||f.iterations<0||f.iterations>255||f.blend<0||f.blend>1||(f.only_add<0||f.only_add>1)||f.map_size< -2||f.map_size>9)return 0;
     if(!isfinite(f.strength)||f.strength<0||f.strength>159||!isfinite(f.offset)||f.offset<0||f.offset>256||!isfinite(f.far_offset)||f.far_offset<0||f.far_offset>256)return 0;
     for(int c=0;c<2;c++)for(int i=0;i<3;i++)if(!isfinite(f.colors[c][i])||f.colors[c][i]<0||f.colors[c][i]>1)return 0;
     return 1;
@@ -116,12 +116,12 @@ static double clamp_imported_parameter(double value,const FormulaParameter *spec
     value=fmax(spec->minimum,fmin(spec->maximum,value));
     return spec->integer?round(value):value;
 }
-static int validate_imported_slot(FormulaSlot *imported,int slot){
+static int validate_imported_slot(FormulaSlot *imported,int slot,int interpolate){
     FormulaSlot f=*imported;
     if(!formula_supported(f.kind))return 1; /* The program validator reports unknown formula kinds. */
     for(int j=0;j<formula_parameter_count(f.kind);j++){const FormulaParameter *spec=formula_parameter(f.kind,j);double value=clamp_imported_parameter(formula_slot_value(f,j),spec);if(!isfinite(value)||value<spec->minimum||value>spec->maximum||(spec->integer&&value!=floor(value)))return reject_formula_parameter(slot,f.kind,spec->name,value,spec->minimum,spec->maximum,spec->integer);formula_slot_set_value(&f,j,value);}
-    f.count=fmax(0,fmin(10000,f.count));*imported=f;
-    if(f.count<0||f.count>10000)return reject_formula_parameter(slot,f.kind,"Iterations per pass",f.count,0,10000,1);
+    if(!interpolate)f.count=fmax(0,fmin(10000,f.count));*imported=f;
+    if(!interpolate&&(f.count<0||f.count>10000))return reject_formula_parameter(slot,f.kind,"Iterations per pass",f.count,0,10000,1);
     return 1;
 }
 
@@ -161,7 +161,7 @@ static int load_m3i(const char *path) {
     double zmuls[8]={-1,-1,-1,-1,-1,-1,-1,-1},scales[8]={2,2,2,2,2,2,2,2},radii[8]={.5,.5,.5,.5,.5,.5,.5,.5},folds[8]={1,1,1,1,1,1,1,1};int kinds[8]={0};
     FormulaSlot decodedSlots[8];for(int i=0;i<8;i++)decodedSlots[i]=formula_slot_default(0);
     for(int i=0;i<6;i++) {
-        int32_t count=(int32_t)u32(a+8+i*188);if(!count)continue;
+        int32_t count=(int32_t)u32(a+8+i*188);if(((a[1]&3)==1&&i>=2)||!count)continue;
 
 
         const unsigned char *form=a+8+i*188;
@@ -173,7 +173,7 @@ static int load_m3i(const char *path) {
 #endif
         else if(id>=20&&id<INT_MAX)kind=formula_kind_from_name(name);
         if(kind<0){char message[256];snprintf(message,sizeof message,"unsupported formula in slot %d: %s (ID %u)",i+1,name[0]?name:"Unknown",id);return reject_scene(message);}
-        count=fmax(0,fmin(10000,count));
+        if((a[1]&3)!=1)count=fmax(0,fmin(10000,count));
         if(u32(form+8)<(unsigned)formula_parameter_count(kind)||u32(form+8)>16)return reject_scene("invalid formula option count");
         FormulaSlot f=formula_slot_default(kind);f.count=count;
         for(int j=0;j<formula_parameter_count(kind);j++){const FormulaParameter *spec=formula_parameter(kind,j);double value=f64(form+60+j*8);if(kind==106&&j==0&&isfinite(value))value=fabs(fmod(value,4));value=clamp_imported_parameter(value,spec);if(!isfinite(value)||value<spec->minimum||value>spec->maximum||(spec->integer&&value!=floor(value)))return reject_formula_parameter(i,kind,spec->name,value,spec->minimum,spec->maximum,spec->integer);formula_slot_set_value(&f,j,value);}
@@ -309,7 +309,7 @@ static int load_m3i(const char *path) {
 
     next.roughness=l[2]/255.;
 
-    if(u16(h+135)>1)return reject_scene("minimum-iteration clipping is not supported");
+    /* Both engines support minimum iterations; validate its range with the formula program below. */
     next.shadows.hard_auto=next.shadows.hard_enabled=(h[133]&1)!=0;
     next.shadows.hard_mask=h[133]>>2;next.shadows.cosine=(h[133]&2)!=0;next.shadows.soft=(h[139]&1)!=0;
     double hardLength=f32(h+226),ambientLength=f32(h+374);
@@ -404,7 +404,8 @@ static int load_m3i(const char *path) {
     if(next.program.repeat_from>5)next.program.repeat_from=0;
     if(next.program.repeat2>5)next.program.repeat2=5;
     if(next.program.split>5)next.program.split=5;
-    for(int i=0;i<8;i++){FormulaSlot *slot=&next.program.slots[i];if(slot->kind==106&&isfinite(slot->parameters[0]))slot->parameters[0]=fabs(fmod(slot->parameters[0],4));if(!validate_imported_slot(slot,i))return 0;}
+    for(int i=0;i<8;i++){FormulaSlot *slot=&next.program.slots[i];if(slot->kind==106&&isfinite(slot->parameters[0]))slot->parameters[0]=fabs(fmod(slot->parameters[0],4));if(!validate_imported_slot(slot,i,next.program.mode==1&&i<2))return 0;}
+    if(next.program.mode==1){next.program.repeat_from=0;for(int i=2;i<8;i++)next.program.slots[i].count=0;}
     const char *formulaError=program_formula_error(next.program);if(formulaError)return reject_scene(formulaError);
     if(!valid_program(next.program)||next.program.min_iterations>next.iterations)return reject_scene("invalid formula program");
     next.bailout=next.program.bailout;
@@ -412,6 +413,8 @@ static int load_m3i(const char *path) {
     if(extra_count==4096&&!memcmp(extra+3880,"FOG1",4)){
         int *v[]={&next.fog.mode,&next.fog.light,&next.fog.iterations,&next.fog.blend,&next.fog.only_add,&next.fog.map_size};
         for(int i=0;i<6;i++)*v[i]=(int)u32(extra+3884+i*4);
+        /* Ignore the retired experimental indirect-light flag. */
+        next.fog.only_add &= FOG_ONLY_ADD;
         next.fog.strength=f64(extra+3912);next.fog.offset=f64(extra+3920);next.fog.far_offset=f64(extra+3928);
         for(int c=0;c<2;c++)for(int i=0;i<3;i++)next.fog.colors[c][i]=f64(extra+3936+(c*3+i)*8);
     }
@@ -421,7 +424,7 @@ static int load_m3i(const char *path) {
     if(!valid_fog(next.fog))return reject_scene("invalid depth fog settings");
     scene=next;
     fprintf(stderr,"Loaded %s: format %u, %ux%u, %d total iterations\n",path,id,w,height,scene.iterations);
-    fprintf(stderr,"Formula 1: %s × %d\n",formula_name(scene.kind),scene.count1);
-    if(scene.count2)fprintf(stderr,"Formula 2: %s × %d; repeat from formula %d\n",formula_name(scene.kind2),scene.count2,scene.repeat_from+1);
+    fprintf(stderr,"Formula 1: %s × %.9g\n",formula_name(scene.kind),formula_iteration_value(scene.program,0));
+    if(scene.count2)fprintf(stderr,"Formula 2: %s × %.9g; repeat from formula %d\n",formula_name(scene.kind2),formula_iteration_value(scene.program,1),scene.repeat_from+1);
     return 1;
 }

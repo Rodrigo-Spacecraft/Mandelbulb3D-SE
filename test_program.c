@@ -4,7 +4,7 @@
 static int changed(RenderResult a,RenderResult b){assert(a.rgba&&b.rgba);return memcmp(a.rgba,b.rgba,a.stride*a.height)!=0;}
 int main(void){
     scene_defaults();FormulaProgram p=legacy_program();p.slots[0].power=2;p.bailout=1e10;
-    for(int i=0;i<6;i++){p.slots[i].count=1;p.slots[i].power=2;p.slots[i].z_multiplier=-.2-i*.07;}
+    for(int i=0;i<6;i++){p.slots[i]=formula_slot_default(0);p.slots[i].count=1;p.slots[i].power=2;p.slots[i].z_multiplier=-.2-i*.07;}
     /* Explicit schedule: initial 0..5, then repeat slots 3..5. */
     int schedule[]={0,1,2,3,4,5,3,4,5,3,4,5,3,4};p.repeat_from=3;
     Vec c={.02,.03,.01},expected=c;double dr=1,power;
