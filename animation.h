@@ -50,7 +50,9 @@ static inline RenderOptions animation_interpolate(RenderOptions a,RenderOptions 
         ANI(lights[i].amplitude);for(int j=0;j<3;j++){ANI(lights[i].color[j]);if(!(a.lights[i].option&4)&&j<2){ANG(lights[i].position[j],6.283185307179586);}else{ANI(lights[i].position[j]);}}
     }
     if(a.reflections.opacity_set||b.reflections.opacity_set){r.reflections.opacity_set=1;for(int c=0;c<2;c++)for(int i=0;i<10;i++)r.reflections.opacity[c][i]=animation_lerp(a.reflections.opacity_set?a.reflections.opacity[c][i]:1,b.reflections.opacity_set?b.reflections.opacity[c][i]:1,t);}
-    ANI(reflections.amount);ANI(reflections.absorption);ANI(reflections.refractive_index);ANI(reflections.scattering);
+    ANI(reflections.amount);ANI(reflections.absorption);ANI(reflections.refractive_index);ANI(reflections.scattering);ANI(transmission_blur);ANI(translucency_glow);
+    r.translucency_glow=fmax(-1,fmin(1,r.translucency_glow));
+    r.transmission_blur=fmax(0,fmin(2,r.transmission_blur));
     ANI(ssao.threshold);ANI(ssao.mirror);ANI(color_multiplier);
     ANI(fog.strength);ANI(fog.offset);ANI(fog.far_offset);
     for(int c=0;c<2;c++)for(int i=0;i<3;i++){ANI(fog.colors[c][i]);}
@@ -104,7 +106,9 @@ static inline RenderOptions animation_bezier_blend(RenderOptions a,RenderOptions
         ANI(lights[i].amplitude);for(int j=0;j<3;j++){ANI(lights[i].color[j]);if(!(a.lights[i].option&4)&&j<2){ANG(lights[i].position[j],6.283185307179586);}else{ANI(lights[i].position[j]);}}
     }
     if(a.reflections.opacity_set||b.reflections.opacity_set||c.reflections.opacity_set){r.reflections.opacity_set=1;for(int ch=0;ch<2;ch++)for(int i=0;i<10;i++)r.reflections.opacity[ch][i]=animation_weighted(a.reflections.opacity_set?a.reflections.opacity[ch][i]:1,b.reflections.opacity_set?b.reflections.opacity[ch][i]:1,c.reflections.opacity_set?c.reflections.opacity[ch][i]:1,w1,w2,w3);}
-    ANI(reflections.amount);ANI(reflections.absorption);ANI(reflections.refractive_index);ANI(reflections.scattering);
+    ANI(reflections.amount);ANI(reflections.absorption);ANI(reflections.refractive_index);ANI(reflections.scattering);ANI(transmission_blur);ANI(translucency_glow);
+    r.translucency_glow=fmax(-1,fmin(1,r.translucency_glow));
+    r.transmission_blur=fmax(0,fmin(2,r.transmission_blur));
     ANI(ssao.threshold);ANI(ssao.mirror);ANI(color_multiplier);
     ANI(fog.strength);ANI(fog.offset);ANI(fog.far_offset);
     for(int ch=0;ch<2;ch++)for(int i=0;i<3;i++){ANI(fog.colors[ch][i]);}

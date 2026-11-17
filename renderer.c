@@ -163,6 +163,10 @@ static void saveM3IHeaders(int width,int height) {
     memcpy(extra+3600,"DOF1",4);put32(extra+3604,scene.dof.enabled);put32(extra+3608,scene.dof.automatic);put32(extra+3612,scene.dof.passes);
     put64f(extra+3616,scene.dof.focus1);put64f(extra+3624,scene.dof.focus2);put64f(extra+3632,scene.dof.aperture);put64f(extra+3640,scene.dof.clip_radius);
     ReflectionSettings rf=scene.reflections;h[336]=rf.automatic|(rf.transparency<<1)|(rf.only_difs<<2);h[337]=rf.depth;put32f(h+332,rf.amount);put32f(h+370,rf.absorption);put32f(h+116,rf.refractive_index);put32f(h+120,rf.scattering);
+    memcpy(extra+4080,"TLE1",4);
+    extra[4084]=scene.translucency_mode==2;
+    if(scene.translucency_glow!=0){memcpy(extra+4068,"TGL1",4);put64f(extra+4072,scene.translucency_glow);}
+    if(scene.translucency_mode||scene.transmission_blur>0){memcpy(extra+4056,"TBL1",4);put64f(extra+4060,scene.transmission_blur);}
     memcpy(extra+3712,"OPA1",4);put32(extra+3716,rf.opacity_set);for(int c=0;c<2;c++)for(int i=0;i<10;i++)put64f(extra+3720+(c*10+i)*8,rf.opacity_set?rf.opacity[c][i]:1);
     if(rf.opacity_set)for(int i=0;i<10;i++)l[260+i*10+9]=(l[260+i*10+9]&7)|((unsigned)lround((1-rf.opacity[1][i])*31)<<3);
     memcpy(extra+3656,"RFL1",4);put32(extra+3660,rf.enabled);put32(extra+3664,rf.automatic);put32(extra+3668,rf.transparency);put32(extra+3672,rf.only_difs);put32(extra+3676,rf.depth);put64f(extra+3680,rf.amount);put64f(extra+3688,rf.absorption);put64f(extra+3696,rf.refractive_index);put64f(extra+3704,rf.scattering);
@@ -556,30 +560,67 @@ static double navigator_distance(Vec point) {
 #endif
     Sample sample=evaluate(point);return sample.smooth>=scene.iterations?0:fmax(0,sample.distance);
 }
-/* Zero minimum distance: approach using local DE, without a world-space
-   stand-off. Recompute after every substep, including batched key repeats. */
-static Vec adaptive_move(Vec origin,int operation,double fraction) {
+/* Original Navigator.GetLocalAbsoluteDE: gather positive estimates at the
+   camera and the corners of a small cube, then interpolate the 60th percentile. */
+static _Thread_local double navigator_de_multiplier=1;
+static double navigator_local_de(Vec origin,double pixel_step) {
+    double samples[11];
+    int count=0;
+    for(int scale=1;count<=3&&scale<=40;scale*=2){
+        for(int i=0;i<9&&count<11;i++){
+            Vec point=origin;
+            if(i<8)for(int axis=0;axis<3;axis++){
+                Vec direction={scene.matrix[axis][0],scene.matrix[axis][1],scene.matrix[axis][2]};
+                point=add(point,mul(direction,(i&(1<<axis)?16:-16)*scale*pixel_step));
+            }
+            double distance=navigator_distance(point);
+            if(!isfinite(distance)||distance<=0||distance>=1e15*pixel_step)continue;
+            int insert=count++;
+            while(insert>0&&samples[insert-1]>distance){
+                samples[insert]=samples[insert-1];
+                insert--;
+            }
+            samples[insert]=distance;
+        }
+    }
+    if(!count)return NAN;
+    double rank=.6*(count-1);
+    int index=(int)rank;
+    double distance=samples[index];
+    if(index+1<count)distance+=(rank-index)*(samples[index+1]-distance);
+    return fmin(clamp(distance,3*pixel_step,20000*pixel_step),fmax(2,sqrt(dot(origin,origin))))*navigator_de_multiplier;
+}
+
+/* Original Navigator.SpeedButton1Click uses the average of the old and new
+   local distances and reduces the step until their ratio settles. */
+static Vec adaptive_move(Vec origin,int operation,double fraction,double fine,int width,int height) {
     int axis=operation<2?2:operation<4?0:1;
     double sign=(operation==1||operation==2||operation==5)?-1:1;
     Vec direction={scene.matrix[axis][0]*sign,scene.matrix[axis][1]*sign,scene.matrix[axis][2]*sign};
-    double distance=navigator_distance(origin);
-    if(!isfinite(distance)||distance<=0)return origin;
-    double remaining=distance*clamp(fraction,0,.5);
-    for(int substep=0;substep<64&&remaining>0;substep++) {
-        distance=navigator_distance(origin);if(!isfinite(distance)||distance<=0)break;
-        double amount=fmin(remaining,distance*.2);Vec candidate=origin;
-        int accepted=0;
-        for(int retry=0;retry<64;retry++) {
-            candidate=add(origin,mul(direction,amount));
-            if(candidate.x==origin.x&&candidate.y==origin.y&&candidate.z==origin.z)return origin;
-            double next=navigator_distance(candidate);
-            if(isfinite(next)&&next>0&&next>=distance*.5){accepted=1;break;}
-            amount*=.5;
-        }
-        if(!accepted)break;
-        origin=candidate;remaining=fmax(0,remaining-amount);
+    double pixel_step=2.1345/(width*scene.zoom);
+    double diagonal=hypot(width,height);
+    double distance=navigator_local_de(origin,pixel_step);
+    if(!isfinite(distance))return add(origin,mul(direction,fraction*fine*diagonal*pixel_step));
+    double min_de=fmax(1e-13,distance*(1-fraction)*.8);
+    double max_de=fmax(min_de*1.1,distance*(1+fraction)*1.25);
+    double next=navigator_local_de(add(origin,mul(direction,fraction*fine*distance)),pixel_step);
+    double scale=1.25;
+    Vec candidate=origin;
+    for(int retry=0;retry<=100;retry++){
+        if(render_cancelled()||!isfinite(next))return origin;
+        scale*=.8;
+        candidate=add(origin,mul(direction,fraction*fine*.5*(distance+next)*scale));
+        next=navigator_local_de(candidate,pixel_step);
+        double coordinate=fmax(fabs(candidate.x),fmax(fabs(candidate.y),fabs(candidate.z)));
+        if(next>min_de&&next<max_de&&coordinate<201+retry)break;
     }
-    return origin;
+    if(!isfinite(next))return origin;
+    double zoom=clamp(2*diagonal/(next*width),1e-12,1e12);
+    scene.zend=scene.zstart+clamp((scene.zend-scene.zstart)*scene.zoom/zoom,1e-9,9999);
+    scene.zoom=zoom;
+    scene.col_z=scene.z_variation*-.005/2.1345*zoom;
+    navigator_de_multiplier=1+(navigator_de_multiplier-1)*.8;
+    return candidate;
 }
 
 static Vec camera_rotate(Vec v);
@@ -1242,7 +1283,7 @@ static RenderOptions scene_settings(int w,int h,int threads,int cameraOverride) 
     Vec ambientColors[]={scene.amb_top,scene.amb_bottom,scene.bg_top,scene.bg_bottom};for(int i=0;i<4;i++){settings.ambient.colors[i][0]=ambientColors[i].x;settings.ambient.colors[i][1]=ambientColors[i].y;settings.ambient.colors[i][2]=ambientColors[i].z;}
     settings.ssao_override=1;settings.ssao=scene.ssao;settings.color_option=scene.color_option;settings.color_multiplier=scene.color_multiplier;
     settings.fog_override=1;settings.fog=scene.fog;
-    settings.dof_override=1;settings.dof=scene.dof;settings.reflections_override=1;settings.reflections=scene.reflections;
+    settings.dof_override=1;settings.dof=scene.dof;settings.reflections_override=1;settings.reflections=scene.reflections;settings.transmission_blur=scene.transmission_blur;settings.translucency_glow=scene.translucency_glow;settings.translucency_mode=scene.translucency_mode;
     settings.shadows_override=1;settings.shadows=scene.shadows;
     settings.lights_override=1;
     for(int i=0;i<6;i++) {
@@ -1425,7 +1466,9 @@ static RenderResult render_scene_core(const char *input,RenderOptions options) {
     if(options.sequence_override && !options.program_override && options.kind2==4 && options.power2>=2&&options.power2<=8&&isfinite(options.z_multiplier2)&&fabs(options.z_multiplier2)<=100) {
         scene.power2=options.power2;scene.zmul2=options.z_multiplier2;
     }
-    if(options.reflections_override){if(!valid_reflections(options.reflections)){snprintf(result.error,sizeof result.error,"Invalid Reflections + Transparency settings");return result;}scene.reflections=options.reflections;}
+    if(options.reflections_override){if(!valid_reflections(options.reflections)){snprintf(result.error,sizeof result.error,"Invalid Reflections + Transparency settings");return result;}scene.reflections=options.reflections;scene.translucency_mode=options.translucency_mode;scene.transmission_blur=isfinite(options.transmission_blur)?clamp(options.transmission_blur,0,2):0;scene.translucency_glow=isfinite(options.translucency_glow)?clamp(options.translucency_glow,-1,1):0;
+        if(!scene.translucency_mode)scene.translucency_mode=1+(scene.transmission_blur>0||scene.translucency_glow!=0);
+    }
     if(options.normals_override){if(options.normal_smoothing<0||options.normal_smoothing>15||(options.normal_zbuffer&~1)){snprintf(result.error,sizeof result.error,"Invalid normal smoothing");return result;}scene.normal_smoothing=options.normal_smoothing;scene.normal_zbuffer=options.normal_zbuffer;}
     if(options.iterations)scene.iterations=options.iterations;
     if(options.de_stop)scene.de_stop=options.de_stop;
@@ -1501,8 +1544,14 @@ static RenderResult render_scene_core(const char *input,RenderOptions options) {
     if(options.navigation_count) {
         Vec origin=scene.direct_origin?scene.view_origin:add(scene.center,camera_rotate((Vec){0,0,scene.zstart-scene.center.z}));
         for(int i=0;i<options.navigation_count;i++) {
-            int operation=options.navigation_operations[i];double fine=operation>=100?.1:1;if(operation>=100)operation-=100;if(operation<0||operation>5){snprintf(result.error,sizeof result.error,"Invalid movement direction");return result;}
-            origin=adaptive_move(origin,operation,options.navigation_fraction*fine);
+            int operation=options.navigation_operations[i];
+            double fine=operation>=100?.1:1;
+            if(operation>=100)operation-=100;
+            if(operation<0||operation>5){snprintf(result.error,sizeof result.error,"Invalid movement direction");return result;}
+            int nav_width=(int)lround(clamp(580.0*w/h,1,640));
+            int nav_height=(int)lround(fmax(1,(double)nav_width*h/w));
+            if(options.navigation_fraction>0)
+                origin=adaptive_move(origin,operation,options.navigation_fraction,fine,nav_width,nav_height);
         }
         scene.direct_origin=1;scene.view_origin=origin;
     }
@@ -1663,10 +1712,23 @@ int write_scene_parameters_with_preview(const char *input,RenderOptions options,
 #endif
 RenderResult render_scene_with_options(const char *input,RenderOptions options){
 #ifdef USE_RUST_ENGINE
-    return render_with_rust(input,options);
+    RenderResult result=render_with_rust(input,options);
 #else
-    return render_scene_with_options_c(input,options);
+    RenderResult result=render_scene_with_options_c(input,options);
 #endif
+    return result;
+}
+
+RenderResult render_navigator_with_options(const char *input,RenderOptions options,double de_multiplier){
+    navigator_de_multiplier=isfinite(de_multiplier)&&de_multiplier>0?de_multiplier:1;
+    RenderResult result=render_scene_with_options(input,options);
+    result.navigator_de_multiplier=navigator_de_multiplier;
+#ifdef USE_RUST_ENGINE
+    if(result.rgba&&options.navigation_count&&options.preview_cache)
+        result.navigator_de_multiplier*=mb3dx_rust_navigator_correction();
+#endif
+    navigator_de_multiplier=1;
+    return result;
 }
 
 RenderResult render_scene_to_m3i(const char *input,RenderOptions options,const char *output) {

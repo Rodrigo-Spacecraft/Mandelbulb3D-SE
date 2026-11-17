@@ -35,10 +35,10 @@ static RenderResult render_with_rust(const char *input,RenderOptions options){
     struct timespec profile_engine;clock_gettime(CLOCK_MONOTONIC,&profile_engine);
     if(getenv("MB3DX_PROFILE"))fprintf(stderr,"Rust handoff preparation: %.4fs\n",profile_engine.tv_sec-profile_start.tv_sec+(profile_engine.tv_nsec-profile_start.tv_nsec)*1e-9);
     double emissionOpacity[10];for(int i=0;i<10;i++)emissionOpacity[i]=result.settings.reflections.opacity_set?result.settings.reflections.opacity[0][i]:1;
-    int ok=mb3dx_rust_render(snapshot,rust_assets,options.threads,options.preview_cache,options.reuse_surface,result.settings.object.map.scale,result.settings.fog.mode==2?result.settings.fog.colors[0]:NULL,emissionOpacity,options.cancel_token,rust_cancel,rust_progress,result.rgba,sharp,&result.local_distance,result.error,&result.statistics);unlink(snapshot);
+    int ok=mb3dx_rust_render(snapshot,rust_assets,options.threads,options.preview_cache,options.reuse_surface,result.settings.object.map.scale,result.settings.fog.mode==2?result.settings.fog.colors[0]:NULL,emissionOpacity,result.settings.transmission_blur,result.settings.translucency_glow,result.settings.translucency_mode==2,options.cancel_token,rust_cancel,rust_progress,result.rgba,sharp,&result.local_distance,result.error,&result.statistics);unlink(snapshot);
     result.cancelled=rust_cancel(options.cancel_token);
     if(!ok||result.cancelled){free(result.rgba);free(sharp);result.rgba=NULL;if(result.cancelled)result.error[0]=0;return result;}
-    result.reused_surface=ok==2;double info_elapsed=info_clock()-(profile_start.tv_sec+profile_start.tv_nsec*1e-9);result.statistics.seconds[7]+=fmax(0,info_elapsed-result.statistics.elapsed);result.statistics.elapsed=info_elapsed;
+    result.reused_surface=(ok&2)!=0;result.transmission_cached=(ok&4)!=0;double info_elapsed=info_clock()-(profile_start.tv_sec+profile_start.tv_nsec*1e-9);result.statistics.seconds[7]+=fmax(0,info_elapsed-result.statistics.elapsed);result.statistics.elapsed=info_elapsed;
     if(!options.preview_cache){result.color_fit_valid=mb3dx_rust_color_fit(&result.color_fit[0][0]);mb3dx_rust_color_histogram(&result.color_histogram[0][0]);}
     if(sharp_capture)*sharp_capture=sharp;
     fprintf(stderr,"Rendered with the local Rust engine: %dx%d\n",result.width,result.height);return result;

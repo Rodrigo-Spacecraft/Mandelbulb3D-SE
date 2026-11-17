@@ -152,6 +152,9 @@ typedef struct {
     double stepcount;int stepcount_override; /* Binary-search refinements, integer 0..31; appended for animation compatibility. */
     double cutting[3];int cutting_override,cutting_mask; /* Original X/Y/Z cutting planes. */
     ObjectLighting cutting_colors;int cutting_colors_override;
+    double transmission_blur; /* 0–2; appended for animation compatibility. */
+    double translucency_glow; /* -1–1. */
+    int translucency_mode; /* 0: legacy (infer from values), 1: off, 2: on. */
 } RenderOptions;
 /* Work counts are actual CPU calls, not configured iteration limits.
    Field/DE phases: primary, normals, refinement, hard shadows, ambient, fog,
@@ -175,6 +178,8 @@ typedef struct {
     unsigned color_histogram[3][256]; /* Outside iterations, orbit trap, inside. */
     int cancelled,navigation_applied;
     int reused_surface,reused_ambient,reused_hard_shadows;
+    int transmission_cached;
+    double navigator_de_multiplier; /* preview feedback, never saved */
 } RenderResult;
 /* Call serially: scene state is private to the renderer. Pixels use top-down
    RGBA8, alpha 255, and malloc ownership transferred to the caller. */
@@ -186,6 +191,7 @@ int read_scene_settings(const char *input,RenderOptions *settings,char error[512
 RenderResult render_scene_to_m3i(const char *input,RenderOptions options,const char *output);
 RenderResult render_scene(const char *input,int width,int height,int threads);
 RenderResult render_scene_with_options(const char *input,RenderOptions options);
+RenderResult render_navigator_with_options(const char *input,RenderOptions options,double de_multiplier);
 /* Serial, optional sharp-image capture before DoF; free *sharp with free().
  * output may be NULL. *sharp is NULL when no blur is applied. */
 RenderResult render_scene_capturing_sharp(const char *input,RenderOptions options,const char *output,unsigned char **sharp);

@@ -41,6 +41,10 @@ pub enum CameraOptic {
 pub struct Scene {
     pub emissive_difs: Option<[f32;3]>,
     /// App diffuse opacity; independent of specular transparency.
+    pub transmission_blur: f32,
+    pub translucency_glow: f32,
+    /// Optional cache for interactive repainting of the same scene.
+    pub transmission_cache: Option<std::sync::Arc<std::sync::Mutex<Option<crate::reflect::TransmissionCache>>>>,
     pub emissive_opacity: [f32;10],
     pub emission_cache: std::sync::Arc<std::sync::Mutex<Option<(String,std::sync::Arc<Vec<(bool,f32)>>)>>>,
     pub width: i32,
@@ -253,6 +257,9 @@ impl Default for Scene {
     fn default() -> Self {
         Scene {
             emissive_difs: None,
+            transmission_blur: 0.0,
+            translucency_glow: 0.0,
+            transmission_cache: None,
             emissive_opacity: [1.;10],
             emission_cache: Default::default(),
             width: 800,

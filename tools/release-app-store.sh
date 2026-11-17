@@ -20,7 +20,7 @@ app="$stage/Mandelbulb3D SE.app"
 if [ -d "$app" ]; then rm -rf "$app"; fi
 ditto 'Mandelbulb3D SE.app' "$app"
 plist="$app/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c 'Set :CFBundleShortVersionString 2.0.2' "$plist"
+/usr/libexec/PlistBuddy -c 'Set :CFBundleShortVersionString 2.0.3' "$plist"
 /usr/libexec/PlistBuddy -c 'Add :M3DAppSandboxed bool true' "$plist"
 /usr/libexec/PlistBuddy -c 'Add :LSApplicationCategoryType string public.app-category.graphics-design' "$plist"
 /usr/libexec/PlistBuddy -c 'Add :NSHumanReadableCopyright string Copyright © 2026 Glenn Olander. Includes third-party components.' "$plist"
@@ -77,7 +77,7 @@ import plistlib,sys
 with open(sys.argv[1],'rb') as f:p=plistlib.load(f)
 with open(sys.argv[2],'rb') as f:e=plistlib.load(f)
 assert p['CFBundleIdentifier']=='com.greenoak.m3dse'
-assert p['CFBundleShortVersionString']=='2.0.2'
+assert p['CFBundleShortVersionString']=='2.0.3'
 assert e['com.apple.security.app-sandbox']
 assert e['com.apple.security.files.user-selected.read-write']
 assert e['com.apple.security.files.bookmarks.app-scope']
@@ -101,12 +101,12 @@ print('Verified architectures and minimum macOS version:', ', '.join(arches), p[
 PYARCH
 build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")
 if [ "$mode" = --app-store ]; then
-    pkg="$stage/Mandelbulb3D-SE-2.0.2-$build.pkg"
+    pkg="$stage/Mandelbulb3D-SE-2.0.3-$build.pkg"
     productbuild --component "$app" /Applications --sign "$INSTALLER_SIGN_ID" "$pkg"
     pkgutil --check-signature "$pkg"
     echo "Signed package ready for Transporter validation: $pkg"
 else
-    archive="$stage/Mandelbulb3D-SE-2.0.2-$build-sandbox-test.zip"
+    archive="$stage/Mandelbulb3D-SE-2.0.3-$build-sandbox-test.zip"
     ditto -c -k --sequesterRsrc --keepParent "$app" "$archive"
     echo 'LOCAL SANDBOX TEST BUILD — ad-hoc signed; not an App Store submission package.' > "$stage/BUILD-STATUS.txt"
     echo "Local sandbox build: $app"

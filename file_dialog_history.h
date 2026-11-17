@@ -15,3 +15,18 @@ static void restoreDialogLocation(NSSavePanel *panel,BOOL animation,NSString *ex
     if(extension.length)name=[name.stringByDeletingPathExtension stringByAppendingPathExtension:extension];
     if(name.length)panel.nameFieldStringValue=name;
 }
+
+@interface SaveFileExtensionDelegate : NSObject<NSOpenSavePanelDelegate>
+@end
+
+@implementation SaveFileExtensionDelegate
+- (void)panelSelectionDidChange:(id)sender {
+    NSSavePanel *panel=sender;
+    NSString *extension=panel.allowedFileTypes.firstObject;
+    NSString *name=panel.nameFieldStringValue;
+    if(!extension.length||!name.pathExtension.length||
+       [name.pathExtension caseInsensitiveCompare:extension]==NSOrderedSame)return;
+
+    panel.nameFieldStringValue=[name.stringByDeletingPathExtension stringByAppendingPathExtension:extension];
+}
+@end

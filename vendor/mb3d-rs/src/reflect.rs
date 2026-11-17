@@ -43,10 +43,6 @@ fn dot3(a: S3, b: S3) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 #[inline]
-fn luma(v: S3) -> f32 {
-    (v[0] * 0.3 + v[1] * 0.59 + v[2] * 0.11).max(0.0)
-}
-#[inline]
 fn spow(v: S3, e: f32) -> S3 {
     [v[0].powf(e), v[1].powf(e), v[2].powf(e)]
 }
@@ -223,7 +219,7 @@ struct SrCtx<'a> {
     only_difs: bool,
     absorption: f32,
     absorp_coeff: f32,
-    light_scattering_mul: f32,
+    light_scattering: f32,
     back_dist: f32,
     /// hard shadows: (lights as indices into `lv.lights` with their header
     /// index, soft, soft radius, max length multiplier)
@@ -233,6 +229,7 @@ struct SrCtx<'a> {
     vol: bool,
     /// the rays are marched on the graphics card
     gpu: bool,
+    capture_transmission: bool,
 }
 
 struct SrTracer<'a, 'c> {
@@ -241,6 +238,7 @@ struct SrTracer<'a, 'c> {
     /// the G-buffer value of the pixel (`srPsiLight`)
     sr_si: SiLight,
     normal: Vec3,
+    transmission: Transmission,
     t_amb: S3,
     plv: Plv,
     light_z: Vec<(f32, f32)>,
@@ -253,6 +251,27 @@ struct SrTracer<'a, 'c> {
     dbg: bool,
     /// set: give up the ray being marched (`march_until`)
     stop: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+}
+
+#[derive(Clone, Copy, Default)]
+struct Transmission {
+    base: S3,
+    light: S3,
+    interior_light: S3,
+    entry_facing: f32,
+    distance: f32,
+    opacity: f32,
+}
+
+pub struct TransmissionCache {
+    rgb: Vec<u8>,
+    samples: Vec<Transmission>,
+}
+
+impl std::fmt::Debug for TransmissionCache {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TransmissionCache").field("pixels", &self.samples.len()).finish()
+    }
 }
 
 /// (specular colour, alpha, diffuse colour) of a surface for the next ray
@@ -291,6 +310,7 @@ struct Frame {
     max_l: f64,
     /// where the ray starts
     origin: Vec3,
+    transmission_start: Option<S3>,
 }
 
 impl Frame {
@@ -312,6 +332,7 @@ impl Frame {
             new_vec: [0.0; 3],
             max_l: 0.0,
             origin: [0.0; 3],
+            transmission_start: None,
         }
     }
 }
@@ -450,7 +471,15 @@ impl<'a, 'c> SrTracer<'a, 'c> {
         mul3(dif, res)
     }
 
-    fn shade(&self, si: &SiLight, inside: Option<(S3, f32)>) -> crate::lighting::Shaded {
+    /// Scattering builds with distance traveled through the material.
+    /// Scale by the view width to keep the control useful at different zooms.
+    fn scattering_weight(&self, path_steps: f32, light: S3) -> f32 {
+        let optical_depth = 0.35 * self.c.light_scattering * (path_steps.max(0.0) / self.c.p.width.max(1) as f32);
+        let peak = light.iter().copied().fold(1.0_f32, f32::max);
+        -(-optical_depth).exp_m1() / peak
+    }
+
+    fn shade(&self, si: &SiLight, inside: Option<(S3, f32)>, exit_transmission: Option<f32>) -> crate::lighting::Shaded {
         let o = ShadeOpts {
             cancel:Some(self.c.cancel),
             emission_sample:None,
@@ -458,6 +487,7 @@ impl<'a, 'c> SrTracer<'a, 'c> {
             emission_point:Some((self.m.it.c,self.m.ms_de_stop as f64)),
             scale_amb_diff_down: if self.scale_amb_diff_down { Some(self.c.sr_light_amount) } else { None },
             inside_trans: inside,
+            exit_transmission,
             light_z: Some(&self.light_z),
             svec: true,
         };
@@ -788,13 +818,17 @@ impl<'a, 'c> SrTracer<'a, 'c> {
         let mut inside = None;
         if calc_t && (self.trans_flip_inside ^ self.m.inside) {
             let tmp_amb = spow(sd.2, zz * self.c.absorption);
-            let stmp = (1.0 - luma(tmp_amb)) * self.c.light_scattering_mul;
-            *t_absorb = mul3(*t_absorb, tmp_amb);
+            let entering = *t_absorb;
+            *t_absorb = mul3(entering, tmp_amb);
             let al = self.add_light(sd.2);
-            self.t_amb = add3(self.t_amb, sc3(mul3(al, *t_absorb), stmp));
+            let scatter = self.scattering_weight(zz, al);
+            // Match the hit path: scattering accumulates along the segment,
+            // even when absorption leaves almost no light at its far end.
+            let along_path = lin2(*t_absorb, entering, 0.5);
+            self.t_amb = add3(self.t_amb, sc3(mul3(al, along_path), scatter));
             inside = Some((sd.2, self.c.absorp_coeff));
         }
-        let sh = self.shade(si, inside);
+        let sh = self.shade(si, inside, None);
         let tmp_amb = sh.light.map(|v| (v / 255.0).clamp(0.0, 8.0));
         self.t_amb = add3(self.t_amb, mul3(*t_absorb, tmp_amb));
     }
@@ -907,16 +941,16 @@ impl<'a, 'c> SrTracer<'a, 'c> {
                     loop {
                         if f.calc_t {
                             let sd = f.sd;
-                            let stmp = sd.0[0].max(sd.0[1]).max(sd.0[2]);
                             let dstep = if self.trans_flip_inside ^ self.m.inside { c.trans_di_const as f64 } else { 1.0 / c.trans_di_const as f64 };
                             let dl = len(&sr_vec);
                             let nl = len(&self.normal);
                             f.spec_mul_t = -dot(&sr_vec, &self.normal) / (dl * nl);
                             let zz2 = 1.0 - dstep * dstep * (1.0 - f.spec_mul_t * f.spec_mul_t);
                             if zz2 <= 0.0 {
-                                // total internal reflection
-                                let k = 1.0 - sd.1 + sd.1 * sd.1 / (stmp + 0.01);
-                                f.sd.0 = sc3(sd.0, k);
+                                // Redirect the transmitted fraction into the reflected ray.
+                                // A black specular palette must not absorb that fraction.
+                                let transmission = sd.1.clamp(0.0, 1.0);
+                                f.sd.0 = sd.0.map(|specular| specular * (1.0 - transmission) + transmission);
                                 f.calc_t = false;
                                 continue;
                             }
@@ -933,7 +967,13 @@ impl<'a, 'c> SrTracer<'a, 'c> {
                                 let a = f.spec_mul_t;
                                 f.spec_mul_t = (((a - dstep * dt) / (a + dstep * dt)).powi(2) + ((dt - dstep * a) / (dt + dstep * a)).powi(2)) * 0.5;
                             }
+                            let stmp = sd.0[0].max(sd.0[1]).max(sd.0[2]);
                             f.t_absorb = sc3(f.t_absorb, (1.0 - f.spec_mul_t * stmp as f64) as f32);
+                            if c.capture_transmission && f.rit == 2 && self.transmission.distance > 0.0
+                                && (self.trans_flip_inside ^ self.m.inside)
+                            {
+                                f.transmission_start = Some(self.t_amb);
+                            }
                             self.toggle_inside();
                             new_vec = nv;
                         } else {
@@ -977,16 +1017,30 @@ impl<'a, 'c> SrTracer<'a, 'c> {
                         let mut t_absorb = if calc_t { sc3(f.t_absorb, sd.1) } else { mul3(f.t_absorb, sd.0) };
                         let mut inside = None;
                         if self.trans_flip_inside ^ self.m.inside {
+                            if calc_t && rit == 1 && c.capture_transmission {
+                                self.transmission.distance = (h.zz2.min(max_l).max(0.0) * sw) as f32;
+                                self.transmission.opacity = sd.1;
+                                self.transmission.entry_facing = (dot(&normalize(f.tmp_norm), &normalize(f.sr_vec))
+                                    .abs().clamp(0.0, 1.0)) as f32;
+                            }
                             // absorption inside the material
                             let tmp_amb = spow(sd.2, (h.zz2.min(max_l) as f32) * c.absorption);
                             let tmp_spec = t_absorb;
-                            let stmp = (1.0 - luma(tmp_amb)) * c.light_scattering_mul;
                             t_absorb = mul3(t_absorb, tmp_amb);
                             let al = self.add_light(sd.2);
-                            self.t_amb = add3(self.t_amb, sc3(mul3(al, lin2(t_absorb, tmp_spec, 0.5)), stmp));
+                            if calc_t && rit == 1 && c.capture_transmission {
+                                // Use the same scene lighting and material tint as
+                                // the existing internal scattering term.
+                                let peak = al.iter().copied().fold(1.0_f32, f32::max);
+                                self.transmission.interior_light = mul3(tmp_spec, sc3(al, 1.0 / peak));
+                            }
+                            let scatter = self.scattering_weight(h.zz2.min(max_l) as f32, al);
+                            self.t_amb = add3(self.t_amb, sc3(mul3(al, lin2(t_absorb, tmp_spec, 0.5)), scatter));
                             inside = Some((sd.2, c.absorp_coeff));
                         }
-                        let sh = self.shade(&si, inside);
+                        // Use the entered material's transparency at its exit.
+                        let exit_transmission = (calc_t && inside.is_some()).then_some(sd.1);
+                        let sh = self.shade(&si, inside, exit_transmission);
                         if self.dbg {
                             eprintln!("  hit: pos {:?} si {si:?}\n  plv {:?}\n  light {:?} result {:?} spe {:?} {} dif {:?} t_absorb {t_absorb:?}", h.pos, self.plv, sh.light, sh.result, sh.spe, sh.spe_a, sh.dif);
                         }
@@ -1013,6 +1067,9 @@ impl<'a, 'c> SrTracer<'a, 'c> {
                     }
                 }
                 At::Returned => {
+                    if let Some(start) = f.transmission_start.take() {
+                        self.transmission.light = sub3(self.t_amb, start);
+                    }
                     if f.calc_t {
                         // now the reflected part of the refracting surface
                         self.m.it.c = f.tmp_loc;
@@ -1245,9 +1302,11 @@ impl<'a, 'c> SrTracer<'a, 'c> {
     /// One pixel of `TSRCalcThread.Execute`: returns the new colour, or
     /// None to keep the painted one.
     fn pixel<S: Sample>(&mut self, x: i32, y: i32, si: &SiLight) -> Option<[S; 3]> {
+        self.transmission = Transmission::default();
         let (mzz, vf, sv, sd) = self.start_pixel(x, y, si)?;
         self.calc_ray(mzz, vf, sv, sd, 1);
-        Some(self.final_colour())
+        self.transmission.base = sub3(self.t_amb, self.transmission.light);
+        Some(reflection_colour(self.c.lv, self.t_amb))
     }
 
     /// The pixel's surface (refined, or on the cutting plane), its shading
@@ -1323,7 +1382,7 @@ impl<'a, 'c> SrTracer<'a, 'c> {
         self.plv.zpos_dyn_fog = self.plv.z_pos;
         self.calc_trans_r = c.calc_trans && (!c.only_difs || self.m.last_difs);
         self.scale_amb_diff_down = self.calc_trans_r;
-        let sh = self.shade(si, None);
+        let sh = self.shade(si, None, None);
         self.t_amb = sh.light.map(|v| (v / 255.0).clamp(0.0, 8.0));
         let sv = sc3(sh.result, c.sr_light_amount);
         let mzz = self.m.mzz;
@@ -1342,19 +1401,18 @@ impl<'a, 'c> SrTracer<'a, 'c> {
         self.m.calc_start_pos(x, y);
     }
 
-    /// The colour of the light gathered by the rays of the pixel.
-    fn final_colour<S: Sample>(&self) -> [S; 3] {
-        let lv = self.c.lv;
-        let mut t = self.t_amb.map(|v| v.clamp(0.0, 1.0));
-        if lv.sqr {
-            t = t.map(|v| v.sqrt());
-        }
-        if lv.gamma_h != 0 {
-            let g = if lv.gamma_h > 0 { t.map(|v| v.sqrt()) } else { t.map(|v| v * v) };
-            t = add3(t, sc3(sub3(g, t), lv.s_gamma));
-        }
-        t.map(S::from_unit)
+}
+
+fn reflection_colour<S: Sample>(lv: &LightVals, colour: S3) -> [S; 3] {
+    let mut t = colour.map(|v| v.clamp(0.0, 1.0));
+    if lv.sqr {
+        t = t.map(|v| v.sqrt());
     }
+    if lv.gamma_h != 0 {
+        let g = if lv.gamma_h > 0 { t.map(|v| v.sqrt()) } else { t.map(|v| v * v) };
+        t = add3(t, sc3(sub3(g, t), lv.s_gamma));
+    }
+    t.map(S::from_unit)
 }
 
 #[inline]
@@ -1383,6 +1441,19 @@ fn band_pixels(free: Option<u64>) -> usize {
     }
 }
 
+fn can_cache_transmission(sc: &Scene, p: &CalcParams) -> bool {
+    if sc.transmission_cache.is_none() || p.rect != [0, 0, p.width, p.height] {
+        return false;
+    }
+    // Budget in bytes so oversampling can use the same cache when memory permits.
+    // The cache retains one sample and an RGB baseline for each render pixel.
+    let pixels = u64::from(p.width as u32) * u64::from(p.height as u32);
+    let bytes = pixels * (std::mem::size_of::<Transmission>() as u64 + 3);
+    let budget = crate::render::memory_available()
+        .map_or(256 << 20, |available| (available / 2).min(512 << 20));
+    bytes <= budget
+}
+
 /// `CalcSRT`: the reflection pass over the painted image `rgb` of the
 /// G-buffer `gbuf` (both covering `p.rect`).
 ///
@@ -1400,8 +1471,26 @@ pub fn reflections<S: Sample>(
     progress: &(dyn Fn(usize, usize) + Sync),
     cancel: &(dyn Fn() -> bool + Sync),
 ) {
+    if let Some(cache) = &sc.transmission_cache {
+        let cached = cache.lock().ok();
+        if let Some(data) = cached.as_deref().and_then(Option::as_ref)
+            .filter(|data| p.rect == [0, 0, p.width, p.height] && data.rgb.len() == rgb.len())
+        {
+            for (dst, &src) in rgb.iter_mut().zip(&data.rgb) {
+                *dst = S::from_paint(f32::from(src));
+            }
+            if sc.transmission_blur > 0.0 || sc.translucency_glow != 0.0 {
+                blur_transmission(rgb, gbuf, &data.samples, p, lv, sc.transmission_blur,
+                    sc.translucency_glow, threads.min(p.height as usize).max(1), cancel);
+            }
+            progress(p.height as usize, p.height as usize);
+            return;
+        }
+    }
     #[cfg(feature = "gpu")]
-    if crate::gpu::enabled() && crate::gpu::unsupported(p).is_none() {
+    if !(sc.mc.transparency && (sc.transmission_blur > 0.0 || sc.translucency_glow != 0.0
+        || (sc.mc.reflection_depth >= 2 && can_cache_transmission(sc, p))))
+        && crate::gpu::enabled() && crate::gpu::unsupported(p).is_none() {
         let [x0, y0, w, h] = p.rect;
         let (wu, hu) = (w.max(1) as usize, h.max(0) as usize);
         let band_px = std::env::var("MB3D_REFLECT_BAND_PIXELS")
@@ -1494,12 +1583,14 @@ fn reflections_cpu<S: Sample>(
         only_difs: mc.only_difs,
         absorption: (mc.absorption as f64 * p.step_width) as f32,
         absorp_coeff: mc.absorption,
-        light_scattering_mul: mc.scattering / 330.0,
+        light_scattering: mc.scattering.max(0.0),
         back_dist: (((8388352.0 / p.zc_mul + 1.0).powi(2) - 1.0) * p.step_width / p.zcorr) as f32,
         hs,
         ao,
         vol: p.vol.is_some(),
         gpu: false,
+        capture_transmission: mc.transparency && mc.reflection_depth >= 2
+            && (sc.transmission_blur > 0.0 || sc.translucency_glow != 0.0 || can_cache_transmission(sc, p)),
     };
     let [x0, y0, w, h] = p.rect;
     let (wu, hu) = (w as usize, h as usize);
@@ -1507,14 +1598,20 @@ fn reflections_cpu<S: Sample>(
     let ctx = &ctx;
     let finished = std::sync::atomic::AtomicUsize::new(0);
     let finished = &finished;
+    let mut transmission = if ctx.capture_transmission {
+        vec![Transmission::default(); wu * hu]
+    } else {
+        Vec::new()
+    };
     std::thread::scope(|s| {
-        let mut per: Vec<Vec<(usize, &mut [S])>> = (0..threads).map(|_| Vec::new()).collect();
-        for (y, row) in rgb.chunks_mut(wu * 3).enumerate() {
-            per[y % threads].push((y, row));
+        let mut per: Vec<Vec<_>> = (0..threads).map(|_| Vec::new()).collect();
+        let samples = transmission.chunks_mut(wu).map(Some).chain(std::iter::repeat_with(|| None));
+        for (y, (row, samples)) in rgb.chunks_mut(wu * 3).zip(samples).enumerate() {
+            per[y % threads].push((y, row, samples));
         }
         for list in per {
             s.spawn(move || {
-                for (ry, row) in list {
+                for (ry, row, mut samples) in list {
                     if cancel() {
                         break;
                     }
@@ -1525,6 +1622,7 @@ fn reflections_cpu<S: Sample>(
                         m: Marcher::new(p, seed),
                         sr_si: SiLight::default(),
                         normal: [0.0; 3],
+                        transmission: Transmission::default(),
                         t_amb: [0.0; 3],
                         plv: Plv {
                             view: [0.0, 0.0, 1.0],
@@ -1551,9 +1649,147 @@ fn reflections_cpu<S: Sample>(
                         t.dbg = dp == Some((x as i32 + x0, y));
                         if let Some(c) = t.pixel(x as i32 + x0, y, &gbuf[ry * wu + x]) {
                             row[x * 3..x * 3 + 3].copy_from_slice(&c);
+                            if let Some(samples) = &mut samples {
+                                samples[x] = t.transmission;
+                            }
                         }
                     }
                     progress(finished.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1, hu);
+                }
+            });
+        }
+    });
+    if !transmission.is_empty() && !cancel() {
+        // Keep one full frame of CPU trace data for the next interactive edit.
+        // Tiled renders and frames outside the memory budget skip retention.
+        let cache = sc.transmission_cache.as_ref().filter(|_| {
+            can_cache_transmission(sc, p) && transmission.iter().any(|sample| sample.distance > 0.0 && sample.opacity > 0.0)
+        });
+        let baseline = cache.map(|_| rgb.iter().map(|c| c.to_255().round() as u8).collect());
+        if sc.transmission_blur > 0.0 || sc.translucency_glow != 0.0 {
+            blur_transmission(rgb, gbuf, &transmission, p, lv, sc.transmission_blur, sc.translucency_glow, threads, cancel);
+        }
+        if let (Some(cache), Some(rgb)) = (cache, baseline) {
+            if !cancel() {
+                if let Ok(mut entry) = cache.lock() {
+                    *entry = Some(TransmissionCache { rgb, samples: transmission });
+                }
+            }
+        }
+    }
+}
+
+/// Filter only the light gathered beyond the exit interface. Surface
+/// highlights, absorption and internal illumination stay in the base color.
+fn blur_transmission<S: Sample>(
+    rgb: &mut [S], gbuf: &[SiLight], transmission: &[Transmission], p: &CalcParams,
+    lv: &LightVals, amount: f32, glow_amount: f32, threads: usize, cancel: &(dyn Fn() -> bool + Sync),
+) {
+    let [_, _, width, height] = p.rect;
+    let (width, height) = (width as usize, height as usize);
+    let rows = height.div_ceil(threads);
+    let radius_limit = (p.width.min(p.height) as f32 * 0.075).clamp(1.0, 64.0);
+    // Convert scene distance to the scale of the view so framing changes
+    // do not make the effect depend on the output resolution.
+    let view_width = (p.step_width * p.width as f64) as f32;
+    let mut path_scale = (0.40 * view_width).max(1e-20);
+    // Above the default strength, progressively frost even short paths.
+    let coverage = (amount - 1.0).clamp(0.0, 1.0);
+    let coverage = coverage * coverage * (3.0 - 2.0 * coverage);
+    // Use a representative long path when the whole object is thin in the
+    // view. A single outlier should not suppress blur across the image.
+    let mut paths: Vec<_> = transmission.iter().step_by((transmission.len() / 65_536).max(1))
+        .filter(|sample| sample.distance.is_finite() && sample.distance > 0.0 && sample.opacity > 0.0)
+        .map(|sample| sample.distance)
+        .collect();
+    if !paths.is_empty() {
+        let index = paths.len() * 3 / 4;
+        let (_, distance, _) = paths.select_nth_unstable_by(index, f32::total_cmp);
+        path_scale = path_scale.min((*distance * 0.65).max(1e-20));
+    }
+    std::thread::scope(|scope| {
+        for (band, output) in rgb.chunks_mut(rows * width * 3).enumerate() {
+            scope.spawn(move || {
+                for (row, pixels) in output.chunks_mut(width * 3).enumerate() {
+                    if cancel() { return; }
+                    let y = band * rows + row;
+                    for (x, pixel) in pixels.chunks_exact_mut(3).enumerate() {
+                        let i = y * width + x;
+                        let center = transmission[i];
+                        if center.distance <= 0.0 || center.opacity <= 0.0 { continue; }
+                        let path = center.distance / path_scale;
+                        // Keep short paths clear and let the blur rise quickly
+                        // as the ray travels farther inside the material.
+                        let thickness = path / (1.0 + path);
+                        let response = thickness * thickness * (3.0 - 2.0 * thickness);
+                        // Fade the effect in across thin material, reaching the
+                        // full filter on the longer paths through the interior.
+                        let edge = ((response - 0.36) / 0.25).clamp(0.0, 1.0);
+                        let edge_weight = edge * edge * (3.0 - 2.0 * edge);
+                        let edge_weight = edge_weight + coverage * (1.0 - edge_weight);
+                        if edge_weight == 0.0 && glow_amount == 0.0 { continue; }
+                        let radius = amount * radius_limit * (response + coverage * (1.0 - response));
+                        if radius <= 0.5 && glow_amount == 0.0 { continue; }
+                        let sample_radius = if radius > 0.5 { radius } else { 3.0 };
+
+                        let mut light = center.light;
+                        let mut interior_light = center.interior_light;
+                        let mut weights = 1.0;
+                        for tap in 0..32 {
+                            let index = tap as f32 + 0.5;
+                            let r = sample_radius * (index / 32.0).sqrt();
+                            let (sin, cos) = (index * 2.399_963_1).sin_cos();
+                            let nx = x as isize + (r * cos).round() as isize;
+                            let ny = y as isize + (r * sin).round() as isize;
+                            if nx < 0 || ny < 0 || nx >= width as isize || ny >= height as isize { continue; }
+                            let j = ny as usize * width + nx as usize;
+                            let other = transmission[j];
+                            if other.distance <= 0.0 || (other.opacity - center.opacity).abs() > 0.1 { continue; }
+                            let depth = gbuf[i].zpos().abs_diff(gbuf[j].zpos()) as f32;
+                            let delta = (other.distance - center.distance).abs() / center.distance.max(other.distance);
+                            let weight = (1.0 - 0.8 * index / 32.0)
+                                / (1.0 + (depth / 100.0).powi(2) + 16.0 * delta.powi(2));
+                            light = add3(light, sc3(other.light, weight));
+                            interior_light = add3(interior_light, sc3(other.interior_light, weight));
+                            weights += weight;
+                        }
+                        let mix = ((response - 0.12) / 0.43).clamp(0.0, 1.0)
+                            * (radius - 0.5).clamp(0.0, 1.0) * edge_weight;
+                        let blurred = lin2(sc3(light, 1.0 / weights), center.light, mix);
+                        // At maximum blur, long paths contribute diffuse
+                        // interior light without transmitting the background.
+                        // Use the same scene-relative thickness as the blur so
+                        // smaller objects can also develop an opaque interior.
+                        let opacity = ((response - 0.36) / 0.38).clamp(0.0, 1.0);
+                        let opacity = (amount * opacity * opacity * (3.0 - 2.0 * opacity)).min(1.0);
+                        let lit_material = sc3(interior_light, 1.0 / weights);
+                        // Replace extinguished background light with diffuse
+                        // light scattered inside the material.
+                        let opacity = opacity * edge_weight;
+                        let opacity = opacity + coverage * (1.0 - opacity);
+                        let transmitted = if opacity > 0.0 {
+                            add3(sc3(blurred, 1.0 - opacity), sc3(lit_material, 0.25 * opacity))
+                        } else {
+                            blurred
+                        };
+                        let glow = if glow_amount < 0.0 {
+                            // Grazing entry rays form a rim. Extinction along
+                            // the path softens the glow toward the interior.
+                            let facing = center.entry_facing;
+                            let grazing = (1.0 - facing).powi(2);
+                            let falloff = (-2.0 * center.distance * facing).exp();
+                            let rim = (3.0 * grazing * falloff).min(1.0);
+                            let rim_color = lit_material.map(|channel| channel.max(0.0).sqrt());
+                            sc3(rim_color, 1.2 * -glow_amount * rim)
+                        } else {
+                            // Let interior glow build over a broader range of path
+                            // lengths than the filter that protects clear edges.
+                            let interior = ((response - 0.18) / 0.62).clamp(0.0, 1.0);
+                            let glow_weight = interior * interior * (3.0 - 2.0 * interior);
+                            sc3(lit_material, 0.65 * glow_amount * glow_weight)
+                        };
+                        pixel.copy_from_slice(&reflection_colour(lv, add3(add3(center.base, transmitted), glow)));
+                    }
                 }
             });
         }
@@ -1632,12 +1868,13 @@ fn reflections_gpu<S: Sample>(sc: &Scene, p: &CalcParams, gbuf: &[SiLight], rgb:
         only_difs: mc.only_difs,
         absorption: (mc.absorption as f64 * p.step_width) as f32,
         absorp_coeff: mc.absorption,
-        light_scattering_mul: mc.scattering / 330.0,
+        light_scattering: mc.scattering.max(0.0),
         back_dist: (((8388352.0 / p.zc_mul + 1.0).powi(2) - 1.0) * p.step_width / p.zcorr) as f32,
         hs: hs.clone(),
         ao,
         vol: p.vol.is_some(),
         gpu: true,
+        capture_transmission: false,
     };
     // the lights of the shadow rays (calc_hs): soft shadows use the last one
     let mut lights: Vec<ReflectLight> = Vec::new();
@@ -1664,6 +1901,7 @@ fn reflections_gpu<S: Sample>(sc: &Scene, p: &CalcParams, gbuf: &[SiLight], rgb:
         m: Marcher::new(p, seed),
         sr_si: SiLight::default(),
         normal: [0.0; 3],
+        transmission: Transmission::default(),
         t_amb: [0.0; 3],
         plv: Plv { view: [0.0, 0.0, 1.0], abs_view: [0.0, 0.0, 1.0], cam_pos: [0.0; 3], obj_pos: [0.0; 3], z_pos: 0.0, zpos_dyn_fog: 0.0, x_pos: 0.0, y_pos: 0.0, dep_c: [0.0; 3] },
         light_z: lv.lights.iter().map(|l| (l.pos_z, l.pos_lp)).collect(),
@@ -1739,7 +1977,7 @@ fn reflections_gpu<S: Sample>(sc: &Scene, p: &CalcParams, gbuf: &[SiLight], rgb:
                     let calc_trans_r = ctx.calc_trans && (!ctx.only_difs || p.decomb.as_ref().map_or(p.difs, |d| d.part2.difs));
                     t.scale_amb_diff_down = calc_trans_r;
                     t.sr_si = si;
-                    let sh = t.shade(&si, None);
+                    let sh = t.shade(&si, None, None);
                     if dbg_i == Some(i) {
                         eprintln!("GPU surface: pos {pos:?} zz {zz:.4} si {si:?}\n  plv {:?}\n  light {:?} result {:?} spe {:?} {} dif {:?}", t.plv, sh.light, sh.result, sh.spe, sh.spe_a, sh.dif);
                     }

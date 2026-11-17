@@ -1,7 +1,7 @@
 /* Main-render snapshots are retained across normal exits and crashes. */
 static void historyReleaseMapping(void *info,const void *data,size_t size){(void)data;(void)size;CFRelease(info);}
-static NSBitmapImageRep *historyBitmap(NSString *path,NSUInteger limit){
-    NSData *data=[NSData dataWithContentsOfFile:path options:NSDataReadingMappedIfSafe error:nil];if(data.length<12)return nil;
+static NSBitmapImageRep *embeddedSceneBitmap(NSData *data,NSUInteger limit){
+    if(data.length<12)return nil;
     const unsigned char *b=data.bytes;uint32_t raw[3];memcpy(raw,b,12);uint64_t w=CFSwapInt32LittleToHost(raw[1]),h=CFSwapInt32LittleToHost(raw[2]);
     uint32_t version=CFSwapInt32LittleToHost(raw[0]);
     if(version<20||version>99||w<16||h<16||w>RENDER_MAX_DIMENSION||h>RENDER_MAX_DIMENSION)return nil;
@@ -28,6 +28,10 @@ static NSBitmapImageRep *historyBitmap(NSString *path,NSUInteger limit){
     CGContextRef context=bitmap?CGBitmapContextCreate(bitmap.bitmapData,width,height,8,bitmap.bytesPerRow,color,kCGBitmapByteOrder32Big|kCGImageAlphaPremultipliedLast):NULL;
     if(context){CGContextSetInterpolationQuality(context,kCGInterpolationHigh);CGContextDrawImage(context,CGRectMake(0,0,width,height),source);CGContextRelease(context);}else bitmap=nil;
     if(source)CGImageRelease(source);CGColorSpaceRelease(color);return bitmap;
+}
+static NSBitmapImageRep *historyBitmap(NSString *path,NSUInteger limit){
+    NSData *data=[NSData dataWithContentsOfFile:path options:NSDataReadingMappedIfSafe error:nil];
+    return embeddedSceneBitmap(data,limit);
 }
 @interface RenderHistoryStore : NSObject
 @property(nonatomic,copy) NSString *directory;

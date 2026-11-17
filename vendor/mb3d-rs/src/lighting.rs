@@ -1746,6 +1746,7 @@ impl LightVals {
                     idif = sv_scale(pal, luma(idif) / (0.01 + luma(pal)));
                 }
             }
+            let ia = o.exit_transmission.unwrap_or(ia);
             spe_out = ispe;
             spe_a = ia;
             dif_out = idif;
@@ -1982,6 +1983,7 @@ pub(crate) struct ShadeOpts<'a> {
     /// inside transparent material (`bDivOptions`): no depth or dynamic
     /// fog; visible lights coloured by (diffuse colour, absorption)
     pub(crate) inside_trans: Option<(SVec, f32)>,
+    pub(crate) exit_transmission: Option<f32>,
     /// depth (`sPosLightZpos`, `sPosLP`) of positional lights as seen from
     /// the start of a reflected ray, per entry of `lights`
     pub(crate) light_z: Option<&'a [(f32, f32)]>,

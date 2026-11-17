@@ -14,6 +14,7 @@ struct Cached {
     key: String,
     raw: Vec<SiLight>,
     post_key: String,
+    transmission_key: String,
     p: CalcParams,
     scene: Scene,
     gbuf: Vec<SiLight>,
@@ -63,6 +64,12 @@ static CACHES: OnceLock<Mutex<[Option<Cached>; 2]>> = OnceLock::new();
 fn caches() -> &'static Mutex<[Option<Cached>; 2]> {
     CACHES.get_or_init(|| Mutex::new([None, None]))
 }
+fn has_transmission_cache(scene: &Scene) -> bool {
+    scene.transmission_cache.as_ref()
+        .and_then(|entry| entry.lock().ok())
+        .is_some_and(|entry| entry.is_some())
+}
+
 fn text(p: *const c_char) -> Result<String, String> {
     if p.is_null() {
         return Err("Missing bridge path".into());
@@ -113,6 +120,9 @@ pub extern "C" fn mb3dx_rust_render(
     map_scale: f64,
     emission: *const f64,
     emission_opacity: *const f64,
+    transmission_blur: f64,
+    translucency_glow: f64,
+    translucency_enabled: i32,
     token: *mut c_void,
     cancel: extern "C" fn(*mut c_void) -> i32,
     progress: extern "C" fn(*mut c_void, i32, i32),
@@ -126,7 +136,7 @@ pub extern "C" fn mb3dx_rust_render(
     let profile_start=std::time::Instant::now();
     let mut geometry_reused = false;
     let result =
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<(), String> {
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<bool, String> {
             static INIT: OnceLock<()> = OnceLock::new();
             INIT.get_or_init(|| {
                 std::env::set_var("MB3D_PORTABLE", "0");
@@ -156,6 +166,11 @@ pub extern "C" fn mb3dx_rust_render(
                 eprintln!("Rust engine: {w}");
             }
             let mut sc = loaded.scene;
+            let translucency_enabled = translucency_enabled != 0 && sc.mc.transparency;
+            if translucency_enabled {
+                sc.transmission_blur = transmission_blur.clamp(0.0, 2.0) as f32;
+                sc.translucency_glow = translucency_glow.clamp(-1.0, 1.0) as f32;
+            }
             if !emission.is_null(){sc.emissive_difs=Some(unsafe{[(*emission) as f32,(*emission.add(1)) as f32,(*emission.add(2)) as f32]});}
             if !emission_opacity.is_null(){sc.emissive_opacity=std::array::from_fn(|i|unsafe{(*emission_opacity.add(i)).clamp(0.,1.) as f32});}
             if map_scale.is_finite() && map_scale > 0.0 { sc.lighting.diff_map_scale_exact = Some(map_scale); }
@@ -175,6 +190,25 @@ pub extern "C" fn mb3dx_rust_render(
             let mut caches = caches().lock().map_err(|_| "Rust cache lock failed")?;
             let key = format!("{}\nCPU_ONLY={cpu_only}",geometry_key(&sc));
             geometry_reused = reuse != 0 && caches[index].as_ref().is_some_and(|c| c.key == key);
+            let transmission_key = if index == 0 && sc.mc.reflections && translucency_enabled {
+                let mut trace_scene = sc.clone();
+                trace_scene.transmission_blur = 0.0;
+                trace_scene.translucency_glow = 0.0;
+                trace_scene.emission_cache = Default::default();
+                trace_scene.transmission_cache = None;
+                format!("{trace_scene:?}")
+            } else {
+                String::new()
+            };
+            if reuse == 2 {
+                let valid = geometry_reused && !transmission_key.is_empty() &&
+                    caches[index].as_ref().is_some_and(|c| {
+                        let post_key = format!("{:?}|{:?}|{}", mb3d::render::post_job(&sc, &c.p), sc.ao, sc.normals_on_zbuf);
+                        c.post_key == post_key && c.transmission_key == transmission_key &&
+                            c.gbuf.len() == c.raw.len() && has_transmission_cache(&c.scene)
+                    });
+                if !valid { return Err("Render transparency to enable the Glow slider.".into()); }
+            }
             mb3d::diagnostics::phase(0);
             let march_start=std::time::Instant::now();
             let mut c = if geometry_reused {
@@ -187,6 +221,7 @@ pub extern "C" fn mb3dx_rust_render(
                     key,
                     raw,
                     post_key: String::new(),
+                    transmission_key: String::new(),
                     p,
                     scene: sc.clone(),
                     gbuf: Vec::new(),
@@ -202,6 +237,13 @@ pub extern "C" fn mb3dx_rust_render(
             let post_time=post_start.elapsed();let paint_start=std::time::Instant::now();
             // Paint once without DoF to retain the exact sharp result, including R/T/fog.
             let dof = sc.dof.take();
+            if !transmission_key.is_empty() {
+                sc.transmission_cache = if reuse_post && transmission_key == c.transmission_key {
+                    c.scene.transmission_cache.take().or_else(|| Some(Default::default()))
+                } else {
+                    Some(Default::default())
+                };
+            }
             mb3d::diagnostics::phase(6);
             stage("emissive illumination");
             let (mut rgb, reflection_time) = mb3d::render::paint_reporting(&sc, &c.p, &gbuf, &report, &stage, &stop);
@@ -247,19 +289,18 @@ pub extern "C" fn mb3dx_rust_render(
             #[cfg(feature="gpu")] {counts.gpu=i32::from(mb3d::gpu::last_status().starts_with("GPU"));}
             if !statistics.is_null(){unsafe{*statistics=counts;}}
             c.post_key=post_key;
+            c.transmission_key=transmission_key;
+            let transmission_cached = has_transmission_cache(&sc);
             c.scene = sc;
             c.gbuf = gbuf;
             caches[index] = Some(c);
-            Ok(())
+            Ok(transmission_cached)
         }));
     match result {
-        Ok(Ok(())) => {
-            if geometry_reused {
-                2
-            } else {
-                1
-            }
-        }
+        // Bit 0 means success without surface reuse, bit 1 means success
+        // with reuse, and bit 2 reports this render's transmission cache.
+        Ok(Ok(transmission_cached)) =>
+            (if geometry_reused { 2 } else { 1 }) | (i32::from(transmission_cached) << 2),
         Ok(Err(e)) => {
             error(err, &e);
             0
@@ -287,9 +328,32 @@ pub extern "C" fn mb3dx_rust_distance(x: f64, y: f64, z: f64) -> f64 {
     std::panic::catch_unwind(|| {
         let guard = caches().lock().ok()?;
         let c = guard[1].as_ref().or(guard[0].as_ref())?;
-        let (distance, iterations) = mb3d::calc::de_at(&c.p, [x,y,z]);
-        Some(if iterations >= c.p.max_it {0.0} else {distance.max(0.0)})
+        Some(mb3d::calc::de_at(&c.p, [x,y,z]).0)
     }).ok().flatten().unwrap_or(f64::NAN)
+}
+
+#[no_mangle]
+pub extern "C" fn mb3dx_rust_navigator_correction() -> f64 {
+    let Ok(cache) = caches().lock() else { return 1.0 };
+    let Some(c) = cache[1].as_ref() else { return 1.0 };
+    let (w, h) = (c.p.width, c.p.height);
+    let (origin, _) = mb3d::calc::pixel_ray(&c.p, w / 2, h / 2);
+    let view_distance = 2.0 * f64::from(w).hypot(f64::from(h)) / (f64::from(w) * c.scene.zoom);
+    let plane_radius = c.p.step_width * f64::from(w).hypot(f64::from(h)) * 0.5;
+    let mut nearest = view_distance;
+    for (index, pixel) in c.gbuf.iter().enumerate() {
+        if pixel.is_background() { continue; }
+        let z = f64::from(pixel.zpos_fine >> 8);
+        let depth = ((((8388351.9 - z) / c.p.zc_mul + 1.0).powi(2) - 1.0) / c.p.zcorr).max(0.0);
+        if depth * c.p.step_width > nearest + plane_radius { continue; }
+        let (start, direction) = mb3d::calc::pixel_ray(&c.p, index as i32 % w, index as i32 / w);
+        let squared = (0..3).map(|axis| {
+            (start[axis] + direction[axis] * depth - origin[axis]).powi(2)
+        }).sum::<f64>();
+        nearest = nearest.min(squared.sqrt());
+        if nearest <= view_distance * 0.5 { return 0.5; }
+    }
+    (nearest / view_distance).clamp(0.5, 1.0)
 }
 #[no_mangle]
 pub extern "C" fn mb3dx_rust_pick(x: f64, y: f64, out: *mut f64, focus: *mut f64) -> i32 {

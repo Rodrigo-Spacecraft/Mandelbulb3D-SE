@@ -14,7 +14,7 @@ typedef struct {
     double diffuse,specular,ambient,depth,ao_amount,indirect,cstart,cspan,col_z,diffuse_shadow;
     Vec center,julia_c,amb_top,amb_bottom,bg_top,bg_bottom;
     double matrix[3][3]; Light lights[6]; Stop stops[10];
-    ShadowSettings shadows;ObjectMap map;DepthOfFieldSettings dof;ReflectionSettings reflections;
+    ShadowSettings shadows;ObjectMap map;DepthOfFieldSettings dof;ReflectionSettings reflections;double transmission_blur,translucency_glow;int translucency_mode;
     int cutting_mask;double cutting[3];ObjectLighting cutting_colors;
     int color_option;double color_multiplier;SSAOSettings ssao;FogSettings fog;double rotation4[3],julia_w;float matrix4[16];
     int preserved_header_valid;unsigned char preserved_header[840];
@@ -68,7 +68,7 @@ static void scene_defaults(void) {
     for(int i=0;i<4;i++)scene.matrix4[i*4+i]=1;
     scene.color_multiplier=1;
     scene.ssao=(SSAOSettings){.threshold=2,.samples=1};
-    scene.reflections=default_reflections();scene.fog=fog_settings_default();
+    scene.reflections=default_reflections();scene.translucency_mode=1;scene.transmission_blur=1;scene.fog=fog_settings_default();
     scene.dof=(DepthOfFieldSettings){.passes=1,.aperture=.02,.clip_radius=25};
     scene.oversampling=scene.viewing=1;scene.size_flags=3;scene.width=480;scene.height=360;scene.iterations=60;scene.power=8;
     scene.scale=scene.scale2=2;scene.min_radius=scene.min_radius2=.5;scene.fold=scene.fold2=1;
@@ -327,6 +327,20 @@ static int load_m3i(const char *path) {
     if(h[337]){rf->depth=h[337];rf->amount=f32(h+332);rf->absorption=f32(h+370);}if(f32(h+116)>0)rf->refractive_index=f32(h+116);if(f32(h+120)>=0)rf->scattering=f32(h+120);
     if(extra_count==4096&&!memcmp(extra+3656,"RFL1",4)){rf->enabled=u32(extra+3660);rf->automatic=u32(extra+3664);rf->transparency=u32(extra+3668);rf->only_difs=u32(extra+3672);rf->depth=u32(extra+3676);rf->amount=f64(extra+3680);rf->absorption=f64(extra+3688);rf->refractive_index=f64(extra+3696);rf->scattering=f64(extra+3704);}
     for(int c=0;c<2;c++)for(int i=0;i<10;i++)rf->opacity[c][i]=1;
+    next.transmission_blur=0;
+    if(extra_count==4096&&!memcmp(extra+4068,"TGL1",4)){
+        double glow=f64(extra+4072);
+        if(isfinite(glow)&&glow>=-1&&glow<=1)next.translucency_glow=glow;
+    }
+    if(extra_count==4096&&!memcmp(extra+4056,"TBL1",4)){
+        double blur=f64(extra+4060);
+        if(isfinite(blur)&&blur>=0&&blur<=2)next.transmission_blur=blur;
+    }
+    next.translucency_mode=1+(next.transmission_blur>0||next.translucency_glow!=0);
+    if(extra_count==4096&&!memcmp(extra+4080,"TLE1",4))
+        next.translucency_mode=1+!!extra[4084];
+    else if(next.translucency_mode==1)
+        next.transmission_blur=1;
     for(int i=0;i<10;i++)if(l[260+i*10+9]&248){rf->opacity_set=1;rf->opacity[1][i]=1-(l[260+i*10+9]>>3)/31.;}
     if(extra_count==4096&&!memcmp(extra+3712,"OPA1",4)){rf->opacity_set=u32(extra+3716);for(int c=0;c<2;c++)for(int i=0;i<10;i++)rf->opacity[c][i]=f64(extra+3720+(c*10+i)*8);}
     if(!valid_reflections(*rf))return reject_scene("invalid Reflections + Transparency settings");

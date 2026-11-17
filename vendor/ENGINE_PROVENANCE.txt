@@ -8,12 +8,12 @@ https://github.com/thargor6/mb3d
 License: LGPL 2.1; license texts and original notices are retained.
 
 This is modified source, not an unmodified upstream distribution.
-Modification notice dated 2026-11-09, by Glenn Olander and contributors to Mandelbulb3D SE.
+Modification notice dated 2026-11-17, by Glenn Olander and contributors to Mandelbulb3D SE.
 Changes include native macOS integration, formula translations and support,
 color/map and fog compatibility, emissive lighting with cached repainting,
 GPU cancellation and reliability, bounded reflection memory, and formula
 execution safeguards. Additional changes include diffuse-opacity-controlled emission,
 indirect emissive fill, improved emission sampling and CPU scheduling, and
-matching interpolation and color handling. Formula definitions retain their respective author credits.
+matching interpolation and color handling. The release also adds transmission blur and glow, improves transparency and reflections, and ports adaptive Navigator movement and preview feedback. Formula definitions retain their respective author credits.
 
-Corresponding source: https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel3
+Corresponding source: https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel4
