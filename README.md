@@ -4,6 +4,10 @@ Source code for the native macOS fractal application Mandelbulb3D SE.
 The `rel5` tag identifies the corresponding version 2.0.4 release source.
 This repository includes source, build scripts, resources, and tests, plus a Windows beta download. No prebuilt macOS application is included.
 
+## Mac download
+
+The Mac version of Mandelbulb3D SE is available on the Mac app store. [Mandelbulb3D SE](macappstore://apps.apple.com/app/id6828890043)
+
 ## Windows download
 
 [Download the latest Windows x64 beta](https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/raw/refs/heads/main/release/windows/Mandelbulb3D-SE-2.0.4-Windows-Download.zip)
