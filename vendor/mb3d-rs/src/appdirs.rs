@@ -41,6 +41,7 @@ pub fn portable() -> bool {
     *P.get_or_init(|| match std::env::var("MB3D_PORTABLE").as_deref() {
         Ok("1") => true,
         Ok("0") => false,
+        _ if cfg!(feature = "se-desktop") => false,
         _ => {
             let app = app_folder();
             !(cfg!(unix) && app.starts_with("/usr")) && writable(&app)
@@ -68,7 +69,8 @@ fn home() -> Option<PathBuf> {
 fn xdg(var: &str, default: &str) -> Option<PathBuf> {
     let base = std::env::var_os(var).map(PathBuf::from).filter(|p| p.is_absolute());
     let base = if cfg!(windows) { base } else { base.or_else(|| home().map(|h| h.join(default))) };
-    base.map(|b| b.join("mb3d-rs"))
+    let name = if cfg!(feature = "se-desktop") { "Mandelbulb3D SE" } else { "mb3d-rs" };
+    base.map(|b| b.join(name))
 }
 
 /// The user's settings folder of the installed way (`~/.config/mb3d-rs`).

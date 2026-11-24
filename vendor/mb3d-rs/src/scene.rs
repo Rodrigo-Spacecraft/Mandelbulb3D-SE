@@ -43,10 +43,17 @@ pub struct Scene {
     /// App diffuse opacity; independent of specular transparency.
     pub transmission_blur: f32,
     pub translucency_glow: f32,
+    pub translucency_enabled: bool,
+    /// Opt-in light transport through a scattering material.
+    pub subsurface_scattering: bool,
+    /// Scattering mixture/density, 0..1. Zero retains ordinary translucency.
+    pub subsurface_amount: f32,
     /// Optional cache for interactive repainting of the same scene.
     pub transmission_cache: Option<std::sync::Arc<std::sync::Mutex<Option<crate::reflect::TransmissionCache>>>>,
     pub emissive_opacity: [f32;10],
     pub emission_cache: std::sync::Arc<std::sync::Mutex<Option<(String,std::sync::Arc<Vec<(bool,f32)>>)>>>,
+    /// Ratio of stored render pixels to output pixels in a saved SE image.
+    pub render_sampling: u8,
     pub width: i32,
     pub height: i32,
     /// Max iterations (`Iterations`)
@@ -257,8 +264,12 @@ impl Default for Scene {
     fn default() -> Self {
         Scene {
             emissive_difs: None,
+            render_sampling: 1,
             transmission_blur: 0.0,
             translucency_glow: 0.0,
+            translucency_enabled: false,
+            subsurface_scattering: false,
+            subsurface_amount: 1.0,
             transmission_cache: None,
             emissive_opacity: [1.;10],
             emission_cache: Default::default(),
@@ -424,6 +435,8 @@ impl Scene {
         let mut t = String::new();
         let _ = writeln!(t, "# mb3d scene");
         let _ = writeln!(t, "width = {}\nheight = {}", self.width, self.height);
+        if self.subsurface_scattering { let _ = writeln!(t, "subsurface_scattering = true"); }
+        if self.subsurface_amount != 1.0 { let _ = writeln!(t, "subsurface_amount = {}", self.subsurface_amount); }
         if let Some(tl) = &self.tiling {
             let _ = writeln!(t, "tiles = {}x{}", tl.cols, tl.rows);
             if let Some((c, r)) = tl.pos {
@@ -852,6 +865,8 @@ impl Scene {
                     }
                 }
                 _ => match key.as_str() {
+                    "subsurface_scattering" => s.subsurface_scattering = boolean()?,
+                    "subsurface_amount" => s.subsurface_amount = num()?.clamp(0.0, 1.0) as f32,
                     "width" => s.width = int()?.max(16),
                     "height" => s.height = int()?.max(16),
                     "tiles" => {

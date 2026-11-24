@@ -574,6 +574,12 @@ pub fn by_name(name: &str) -> Option<Arc<LightMap>> {
             let path = PathBuf::from(dir).join(&name);
             return path.is_file().then_some(path);
         }
+        if cfg!(feature = "se-desktop") {
+            let path = crate::appdirs::data_folder().join("Backgrounds").join(&name);
+            if path.is_file() {
+                return Some(path);
+            }
+        }
         let p = PathBuf::from(&name);
         if p.is_file() {
             return Some(p);

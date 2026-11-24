@@ -1,8 +1,14 @@
 # Mandelbulb3D SE
 
 Source code for the native macOS fractal application Mandelbulb3D SE.
-The `rel3` tag identifies the corresponding version 2.0.2 release source.
-This repository distributes source, build scripts, resources, and tests; no prebuilt application is included.
+The `rel5` tag identifies the corresponding version 2.0.4 release source.
+This repository includes source, build scripts, resources, and tests, plus a Windows beta download. No prebuilt macOS application is included.
+
+## Windows download
+
+[Download Mandelbulb3D SE 2.0.4 Beta 1 for Windows x64 (build 486)](https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/raw/refs/tags/rel5/release/windows/Mandelbulb3D-SE-2.0.4-Windows-Download.zip)
+
+Extract the ZIP and run `Mandelbulb3D SE.exe`. See the included README for map installation instructions.
 
 ## Requirements
 
@@ -16,7 +22,7 @@ This repository distributes source, build scripts, resources, and tests; no preb
 ```sh
 git clone https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE.git
 cd Mandelbulb3D-SE
-git checkout rel3
+git checkout rel5
 make -j4
 open "Mandelbulb3D SE.app"
 ```

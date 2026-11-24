@@ -830,6 +830,11 @@ impl CalcParams {
             dfree: [0.0; 2],
             emu: self.machine.as_ref().map(|m| Box::new(self.init_machine(m))),
             ipol: self.ipol,
+            difs_inside_components: None,
+            difs_ignored_components: Vec::new(),
+            difs_only_component: None,
+            difs_component_id: 0,
+            difs_orbit_components: Default::default(),
         }
     }
 
@@ -1108,7 +1113,7 @@ impl<'a> Marcher<'a> {
 
     /// Inside rendering: the distance to the surface from inside the set.
     fn invert_inside(&mut self, r: f64) -> f64 {
-        if !self.calc_inside {
+        if !self.calc_inside || self.it.difs_inside_components.is_some() {
             return r;
         }
         let ms = self.ms_de_stop as f64;
@@ -1151,7 +1156,7 @@ impl<'a> Marcher<'a> {
         if part.difs {
             // CalcDEanalytic, DEoption 20: absolute DE stop as RStopD
             let rstopd = self.ms_de_stop as f64 * p.step_width * 1.03;
-            let mut r = self.it.hybrid_difs(&p.slots, rstopd, invert || self.inside, !no_vec_ini) * part.d_de_scale as f64;
+            let mut r = self.it.hybrid_difs(&p.slots, rstopd, (invert || self.inside) && self.it.difs_inside_components.is_none(), !no_vec_ini) * part.d_de_scale as f64;
             if r.is_nan() {
                 r = self.ms_de_stop as f64 * 0.25;
             }

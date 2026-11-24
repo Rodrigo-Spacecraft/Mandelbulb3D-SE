@@ -34,14 +34,3 @@ test-formula-catalog
 /tools/__pycache__/
 
 /release/
-
-# Local build outputs and signing credentials
-*.a
-*.dylib
-*.pkg
-*.dmg
-*.zip
-*.p12
-*.pfx
-*.provisionprofile
-.DS_Store

@@ -462,6 +462,7 @@ static void installCommonColorPalette(void){
     NSColorPanel *panel=NSColorPanel.sharedColorPanel;
     if(![panel.accessoryView isKindOfClass:CommonColorPalette.class])panel.accessoryView=[[CommonColorPalette alloc]initWithFrame:NSMakeRect(0,0,210,58)];
 }
+static __weak AdjustmentColorWell *activeAdjustmentColorWell;
 @implementation AdjustmentColorWell
 - (void)setColor:(NSColor *)color {[super setColor:self.allowsOpacity?color:[color colorWithAlphaComponent:1]];}
 - (void)drawWellInside:(NSRect)insideRect {
@@ -475,7 +476,15 @@ static void installCommonColorPalette(void){
     for(CGFloat x=NSMinX(strip);x<NSMaxX(strip);x+=4){[(fmod(floor((x-NSMinX(strip))/4),2)==0?NSColor.whiteColor:[NSColor colorWithWhite:.65 alpha:1])setFill];NSRectFill(NSMakeRect(x,NSMinY(strip),4,strip.size.height));}
     [rgb setFill];NSRectFillUsingOperation(strip,NSCompositingOperationSourceOver);[NSGraphicsContext restoreGraphicsState];
 }
-- (void)activate:(BOOL)exclusive {installCommonColorPalette();NSColorPanel *panel=NSColorPanel.sharedColorPanel;panel.continuous=YES;panel.showsAlpha=self.allowsOpacity;[super activate:exclusive];panel.showsAlpha=self.allowsOpacity;}
+- (void)activate:(BOOL)exclusive {
+    // Hiding alpha can change the panel's color. Disconnect its previous
+    // recipient first so changing picker modes cannot edit that material.
+    if(exclusive)[activeAdjustmentColorWell deactivate];
+    installCommonColorPalette();NSColorPanel *panel=NSColorPanel.sharedColorPanel;
+    panel.continuous=YES;panel.showsAlpha=self.allowsOpacity;
+    [super activate:exclusive];activeAdjustmentColorWell=self;
+    panel.showsAlpha=self.allowsOpacity;
+}
 - (void)mouseDown:(NSEvent *)event {
     (void)event;if(!self.enabled)return;[self activate:YES];[NSColorPanel.sharedColorPanel makeKeyAndOrderFront:nil];
 }
@@ -571,10 +580,11 @@ static NSNumber *paletteShortcut(NSEvent *event){
 @interface PaletteView : NSView<NSMenuItemValidation>
 @property(nonatomic) ObjectLighting palette;
 @property(nonatomic) NSInteger stopCount;
-@property(nonatomic) BOOL specular,markers,enabled,stacked,showOpacityBand,hoverBezel,hovered;
+@property(nonatomic) BOOL specular,markers,enabled,stacked,showOpacityBand,hoverBezel,hovered,draggingStop;
 @property(nonatomic,strong) NSTrackingArea *hoverTrackingArea;
 @property(nonatomic,strong) NSArray<NSNumber *> *opacityStops;
 @property(nonatomic) NSInteger selected;
+@property(nonatomic) NSPoint stopDragOrigin;
 @property(nonatomic,copy) void (^clicked)(NSInteger stop,BOOL pickColor);
 @property(nonatomic,copy) void (^moved)(NSInteger stop,unsigned position,BOOL finished);
 @property(nonatomic,copy) BOOL (^stopCommand)(NSInteger command);
@@ -594,6 +604,7 @@ static NSNumber *paletteShortcut(NSEvent *event){
 }
 - (void)mouseEntered:(NSEvent *)event {(void)event;self.hovered=YES;self.needsDisplay=YES;}
 - (void)mouseExited:(NSEvent *)event {(void)event;self.hovered=NO;self.needsDisplay=YES;}
+- (BOOL)acceptsFirstMouse:(NSEvent *)event {(void)event;return self.enabled;}
 - (BOOL)acceptsFirstResponder{return self.markers&&self.enabled;}
 - (BOOL)isFlipped{return YES;}
 - (BOOL)wantsDefaultClipping{return YES;}
@@ -642,6 +653,7 @@ static NSNumber *paletteShortcut(NSEvent *event){
     [NSGraphicsContext restoreGraphicsState];
 }
 - (void)mouseDown:(NSEvent *)event {
+    self.draggingStop=NO;self.stopDragOrigin=[self convertPoint:event.locationInWindow fromView:nil];
     if(event.modifierFlags&NSEventModifierFlagControl){NSMenu *menu=[self menuForEvent:event];if(menu)[NSMenu popUpContextMenu:menu withEvent:event forView:self];return;}
     [self selectStopForEvent:event];
 }
@@ -663,11 +675,13 @@ static NSNumber *paletteShortcut(NSEvent *event){
 - (void)mouseDragged:(NSEvent *)event {
     if(!self.enabled||!self.markers)return;
     NSPoint p=[self convertPoint:event.locationInWindow fromView:nil];
+    if(!self.draggingStop&&hypot(p.x-self.stopDragOrigin.x,p.y-self.stopDragOrigin.y)<3)return;
     unsigned position=(unsigned)lround(fmax(0,fmin(32767,(p.x-paletteMarkerInset)*32767/fmax(1,self.bounds.size.width-2*paletteMarkerInset))));
-    if(self.moved)self.moved(self.selected,position,NO);
+    self.draggingStop=YES;if(self.moved)self.moved(self.selected,position,NO);
 }
 - (void)mouseUp:(NSEvent *)event {
-    (void)event;if(self.enabled&&self.markers&&self.moved)self.moved(self.selected,self.palette.stops[self.selected].position,YES);
+    (void)event;BOOL dragged=self.draggingStop;self.draggingStop=NO;
+    if(dragged&&self.enabled&&self.markers&&self.moved)self.moved(self.selected,self.palette.stops[self.selected].position,YES);
 }
 @end
 
@@ -706,8 +720,8 @@ static NSUInteger animationLegacyMaterialSize(NSUInteger size){
     if(size==prefix+24||size==prefix+32||size==prefix+40)return prefix;
     return 0;
 }
-static BOOL animationOptionsSize(NSUInteger size){return size==sizeof(RenderOptions)||size==offsetof(RenderOptions,translucency_mode)||size==offsetof(RenderOptions,translucency_glow)||size==offsetof(RenderOptions,transmission_blur)||animationLegacyMaterialSize(size)||size==offsetof(RenderOptions,cutting_colors)||size==offsetof(RenderOptions,cutting)||size==offsetof(RenderOptions,stepcount)||size==offsetof(RenderOptions,gamma)||size==offsetof(RenderOptions,preserved_header_valid)||size==offsetof(RenderOptions,retired_indirect_strength_override)||size==offsetof(RenderOptions,retired_indirect_override)||size==offsetof(RenderOptions,position)||size==offsetof(RenderOptions,ssao_override)||size==offsetof(RenderOptions,rotation4_override)||size==offsetof(RenderOptions,fog_override)||size==offsetof(RenderOptions,reflections_override)||size==offsetof(RenderOptions,reflections)+offsetof(ReflectionSettings,opacity_set);}
-static RenderOptions animationUnpack(NSData *data){RenderOptions options={0};NSUInteger legacy=animationLegacyMaterialSize(data.length);if(legacy)memcpy(&options,data.bytes,legacy);else if(animationOptionsSize(data.length))memcpy(&options,data.bytes,data.length);if(data.length<=offsetof(RenderOptions,gamma)&&options.preserved_header_valid){uint32_t bits;memcpy(&bits,options.preserved_header+476,4);options.gamma=(CFSwapInt32LittleToHost(bits)>>23)&63;options.gamma_override=1;}for(int i=6;i<8;i++)options.program.slots[i]=formula_slot_default(0);if(options.program.repeat_from>5)options.program.repeat_from=0;if(options.program.repeat2>5)options.program.repeat2=5;if(options.program.split>5)options.program.split=5;options.retired_indirect_override=options.retired_indirect_enabled=options.retired_indirect_strength_override=0;options.retired_indirect_strength=0;if(!options.translucency_mode){options.translucency_mode=1+(options.transmission_blur>0||options.translucency_glow!=0);if(options.translucency_mode==1)options.transmission_blur=1;}options.cancel_token=NULL;options.navigation_count=0;options.reuse_surface=options.preview_cache=0;return options;}
+static BOOL animationOptionsSize(NSUInteger size){return size==sizeof(RenderOptions)||size==offsetof(RenderOptions,subsurface_amount)||size==offsetof(RenderOptions,subsurface_scattering)||size==offsetof(RenderOptions,translucency_mode)||size==offsetof(RenderOptions,translucency_glow)||size==offsetof(RenderOptions,transmission_blur)||animationLegacyMaterialSize(size)||size==offsetof(RenderOptions,cutting_colors)||size==offsetof(RenderOptions,cutting)||size==offsetof(RenderOptions,stepcount)||size==offsetof(RenderOptions,gamma)||size==offsetof(RenderOptions,preserved_header_valid)||size==offsetof(RenderOptions,retired_indirect_strength_override)||size==offsetof(RenderOptions,retired_indirect_override)||size==offsetof(RenderOptions,position)||size==offsetof(RenderOptions,ssao_override)||size==offsetof(RenderOptions,rotation4_override)||size==offsetof(RenderOptions,fog_override)||size==offsetof(RenderOptions,reflections_override)||size==offsetof(RenderOptions,reflections)+offsetof(ReflectionSettings,opacity_set);}
+static RenderOptions animationUnpack(NSData *data){RenderOptions options={0};NSUInteger legacy=animationLegacyMaterialSize(data.length);if(legacy)memcpy(&options,data.bytes,legacy);else if(animationOptionsSize(data.length))memcpy(&options,data.bytes,data.length);if(data.length<=offsetof(RenderOptions,gamma)&&options.preserved_header_valid){uint32_t bits;memcpy(&bits,options.preserved_header+476,4);options.gamma=(CFSwapInt32LittleToHost(bits)>>23)&63;options.gamma_override=1;}for(int i=6;i<8;i++)options.program.slots[i]=formula_slot_default(0);if(options.program.repeat_from>5)options.program.repeat_from=0;if(options.program.repeat2>5)options.program.repeat2=5;if(options.program.split>5)options.program.split=5;options.retired_indirect_override=options.retired_indirect_enabled=options.retired_indirect_strength_override=0;options.retired_indirect_strength=0;if(!options.translucency_mode){options.translucency_mode=1+(options.transmission_blur>0||options.translucency_glow!=0);if(options.translucency_mode==1)options.transmission_blur=1;}if(data.length<=offsetof(RenderOptions,subsurface_amount))options.subsurface_amount=1;options.cancel_token=NULL;options.navigation_count=0;options.reuse_surface=options.preview_cache=0;return options;}
 static void animationPut32(unsigned char *p,uint32_t n){for(int i=0;i<4;i++)p[i]=(unsigned char)(n>>(8*i));}
 static uint32_t animationRead32(const unsigned char *p){return p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24;}
 #include "render_history.h"
@@ -942,6 +956,7 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
 @property(nonatomic,strong) NSArray<NSTextField *> *cuttingColorFields;
 @property(nonatomic,strong) NSPopUpButton *colorStopMenu,*objectColorsMenu;
 @property(nonatomic,strong) NSPasteboard *palettePasteboard;
+@property(nonatomic,strong) id colorStopKeyMonitor;
 @property(nonatomic,strong) NSTextField *colorPosition,*colorStatus;
 @property(nonatomic,strong) NSColorWell *colorDiffuseWell,*colorSpecularWell;
 @property(nonatomic,strong) NSButton *glueColors,*updateColors;
@@ -980,7 +995,9 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
 @property(nonatomic,strong) NSWindow *postWindow;
 @property(nonatomic,strong) NSArray<NSTextField *> *reflectionFields;
 @property(nonatomic,strong) NSSlider *reflectionAmountSlider,*translucencyGlowSlider,*translucencyStrengthSlider;
-@property(nonatomic,strong) NSButton *translucencyCheck;
+@property(nonatomic,strong) NSButton *translucencyCheck,*subsurfaceCheck;
+@property(nonatomic,strong) NSSlider *subsurfaceAmountSlider;
+@property(nonatomic,strong) NSTextField *subsurfaceAmountField;
 @property(nonatomic) BOOL glowPreviewBusy,glowPreviewPending,glowCacheReady;
 @property(nonatomic) RenderOptions glowCacheOptions;
 @property(nonatomic,copy) NSString *glowCacheSourcePath;
@@ -996,7 +1013,7 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
 @property(nonatomic) BOOL hardShadowsApplied,ambientShadowsApplied,resettingHardShadows,resettingAmbientShadows;
 @property(nonatomic,strong) NSArray<NSArray<NSSlider *> *> *lightSliders;
 @property(nonatomic) NSUInteger lightingPreviewGeneration;
-@property(nonatomic) BOOL lightingPreviewPending,lightingPreviewBusy,lightingSliderTracking,lightingRepaintRequested,cuttingColorRepaintPending,preserveNavigatorForLighting;
+@property(nonatomic) BOOL lightingPreviewPending,lightingPreviewBusy,lightingSliderTracking,lightingRepaintRequested,gammaRepaint,cuttingColorRepaintPending,preserveNavigatorForLighting;
 @property(nonatomic,strong) NSWindow *navigatorWindow;
 @property(nonatomic,strong) NSSegmentedControl *navigatorTabControl;
 @property(nonatomic,strong) NSPopUpButton *navigatorFormulaMenu,*navigatorFormulaRange;
@@ -1219,6 +1236,7 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
     }];
 }
 - (void)applicationWillTerminate:(NSNotification *)notification {
+    if(self.colorStopKeyMonitor){[NSEvent removeMonitor:self.colorStopKeyMonitor];self.colorStopKeyMonitor=nil;}
     releaseUserFileScopes();
     [self.renderHistory close];
     [self clearAnimationPlayback];
@@ -1304,7 +1322,7 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
     NSMutableArray *integerSteppers=[NSMutableArray array];int indices[]={2,3,6};double limits[]={256,15,31};
     for(int j=0;j<3;j++){NSStepper *step=[[NSStepper alloc]initWithFrame:NSMakeRect(232,j==0?3:j==1?63:93,19,28)];step.minValue=0;step.maxValue=limits[j];step.increment=1;step.tag=indices[j];step.target=self;step.action=@selector(calculationStepped:);step.accessibilityLabel=j==0?@"CPU Thread stepper":j==1?@"Smooth normals stepper":@"Stepcount stepper";[(j==0?settingsPanel:calculationPanel) addSubview:step];[integerSteppers addObject:step];}self.calculationSteppers=integerSteppers;
 #ifdef USE_RUST_ENGINE
-    self.cpuOnlyCheck=[NSButton checkboxWithTitle:@"CPU only" target:self action:@selector(cpuOnlyChanged:)];self.cpuOnlyCheck.frame=NSMakeRect(10,104,240,22);self.cpuOnlyCheck.toolTip=@"Disable GPU acceleration for all Rust rendering and post-processing. Applies to subsequent renders; press Render for a full comparison.";self.cpuOnlyCheck.hidden=YES;[settingsPanel addSubview:self.cpuOnlyCheck];mb3dx_rust_set_cpu_only(0);
+    self.cpuOnlyCheck=[NSButton checkboxWithTitle:@"CPU only" target:self action:@selector(cpuOnlyChanged:)];self.cpuOnlyCheck.frame=NSMakeRect(10,104,240,22);self.cpuOnlyCheck.toolTip=@"Disable GPU acceleration for rendering and post-processing. Applies to subsequent renders; press Render for a full comparison.";self.cpuOnlyCheck.hidden=YES;[settingsPanel addSubview:self.cpuOnlyCheck];mb3dx_rust_set_cpu_only(0);
 #endif
     self.calculationFields=fields;self.lastEditWidth=480;self.sizeAspect=4./3;
     self.imageSizeStepper=[[NSStepper alloc]initWithFrame:NSMakeRect(232,13,19,28)];self.imageSizeStepper.minValue=-1;self.imageSizeStepper.maxValue=1;self.imageSizeStepper.increment=1;self.imageSizeStepper.integerValue=0;self.imageSizeStepper.target=self;self.imageSizeStepper.action=@selector(stepImageSize:);self.imageSizeStepper.accessibilityLabel=@"Double or halve image dimensions";self.imageSizeStepper.toolTip=@"Up doubles both width and height; down halves both. DEStop+C follows the size change.";[panel addSubview:self.imageSizeStepper];
@@ -2240,7 +2258,7 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
     [self finishLightingSlider];
 }
 - (void)beginLightingSlider {
-    self.lightingSliderTracking=YES;
+    self.gammaRepaint=NO;self.lightingSliderTracking=YES;
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(finishLightingSlider) object:nil];
 }
 - (void)endLightingSlider {
@@ -2252,8 +2270,15 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
     if(self.cuttingColorRepaintPending){self.cuttingColorRepaintPending=NO;[self requestLightingPreview];return;}
     self.lightingPreviewGeneration++;self.lightingPreviewPending=NO;
     if(!self.calculating){self.lightingRepaintRequested=YES;[self calculate:nil];self.lightingRepaintRequested=NO;}
+    self.gammaRepaint=NO;
+}
+- (void)requestGammaPreview {
+    self.gammaRepaint=YES;[self queueLightingPreview];
 }
 - (void)requestLightingPreview {
+    self.gammaRepaint=NO;[self queueLightingPreview];
+}
+- (void)queueLightingPreview {
     if(self.parametersPendingRender)return;
     if(!self.formulaKnown||self.calculating)return;
     /* Give lighting edits priority over background Navigator refinement. */
@@ -2271,10 +2296,11 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
     options.reuse_surface=1;
     self.lightingPreviewPending=NO;self.lightingPreviewBusy=YES;
     BOOL saveLightingHistory=!self.lightingSliderTracking;
+    BOOL preserveReflections=self.gammaRepaint;
     NSUInteger generation=self.lightingPreviewGeneration,mainGeneration=self.generation;NSString *path=self.currentPath;
     self.lightingStatus.stringValue=@"Updating lighting and shadows…";
     dispatch_async(self.renderQueue,^{
-        unsigned char *sharp=NULL;RenderOptions repaint=options;repaint.reflections_override=1;repaint.reflections.enabled=0;RenderResult result=render_scene_capturing_sharp(path.fileSystemRepresentation,repaint,NULL,&sharp);result.settings.reflections=options.reflections;
+        unsigned char *sharp=NULL;RenderOptions repaint=options;repaint.reflections_override=1;repaint.reflections.enabled=preserveReflections?options.reflections.enabled:0;RenderResult result=render_scene_capturing_sharp(path.fileSystemRepresentation,repaint,NULL,&sharp);result.settings.reflections=options.reflections;
         interactiveUI(^{
             self.lightingPreviewBusy=NO;
             if((generation==self.lightingPreviewGeneration||self.lightingPreviewPending)&&mainGeneration==self.generation&&!self.calculating) {
@@ -2474,6 +2500,19 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
     self.translucencyCheck.toolTip=@"Calculate translucency during the reflection and transparency pass.";
     [panel addSubview:self.translucencyCheck];
     [controls addObject:self.translucencyCheck];
+    self.subsurfaceCheck=[NSButton checkboxWithTitle:@"Subsurface scattering" target:self action:@selector(subsurfaceChanged:)];
+    self.subsurfaceCheck.frame=NSMakeRect(16,314,198,24);
+    self.subsurfaceCheck.toolTip=@"Trace light through the material, with absorption and internal scattering. Adds light rays when enabled.";
+    [panel addSubview:self.subsurfaceCheck];[controls addObject:self.subsurfaceCheck];
+    NSTextField *sssLabel=[NSTextField labelWithString:@"Amount"];sssLabel.font=self.subsurfaceCheck.font;NSRect sssTitle=[self.subsurfaceCheck.cell titleRectForBounds:self.subsurfaceCheck.bounds];NSSize sssSize=sssLabel.intrinsicContentSize;sssLabel.frame=NSMakeRect(216,round(NSMinY(self.subsurfaceCheck.frame)+NSMidY(sssTitle)-sssSize.height/2),52,sssSize.height);[panel addSubview:sssLabel];
+    LiveSlider *sssAmount=[LiveSlider sliderWithValue:1 minValue:0 maxValue:1 target:self action:@selector(subsurfaceAmountChanged:)];
+    sssAmount.frame=NSMakeRect(272,313,106,26);sssAmount.continuous=YES;self.subsurfaceAmountSlider=sssAmount;
+    __weak AppDelegate *sssOwner=self;sssAmount.finished=^{[sssOwner recalculateSubsurface];};
+    sssAmount.toolTip=@"Higher amounts make the material scatter more strongly. Zero preserves ordinary translucency. Recalculates light paths when released.";
+    [panel addSubview:sssAmount];[controls addObject:sssAmount];
+    self.subsurfaceAmountField=[[NumericTextField alloc]initWithFrame:NSMakeRect(388,313,86,26)];
+    self.subsurfaceAmountField.target=self;self.subsurfaceAmountField.action=@selector(subsurfaceAmountEdited:);
+    self.subsurfaceAmountField.toolTip=sssAmount.toolTip;[panel addSubview:self.subsurfaceAmountField];[controls addObject:self.subsurfaceAmountField];
 
     NSArray *translucencyLabels=@[@"Strength",@"Glow"];
     NSArray *translucencyTips=@[@"Soften transmitted light and increase opacity on longer paths.",
@@ -2513,7 +2552,7 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
     self.reflectionTransparency=[NSButton checkboxWithTitle:@"Calculate transparency" target:self action:@selector(reflectionEdited:)];self.reflectionTransparency.toolTip=@"If enabled, the specular amount is split into an inside-going ray and a reflection.";self.reflectionTransparency.frame=NSMakeRect(16,125,238,24);[panel addSubview:self.reflectionTransparency];[controls addObject:self.reflectionTransparency];
     self.reflectionOnlyDIFS=[NSButton checkboxWithTitle:@"Only DIFS" target:self action:@selector(reflectionEdited:)];self.reflectionOnlyDIFS.frame=NSMakeRect(258,125,100,24);self.reflectionOnlyDIFS.toolTip=
 #ifdef USE_RUST_ENGINE
-    @"Limit transparency to direct-distance IFS surfaces. Reflections retain the Rust engine behavior.";
+    @"Limit transparency to direct-distance IFS surfaces.";
 #else
     @"Apply reflections and transparency only at direct-distance IFS surfaces; escape-time surfaces keep their original lighting.";
 #endif
@@ -2525,6 +2564,8 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
     self.reflectionOnlyDIFS.enabled=enabled;
     self.translucencyCheck.enabled=enabled;
     BOOL translucency=enabled&&self.translucencyCheck.state==NSControlStateValueOn;
+    self.subsurfaceCheck.enabled=translucency;
+    self.subsurfaceAmountSlider.enabled=self.subsurfaceAmountField.enabled=translucency&&self.subsurfaceCheck.state==NSControlStateValueOn;
     BOOL livePreview=translucency&&self.glowCacheReady&&!self.parametersPendingRender&&self.completedRender!=nil;
     self.translucencyStrengthSlider.enabled=livePreview;
     self.translucencyGlowSlider.enabled=livePreview;
@@ -2538,7 +2579,7 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
 }
 - (void)populateReflections {
     if(!self.reflectionFields.count)return;ReflectionSettings rf=self.formulaSettings.reflections;if(!rf.depth)rf=(ReflectionSettings){.depth=2,.amount=1,.absorption=.2,.refractive_index=1.5,.scattering=1};self.reflectionsApplied=rf.enabled;
-    self.reflectionAutomatic.state=rf.automatic;self.reflectionTransparency.state=rf.transparency;self.reflectionOnlyDIFS.state=rf.only_difs;self.reflectionDepth.integerValue=rf.depth;self.translucencyCheck.state=self.formulaSettings.translucency_mode==2;[self syncTransparencyControls];
+    self.reflectionAutomatic.state=rf.automatic;self.reflectionTransparency.state=rf.transparency;self.reflectionOnlyDIFS.state=rf.only_difs;self.reflectionDepth.integerValue=rf.depth;self.translucencyCheck.state=self.formulaSettings.translucency_mode==2;self.subsurfaceCheck.state=self.formulaSettings.subsurface_scattering?NSControlStateValueOn:NSControlStateValueOff;self.subsurfaceAmountSlider.doubleValue=self.formulaSettings.subsurface_amount;self.subsurfaceAmountField.doubleValue=self.formulaSettings.subsurface_amount;[self syncTransparencyControls];
     self.reflectionAmountSlider.maxValue=fmax(1,rf.amount);self.reflectionAmountSlider.doubleValue=rf.amount;[self syncPostProcessLabels];
     double strength=self.formulaSettings.translucency_mode?self.formulaSettings.transmission_blur:1;
     self.translucencyStrengthSlider.doubleValue=strength;
@@ -2547,7 +2588,7 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
 }
 - (BOOL)readReflections:(RenderOptions *)options {
     if(self.diffuseWells.count==10&&self.specularWells.count==10){if(!options->reflections.depth)options->reflections=(ReflectionSettings){.depth=2,.amount=1,.absorption=.2,.refractive_index=1.5,.scattering=1};options->reflections_override=1;options->reflections.opacity_set=1;for(int i=0;i<10;i++){options->reflections.opacity[0][i]=self.diffuseWells[i].color.alphaComponent;options->reflections.opacity[1][i]=self.specularWells[i].color.alphaComponent;}}
-    if(!self.reflectionFields.count){options->reflections.enabled=options->reflections.automatic;return YES;}ReflectionSettings previous=options->reflections;double values[7]={previous.amount,previous.depth,previous.absorption,previous.refractive_index,previous.scattering,options->transmission_blur,options->translucency_glow},low[]={0,1,0,.1,0,0,-1},high[]={100,30,1e10,10,1e30,2,1};
+    if(!self.reflectionFields.count){options->reflections.enabled=options->reflections.automatic||(self.gammaRepaint&&(self.lightingRepaintRequested||self.lightingPreviewPending)&&self.reflectionsApplied);return YES;}ReflectionSettings previous=options->reflections;double values[7]={previous.amount,previous.depth,previous.absorption,previous.refractive_index,previous.scattering,options->transmission_blur,options->translucency_glow},low[]={0,1,0,.1,0,0,-1},high[]={100,30,1e10,10,1e30,2,1};
     for(NSUInteger i=0;i<self.reflectionFields.count;i++){double value;
         NSScanner *scanner=[NSScanner scannerWithString:numericInputString(self.reflectionFields[i])];
         if(![scanner scanDouble:&value]||!scanner.isAtEnd||!isfinite(value)||value<low[i]||value>high[i]||(i==1&&value!=floor(value))){
@@ -2559,9 +2600,34 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
     options->translucency_mode=1+(self.translucencyCheck.state==NSControlStateValueOn);
     options->transmission_blur=values[5];
     options->translucency_glow=values[6];
-    options->reflections_override=1;options->reflections=(ReflectionSettings){.enabled=!self.resettingReflections&&(self.postProcessOnce==PostProcessReflections||([self resettingPostProcess]&&self.reflectionsApplied)||self.reflectionAutomatic.state==NSControlStateValueOn),.automatic=self.reflectionAutomatic.state==NSControlStateValueOn,.transparency=self.reflectionTransparency.state==NSControlStateValueOn,.only_difs=self.reflectionOnlyDIFS.state==NSControlStateValueOn,.depth=(int)values[1],.amount=values[0],.absorption=values[2],.refractive_index=values[3],.scattering=values[4]};options->reflections.opacity_set=previous.opacity_set;memcpy(options->reflections.opacity,previous.opacity,sizeof previous.opacity);return YES;
+    options->subsurface_scattering=self.subsurfaceCheck.state==NSControlStateValueOn;
+    double sssAmount;NSScanner *sssScanner=[NSScanner scannerWithString:numericInputString(self.subsurfaceAmountField)];
+    if(![sssScanner scanDouble:&sssAmount]||!sssScanner.isAtEnd||!isfinite(sssAmount)||sssAmount<0||sssAmount>1){
+        if(self.subsurfaceAmountField.enabled){self.statusLabel.stringValue=@"Subsurface Amount must be between 0 and 1.";return NO;}
+        sssAmount=isfinite(options->subsurface_amount)?fmax(0,fmin(1,options->subsurface_amount)):1;
+        self.subsurfaceAmountField.doubleValue=sssAmount;self.subsurfaceAmountSlider.doubleValue=sssAmount;
+    }
+    options->subsurface_amount=sssAmount;
+    options->reflections_override=1;options->reflections=(ReflectionSettings){.enabled=!self.resettingReflections&&(self.postProcessOnce==PostProcessReflections||([self resettingPostProcess]&&self.reflectionsApplied)||(self.gammaRepaint&&(self.lightingRepaintRequested||self.lightingPreviewPending)&&self.reflectionsApplied)||self.reflectionAutomatic.state==NSControlStateValueOn),.automatic=self.reflectionAutomatic.state==NSControlStateValueOn,.transparency=self.reflectionTransparency.state==NSControlStateValueOn,.only_difs=self.reflectionOnlyDIFS.state==NSControlStateValueOn,.depth=(int)values[1],.amount=values[0],.absorption=values[2],.refractive_index=values[3],.scattering=values[4]};options->reflections.opacity_set=previous.opacity_set;memcpy(options->reflections.opacity,previous.opacity,sizeof previous.opacity);return YES;
 }
 - (void)reflectionAction:(NSButton *)sender {self.resettingReflections=sender.tag==0;self.postProcessOnce=sender.tag?PostProcessReflections:PostProcessNone;[self calculate:nil];self.postProcessOnce=PostProcessNone;self.resettingReflections=NO;}
+- (void)recalculateSubsurface {
+    if(self.calculating)return;
+    RenderOptions settings=self.formulaSettings;if(![self readReflections:&settings])return;
+    self.formulaSettings=settings;self.glowCacheReady=NO;[self syncTransparencyControls];
+    self.postProcessOnce=PostProcessReflections;[self calculate:nil];self.postProcessOnce=PostProcessNone;
+}
+- (void)subsurfaceChanged:(NSButton *)sender {
+    (void)sender;if(self.calculating)return;
+    RenderOptions settings=self.formulaSettings;
+    settings.subsurface_scattering=self.subsurfaceCheck.state==NSControlStateValueOn;
+    self.formulaSettings=settings;self.glowCacheReady=NO;
+    [self syncTransparencyControls];
+}
+- (void)subsurfaceAmountChanged:(NSSlider *)sender {
+    self.subsurfaceAmountField.stringValue=[NSString stringWithFormat:@"%.4f",sender.doubleValue];
+}
+- (void)subsurfaceAmountEdited:(id)sender {(void)sender;[self recalculateSubsurface];}
 - (void)translucencyGlowChanged:(NSSlider *)sender {
     if(!sender.enabled)return;
     self.reflectionFields[6].stringValue=[NSString stringWithFormat:@"%.4f",sender.doubleValue];
@@ -2576,6 +2642,8 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
     RenderOptions options=self.glowCacheOptions;
     options.transmission_blur=self.reflectionFields[5].doubleValue;
     options.translucency_glow=self.reflectionFields[6].doubleValue;
+    options.subsurface_scattering=self.subsurfaceCheck.state==NSControlStateValueOn;
+    options.subsurface_amount=self.subsurfaceAmountField.doubleValue;
     if(!self.dofApplied&&self.dofFields.count){
         options.dof=self.formulaSettings.dof;
         options.dof_override=1;
@@ -2921,14 +2989,17 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
         CalculationPanel *panel=[[CalculationPanel alloc] initWithFrame:NSMakeRect(0,0,780,455)];self.colorWindow.contentView=panel;
         __weak AppDelegate *weakSelf=self;
         ((PaletteWindow *)self.colorWindow).stopCommand=^BOOL(NSInteger command){return [weakSelf performColorStopCommand:command];};
+        self.colorStopKeyMonitor=[NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown handler:^NSEvent *(NSEvent *event){
+            return [weakSelf handleColorStopKeyEvent:event window:event.window?:NSApp.keyWindow]?nil:event;
+        }];
         for(int row=0;row<2;row++) {
             NSTextField *label=[NSTextField labelWithString:row?@"Specular":@"Diffuse"];
             label.frame=NSMakeRect(16,16+row*88,120,22);[panel addSubview:label];
             PaletteView *bar=[[PaletteView alloc] initWithFrame:NSMakeRect(16,40+row*88,748,60)];bar.markers=YES;bar.specular=row;bar.showOpacityBand=YES;bar.enabled=YES;
             bar.accessibilityLabel=row?@"Specular palette stops":@"Diffuse palette stops";
             bar.clicked=^(NSInteger stop,BOOL pick){
-                AppDelegate *owner=weakSelf;[owner.colorStopMenu selectItemAtIndex:stop];[owner refreshPaletteViews];
-                if(pick){[(row?owner.colorSpecularWell:owner.colorDiffuseWell) activate:YES];[NSColorPanel.sharedColorPanel makeKeyAndOrderFront:nil];}
+                (void)pick;AppDelegate *owner=weakSelf;[owner.colorStopMenu selectItemAtIndex:stop];[owner refreshPaletteViews];
+                [owner showSelectedStopColor:row!=0];
             };
             bar.moved=^(NSInteger stop,unsigned position,BOOL finished){[weakSelf moveColorStop:stop position:position finished:finished];};
             bar.stopCommand=^BOOL(NSInteger command){return [weakSelf performColorStopCommand:command];};
@@ -2957,7 +3028,7 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
         }
         self.randomAmountSliders=amountSliders;
         self.randomReferences=references;self.randomAmounts=amounts;self.randomButtons=buttons;
-        self.colorStatus=[NSTextField wrappingLabelWithString:@"Drag a marker to move a stop; double-click to choose its color. Right-click for Copy and Paste commands (⌘C, ⌘V, ⌘G, ⌘B)."];
+        self.colorStatus=[NSTextField wrappingLabelWithString:@"Click a stop to select it and open its color picker; drag a marker to move it. Right-click for Copy and Paste commands (⌘C, ⌘V, ⌘G, ⌘B)."];
         self.colorStatus.frame=NSMakeRect(16,398,540,42);self.colorStatus.font=[NSFont systemFontOfSize:11];[panel addSubview:self.colorStatus];
         self.updateColors=[NSButton buttonWithTitle:@"Update Image" target:self action:@selector(calculate:)];self.updateColors.frame=NSMakeRect(580,402,184,32);[panel addSubview:self.updateColors];
         for(NSView *view in panel.subviews){NSRect frame=view.frame;frame.origin.y+=38;view.frame=frame;}
@@ -2978,6 +3049,14 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
     for(id channels in data){if(![channels isKindOfClass:NSArray.class]||[channels count]!=4)return nil;double c[4];for(int j=0;j<4;j++){id value=channels[j];if(![value isKindOfClass:NSNumber.class])return nil;c[j]=[value doubleValue];if(!isfinite(c[j])||c[j]<0||c[j]>1)return nil;}[colors addObject:[NSColor colorWithSRGBRed:c[0] green:c[1] blue:c[2] alpha:c[3]]];}
     return colors;
 }
+- (BOOL)handleColorStopKeyEvent:(NSEvent *)event window:(NSWindow *)window {
+    NSNumber *command=paletteShortcut(event);if(!command||!self.colorWindow.visible)return NO;
+    BOOL picker=window==NSColorPanel.sharedColorPanel&&(self.colorDiffuseWell.active||self.colorSpecularWell.active);
+    if(window!=self.colorWindow&&!picker)return NO;
+    BOOL editing=[window.firstResponder isKindOfClass:NSTextView.class]&&[(NSTextView *)window.firstResponder isFieldEditor];
+    if(editing&&command.integerValue<2)return NO;
+    return [self performColorStopCommand:command.integerValue];
+}
 - (BOOL)performColorStopCommand:(NSInteger)command {
     if(self.calculating||!self.formulaKnown||!self.colorWindow||command<0||command>3)return NO;
     NSInteger stop=self.colorStopMenu.indexOfSelectedItem;if(stop<0||stop>=10)return NO;
@@ -2992,7 +3071,19 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
     if(command==1||command==3)self.specularWells[stop].color=pair[1];
     [self refreshPaletteViews];[self paletteEdited:self.colorSpecularWell];return YES;
 }
-- (void)refreshColorSelection:(id)sender {(void)sender;[self refreshPaletteViews];}
+- (void)showSelectedStopColor:(BOOL)specular {
+    NSColorWell *well=specular?self.colorSpecularWell:self.colorDiffuseWell;
+    [well activate:YES];NSColorPanel *picker=NSColorPanel.sharedColorPanel;
+    picker.color=well.color;[picker makeFirstResponder:nil];[picker orderFront:nil];
+    // Selection owns the stop shortcuts. The picker remains immediately
+    // available for mouse editing without taking keyboard focus from the stop.
+    [self.colorWindow makeKeyWindow];
+    [self.colorWindow makeFirstResponder:specular?self.colorSpecularBar:self.colorDiffuseBar];
+}
+- (void)refreshColorSelection:(id)sender {
+    (void)sender;BOOL specular=self.colorSpecularWell.active;
+    [self refreshPaletteViews];[self showSelectedStopColor:specular];
+}
 - (void)refreshPaletteViews {
     if(!self.lightingWindow||!self.formulaKnown)return;
     if(!self.lightingUndoHistory.count)[self recordLightingRepaint:self.formulaSettings];
@@ -3225,6 +3316,9 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
         for(NSView *view in paletteViews){NSRect f=view.frame;f.origin.y+=34;view.frame=f;}
         [paletteViews addObject:self.coloringMode];
         for(NSView *view in panel.subviews)if([view isKindOfClass:NSTextField.class]&&[[(NSTextField *)view stringValue] isEqual:@"Mode"])[paletteViews addObject:view];
+        // Output/internal gamma apply to palette and map coloring alike.
+        [paletteViews removeObject:gamma];[paletteViews removeObject:gammaLabel];
+        [paletteViews removeObject:self.internalGammaCheck];
         self.paletteColoringViews=paletteViews;self.mapColoringViews=mapViews;
         NSMutableArray *choices=[NSMutableArray array];
         for(int i=0;i<2;i++){NSButton *choice=[NSButton radioButtonWithTitle:i?@"Map coloring":@"Palette coloring" target:self action:@selector(objectColoringChanged:)];choice.tag=i;choice.frame=NSMakeRect(96+i*190,12,180,26);[panel addSubview:choice];[choices addObject:choice];}self.objectColoringChoices=choices;
@@ -3507,7 +3601,7 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
     (void)sender;RenderOptions o=self.formulaSettings;if(!o.preserved_header_valid){NSString *message=nil;NSData *data=lightingFileScene(self.currentPath,o,&message);if(!data)return;memcpy(o.preserved_header,data.bytes,840);o.preserved_header_valid=1;}o.preserved_header[439]=(o.preserved_header[439]&~1)|(self.internalGammaCheck.state==NSControlStateValueOn?1:0);self.formulaSettings=o;[self finishLightingSlider];
 }
 - (void)gammaChanged:(NSSlider *)sender {
-    if(self.calculating)return;RenderOptions settings=self.formulaSettings;settings.gamma_override=1;settings.gamma=lround(sender.doubleValue);self.formulaSettings=settings;[self requestLightingPreview];
+    if(self.calculating)return;RenderOptions settings=self.formulaSettings;settings.gamma_override=1;settings.gamma=lround(sender.doubleValue);self.formulaSettings=settings;[self requestGammaPreview];
 }
 - (void)coloringModeChanged:(NSPopUpButton *)sender {
     if(self.calculating)return;NSInteger mode=sender.indexOfSelectedItem;
@@ -4067,10 +4161,10 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
 - (void)beginRenderPath:(NSString *)path options:(RenderOptions)options {
     self.glowCacheReady=NO;self.glowPreviewPending=NO;
     BOOL appliedNavigator=self.applyingNavigator;
-    BOOL omitReflections=self.lightingRepaintRequested;
+    BOOL omitReflections=self.lightingRepaintRequested&&!self.gammaRepaint;
     // Capture the reset scope before the action clears its synchronous flags.
     BOOL postProcessOnly=self.postProcessOnce||[self resettingPostProcess];
-    BOOL preserveNavigator=postProcessOnly||omitReflections||self.preserveNavigatorForLighting;
+    BOOL preserveNavigator=postProcessOnly||self.lightingRepaintRequested||self.preserveNavigatorForLighting;
     render_cancel(self.mainCancelToken);self.animationRunning=NO;self.animationRenderKind=0;self.animationStopRequested=NO;
     RenderCancelToken *token=render_cancel_create();self.mainCancelToken=token;options.cancel_token=token;
     if(!postProcessOnly){
@@ -4212,8 +4306,8 @@ typedef NS_ENUM(NSInteger, PostProcessEffect) {
 - (void)showMandelbulbSECredits:(id)sender {
     (void)sender;NSAlert *alert=[NSAlert new];alert.alertStyle=NSAlertStyleInformational;
     alert.messageText=@"Mandelbulb3D SE";
-    NSString *sourceURL=@"https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel4";
-    NSString *body=[@"Version 2.0.3\n\nSupport: https://greenoak-software.com/m3dse_support.html\n\nmacOS application, interface, and additional rendering features by Glenn Olander.\nwww.facebook.com/RodrigoSpacecraft\n\nBased on Mandelbulb3D, originally developed by Jesse, with contributions from the Mandelbulb3D community.\n\nRendering engine adapted from mb3d-rs by Sebastian Paluch.\n\nIncludes formulas by their respective authors.\n\nPrivacy policy: https://greenoak-software.com/PrivacyPolicy.html\n\nSource code: " stringByAppendingString:sourceURL];
+    NSString *sourceURL=@"https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel5";
+    NSString *body=[@"Version 2.0.4\n\nSupport: https://greenoak-software.com/m3dse_support.html\n\nmacOS application, interface, and additional rendering features by Glenn Olander.\nwww.facebook.com/RodrigoSpacecraft\n\nBased on Mandelbulb3D, originally developed by Jesse, with contributions from the Mandelbulb3D community.\n\nRendering engine adapted from mb3d-rs by Sebastian Paluch.\n\nIncludes formulas by their respective authors.\n\nPrivacy policy: https://greenoak-software.com/PrivacyPolicy.html\n\nSource code: " stringByAppendingString:sourceURL];
     NSTextView *credits=[[NSTextView alloc]initWithFrame:NSMakeRect(0,0,560,240)];
     credits.editable=NO;credits.selectable=YES;credits.drawsBackground=NO;
     credits.textContainerInset=NSZeroSize;credits.textContainer.lineFragmentPadding=0;

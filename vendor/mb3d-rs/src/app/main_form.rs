@@ -1,6 +1,8 @@
 //! The main window (Mand.pas, `TMand3DForm`).
 
 use super::engine::Job;
+use super::main_camera::{self, CameraCopy};
+use super::main_se;
 use super::util::{fts, fts_single, parse_float, pti, ptf, time_str};
 use super::{Mb3d, MAIN};
 use crate::math::{build_rot_matrix, mat_mul, matrix_to_angles, normalise_matrix_to, rotate_vector_reverse};
@@ -36,12 +38,16 @@ const PRESET_FILES: [&str; 4] = ["preset_preview.txt", "preset_video.txt", "pres
 
 pub struct State {
     pub image_scale: i32,
+    camera_copy: Option<CameraCopy>,
+    sampling: i32,
+    history_paths: Vec<PathBuf>,
     pub presets: [Preset; 4],
     pub slice_calc: u8,
     pub calculating: bool,
     pub calc3d: bool,
     pub img_ver: u64,
     pub finished_seen: u64,
+    pub repaint_running: bool,
     pub last_partial: Instant,
     pub calc_start: Instant,
     /// the stage the window shows and when it began, for the time left
@@ -90,12 +96,16 @@ impl Default for State {
     fn default() -> Self {
         State {
             image_scale: 1,
+            camera_copy: None,
+            sampling: 1,
+            history_paths: Vec::new(),
             presets: ACC_PRESETS,
             slice_calc: 2,
             calculating: false,
             calc3d: false,
             img_ver: 0,
             finished_seen: 0,
+            repaint_running: false,
             last_partial: Instant::now(),
             calc_start: Instant::now(),
             stage_shown: String::new(),
@@ -129,6 +139,9 @@ impl Default for State {
 
 /// The program's version as it is shown (title bar, main window).
 pub fn version_str() -> String {
+    if cfg!(feature = "se-desktop") {
+        return format!("Mandelbulb3D SE {}", option_env!("MB3D_SE_BUILD").unwrap_or("Windows prototype"));
+    }
     format!("mb3d-rs {}", env!("CARGO_PKG_VERSION"))
 }
 
@@ -144,10 +157,16 @@ fn set(ui: &mut Ui, c: &str, s: &str) {
 /// program's version stays at the right of the title bar (also while a
 /// calculation shows its state in the caption), so a screenshot tells it.
 pub fn set_caption(app: &Mb3d, ui: &mut Ui) {
-    let cap = if app.title.is_empty() { "Mandelbulb 3D".to_string() } else { app.title.clone() };
+    let name = if cfg!(feature = "se-desktop") { "Mandelbulb3D SE" } else { "Mandelbulb 3D" };
+    let cap = if app.title.is_empty() { name.to_string() } else { app.title.clone() };
     let f = ui.fm(F);
     f.set_caption(&cap);
-    f.caption_right = version_str();
+    let version = version_str();
+    f.caption_right = if cfg!(feature = "se-desktop") {
+        format!("{} Beta 1", version.split(" (").next().unwrap_or(&version))
+    } else {
+        version
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -156,8 +175,15 @@ pub fn set_caption(app: &Mb3d, ui: &mut Ui) {
 
 /// FormCreate, SetM3Dini, FirstShowUpdate and LoadStartupParas.
 pub fn start(app: &mut Mb3d, ui: &mut Ui) {
-    app.message(ui, "Welcome to Mandelbulb 3D!");
-    app.message(ui, "Visit the official web site for news and updates: https://mb3d.overwhale.com");
+    if cfg!(feature = "se-desktop") {
+        main_se::configure(ui);
+        ui.set_active_page(F, "PageControl1", "TabSheet2");
+        app.message(ui, "Mandelbulb3D SE for Windows");
+        app.message(ui, "Windows prototype based on the mb3d-rs desktop interface.");
+    } else {
+        app.message(ui, "Welcome to Mandelbulb 3D!");
+        app.message(ui, "Visit the official web site for news and updates: https://mb3d.overwhale.com");
+    }
     app.message(ui, "");
     ui.set_caption(F, "Label3", &version_str());
     let cpus = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).min(64) as i64;
@@ -205,20 +231,32 @@ pub fn start(app: &mut Mb3d, ui: &mut Ui) {
         ui.set_position(F, "UpDown3", n);
         set(ui, "Edit21", &n.to_string());
     }
+    if cfg!(feature = "se-desktop") {
+        let n=app.ini.get("ThreadCount").parse::<i64>().unwrap_or(0).clamp(0,256);
+        ui.set_position(F,"UpDown3",n);
+        set(ui,"Edit21",&n.to_string());
+    }
     app.main.authors[0] = app.ini.get("Author").to_string();
+    if cfg!(feature = "se-desktop") { main_se::sync_thread_controls(ui); }
     // StickOption: Lighting bits 0-1, Formulas 4-5, Post processing 6-7
     let j = app.ini.get("StickOption").trim().parse::<u32>().unwrap_or(81);
     app.main.sticky = [((j >> 4) & 3) as u8, (j & 3) as u8, ((j >> 6) & 3) as u8];
     // window position and size of the last session
     let (l, tp) = super::ini::two_ints(app.ini.get("m3dPos"), (65, 100));
-    let (w, h) = super::ini::two_ints(app.ini.get("m3dSize"), (779, 671));
+    let default_size = if cfg!(feature = "se-desktop") { (1016, 778) } else { (779, 671) };
+    let saved_size = app.ini.get("m3dSize");
+    let (w, h) = if cfg!(feature = "se-desktop") && saved_size == "779 671" {
+        default_size
+    } else {
+        super::ini::two_ints(saved_size, default_size)
+    };
     {
         let f = ui.fm(F);
         f.left = l;
         f.top = tp;
         f.position = "poDesigned".into();
-        f.ctl[0].width = (w - 16).max(400);
-        f.ctl[0].height = (h - 38).max(300);
+        f.ctl[0].width = (w - 16).max(400).max(f.ctl[0].min_w);
+        f.ctl[0].height = (h - 38).max(300).max(f.ctl[0].min_h);
     }
     // FirstShowUpdate
     ui.cm(F, "RadioGroup2").hint = "Panorama mode:\n- The FOV is choosen automatically\n- Use the 24bit SSAO or DEAO for ambient shadows\n- A 2:1 aspect ratio is recommended, but not necessary.".into();
@@ -262,8 +300,10 @@ pub fn start(app: &mut Mb3d, ui: &mut Ui) {
     set_caption(app, ui);
     page_control1_change(app, ui);
     ui.show(F);
-    ui.show("LightAdjustForm");
-    ui.show("FormulaGUIForm");
+    if !cfg!(feature = "se-desktop") {
+        ui.show("LightAdjustForm");
+        ui.show("FormulaGUIForm");
+    }
     if start_timer && app.eng.base().is_none() {
         // Timer1: a first 2D calculation of the start parameters
         app.main.slice_calc = 2;
@@ -345,6 +385,11 @@ pub enum Led {
 /// Sets the LED's colour; it blinks while a calculation runs.
 pub fn show_led(ui: &mut Ui, led: Led, blinking: bool) {
     let f = ui.fm(F);
+    if cfg!(feature = "se-desktop") {
+        f.caption_led = None;
+        f.led_blink = false;
+        return;
+    }
     let col = Some(match led {
         Led::Idle => 0x808080,
         Led::Gpu => 0x30E040,
@@ -407,6 +452,10 @@ fn running_led(app: &Mb3d) -> Option<Led> {
 // ---------------------------------------------------------------------------
 
 fn set_euler_edits(app: &Mb3d, ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") {
+        main_camera::show_rotation(ui, app.scene.vgrads);
+        return;
+    }
     match matrix_to_angles(&app.scene.vgrads) {
         Some(v) => {
             set(ui, "Edit27", &fts(v[0] / PID180));
@@ -496,7 +545,11 @@ pub fn set_edits_from_header(app: &mut Mb3d, ui: &mut Ui) {
     set(ui, "Edit22", &fts(sc.cut_pos[2]));
     set(ui, "Edit23", &fts(sc.cut_pos[0]));
     set(ui, "Edit24", &fts(sc.cut_pos[1]));
-    ui.set_caption(F, "SpeedButton35", &format!("1:{}", app.main.image_scale));
+    if cfg!(feature = "se-desktop") {
+        main_se::sampling_readout(ui, app.main.sampling);
+    } else {
+        ui.set_caption(F, "SpeedButton35", &format!("1:{}", app.main.image_scale));
+    }
     ui.set_checked(F, "CheckBox4", sc.cut_options & 1 != 0);
     ui.set_checked(F, "CheckBox5", sc.cut_options & 2 != 0);
     ui.set_checked(F, "CheckBox6", sc.cut_options & 4 != 0);
@@ -540,6 +593,11 @@ pub fn make_header(app: &mut Mb3d, ui: &mut Ui) {
     sc.mid = [ptf(&t(ui, "Edit9")), ptf(&t(ui, "Edit10")), ptf(&t(ui, "Edit17"))];
     sc.zoom = ptf(&t(ui, "Edit5"));
     sc.fov_y = ptf(&t(ui, "Edit14"));
+    if cfg!(feature = "se-desktop") {
+        if let Some(rotation) = main_camera::edited_rotation(ui, sc.vgrads) {
+            sc.vgrads = rotation;
+        }
+    }
     sc.cut_pos = [ptf(&t(ui, "Edit23")), ptf(&t(ui, "Edit24")), ptf(&t(ui, "Edit22"))];
     sc.cut_options = ui.checked(F, "CheckBox4") as u8 | (ui.checked(F, "CheckBox5") as u8) << 1 | (ui.checked(F, "CheckBox6") as u8) << 2;
     sc.de_stop = ptf(&t(ui, "Edit25")).max(0.001);
@@ -561,13 +619,16 @@ pub fn make_header(app: &mut Mb3d, ui: &mut Ui) {
         });
     }
     let n = ui.position(F, "UpDown3").clamp(1, 64) as usize;
-    sc.threads = if n == std::thread::available_parallelism().map(|n| n.get()).unwrap_or(0) { 0 } else { n };
+    sc.threads = if cfg!(feature = "se-desktop") {
+        pti(&t(ui,"Edit21")).clamp(0,256) as usize
+    } else if n == std::thread::available_parallelism().map(|n| n.get()).unwrap_or(0) { 0 } else { n };
 }
 
 /// `PageControl1Change`: tab captions show active options.
 pub fn page_control1_change(_app: &Mb3d, ui: &mut Ui) {
     let julia = ui.checked(F, "CheckBox7");
     ui.cm(F, "TabSheet9").caption = if julia { "Julia On".into() } else { "Julia Off".into() };
+    if cfg!(feature = "se-desktop") { main_se::update_scene_pages(ui); }
     let cut = ui.checked(F, "CheckBox4") || ui.checked(F, "CheckBox5") || ui.checked(F, "CheckBox6");
     ui.cm(F, "TabSheet8").caption = if cut { "Cutting*".into() } else { "Cutting".into() };
 }
@@ -611,29 +672,56 @@ const CALC_BUTTONS: [&str; 22] = [
 ];
 
 pub fn disable_buttons(app: &mut Mb3d, ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") {
+        ui.set_enabled(F, "CameraPaste", false);
+        ui.set_enabled("PostProForm", "SePostTabs", false);
+        for button in ["SeHistory", "SeActualSize", "SpeedButton35", "Button8", "Button3"] {
+            ui.set_enabled(F, button, false);
+        }
+    }
     for b in CALC_BUTTONS {
         ui.set_enabled(F, b, false);
     }
     ui.set_enabled(F, "SpeedButton9", false);
     ui.set_caption(F, "Button2", "Stop");
+    if cfg!(feature = "se-desktop") { ui.cm(F, "Button2").default = false; }
     ui.cm(F, "Button2").hint = "Stop the current calculation.".into();
     ui.cm(F, "Image1").cursor = "crHourGlass".into();
     ui.set_position(F, "ProgressBar1", 0);
+    if cfg!(feature="se-desktop") { ui.set_visible(F,"ProgressBar1",true); }
+    ui.set_enabled(F, "Button2", true);
     app.main.calculating = true;
 }
 
 pub fn enable_buttons(app: &mut Mb3d, ui: &mut Ui) {
+    app.main.calculating = false;
+    if cfg!(feature = "se-desktop") {
+        ui.set_enabled(F, "CameraPaste", app.main.camera_copy.is_some());
+        ui.set_enabled("PostProForm", "SePostTabs", true);
+        ui.set_enabled(F, "SeHistory", true);
+        ui.set_enabled(F, "SpeedButton35", true);
+        set_image_actions(app, ui);
+    }
     ui.set_caption(F, "Label6", "");
-    ui.set_caption(F, "Button2", "Calculate 3D");
-    ui.cm(F, "Button2").hint = "Sart the main rendering of the image.".into();
+    ui.set_caption(F, "Button2", if cfg!(feature = "se-desktop") { "Render" } else { "Calculate 3D" });
+    ui.cm(F, "Button2").hint = "Start the main rendering of the image.".into();
+    if cfg!(feature = "se-desktop") { ui.cm(F, "Button2").default = true; }
     for b in CALC_BUTTONS {
         ui.set_enabled(F, b, true);
     }
     let undo_ok = app.main.undo.len() > 1;
     ui.set_enabled(F, "SpeedButton9", undo_ok);
     ui.set_visible(F, "ProgressBar1", false);
-    app.main.calculating = false;
     set_image_cursor(app, ui);
+}
+
+pub(super) fn begin_navigator_cut_pick(app: &mut Mb3d, ui: &mut Ui) {
+    if app.main.calculating || app.eng.base().is_none() { return; }
+    app.main.get_pos = if app.main.get_pos == 23 { 0 } else { 23 };
+    let picking = app.main.get_pos == 23;
+    ui.set_caption("FNavigator", "SeCutPick", if picking { "Click the main image" } else { "Get values from image" });
+    set_image_cursor(app, ui);
+    if picking { ui.show(F); }
 }
 
 fn set_image_cursor(app: &Mb3d, ui: &mut Ui) {
@@ -748,13 +836,25 @@ pub fn calc_mand(app: &mut Mb3d, ui: &mut Ui, calc3d: bool) {
     if calc3d {
         store_undo(app);
     }
-    if app.scene.width < 1 || app.scene.height < 1 {
+    let mut render = app.scene.clone();
+    if cfg!(feature = "se-desktop") && calc3d {
+        let sampling = app.main.sampling;
+        let Some((width, height)) = render.width.checked_mul(sampling)
+            .zip(render.height.checked_mul(sampling)) else {
+            app.message(ui, "Render dimensions are too large.");
+            return;
+        };
+        render.width = width;
+        render.height = height;
+        render.render_sampling = sampling as u8;
+    }
+    if render.width < 1 || render.height < 1 {
         return;
     }
     // the whole picture is held here (with the swarm too): one that does
     // not fit would only swap until the system stops the program
     if calc3d {
-        if let Err(e) = crate::render::check_memory(app.scene.width as usize, app.scene.height as usize) {
+        if let Err(e) = crate::render::check_memory(render.width as usize, render.height as usize) {
             app.message(ui, &format!("Not calculated: {e}.\n\nBig render (Tools tab) calculates it in tiles saved one by one, without holding the whole picture (with the swarm too)."));
             return;
         }
@@ -770,7 +870,7 @@ pub fn calc_mand(app: &mut Mb3d, ui: &mut Ui, calc3d: bool) {
     }
     ui.set_visible(F, "ProgressBar1", calc3d);
     if calc3d {
-        ui.set_caption(F, "Label6", "main rendering");
+        ui.set_caption(F, "Label6", if cfg!(feature = "se-desktop") { "Geometry" } else { "main rendering" });
         #[cfg(feature = "gpu")]
         crate::gpu::set_status(String::new());
         app.main.led_running = true;
@@ -779,10 +879,10 @@ pub fn calc_mand(app: &mut Mb3d, ui: &mut Ui, calc3d: bool) {
     let slice = if calc3d { 0 } else { app.main.slice_calc.clamp(1, 3) };
     if let (true, Some(dir)) = (calc3d, super::swarm_form::calc_folder(app)) {
         let (cols, rows) = app.swarm.tiles;
-        app.eng.start(Job::Swarm { scene: app.scene.clone(), dir, cols, rows, name: app.swarm.name.clone() });
+        app.eng.start(Job::Swarm { scene: render, dir, cols, rows, name: app.swarm.name.clone() });
         return;
     }
-    start_calc(app, ui, app.scene.clone(), slice);
+    start_calc(app, ui, render, slice);
 }
 
 /// Starts the calculation of `sc`; when an unfinished calculation of it
@@ -842,30 +942,15 @@ pub fn scene_loaded(app: &mut Mb3d, ui: &mut Ui) {
 }
 
 fn run_calc(app: &mut Mb3d, sc: Scene, slice: u8, resume: crate::checkpoint::Policy) {
-    app.eng.set_preview_step(app.main.image_scale.max(1) as usize);
+    app.eng.set_preview_step(if cfg!(feature = "se-desktop") { sc.render_sampling as usize } else { app.main.image_scale.max(1) as usize });
     app.eng.start(Job::Calc { scene: sc, slice, resume, name: stem(&app.title) });
 }
 
-/// "hard shadows: 40 %, about 2 min left": the stage, its progress and,
-/// once the rate is known, the time left.
-fn stage_caption(stage: &str, f: f64, secs: f64) -> String {
-    if f <= 0.0 {
-        return stage.to_string();
-    }
-    let pct = format!("{stage}: {} %", (f * 100.0).floor() as i64);
-    if secs < 3.0 || f < 0.02 || f >= 1.0 {
-        return pct;
-    }
-    let left = (secs * (1.0 - f) / f).round() as i64;
-    let t = match left {
-        0..=59 => format!("{} s", left.max(1)),
-        60..=3599 => format!("{} min", (left + 30) / 60),
-        _ => format!("{} h {} min", left / 3600, left % 3600 / 60),
-    };
-    format!("{pct}, about {t} left")
+/// The current rendering phase and its percentage.
+fn stage_caption(stage: &str, f: f64, _secs: f64) -> String {
+    if f <= 0.0 { stage.to_string() } else { format!("{stage}: {} %", (f * 100.0).floor() as i64) }
 }
 
-/// Polls the engine (MB3D's Timer4 / WM_ThreadReady).
 pub fn idle(app: &mut Mb3d, ui: &mut Ui) {
     let (ver, finished, running, stage, err, stats) = {
         let o = app.eng.0.out.lock().unwrap();
@@ -883,15 +968,25 @@ pub fn idle(app: &mut Mb3d, ui: &mut Ui) {
             app.message(ui, COMPILE_NOTE);
         }
     }
-    if app.main.calculating {
+    if cfg!(feature = "se-desktop") && running && !app.main.calculating {
+        if !app.main.repaint_running {
+            app.main.stage_shown.clear();
+        }
+        app.main.repaint_running = true;
+        ui.set_caption(F, "Button2", "Stop");
+        ui.set_enabled(F, "Button2", true);
+    }
+    if app.main.calculating || (cfg!(feature = "se-desktop") && running) {
+        if cfg!(feature = "se-desktop") { ui.set_visible(F, "ProgressBar1", true); }
         let f = app.eng.progress();
         ui.set_position(F, "ProgressBar1", (f * ui.c(F, "ProgressBar1").max as f32) as i64);
-        if !stage.is_empty() && app.main.calc3d {
+        if !stage.is_empty() && (app.main.calc3d || cfg!(feature = "se-desktop")) {
             if stage != app.main.stage_shown {
                 app.main.stage_shown = stage.clone();
                 app.main.stage_start = Instant::now();
             }
-            ui.set_caption(F, "Label6", &stage_caption(&stage, f as f64, app.main.stage_start.elapsed().as_secs_f64()));
+            let label = if cfg!(feature = "se-desktop") { main_se::stage_name(&stage) } else { &stage };
+            ui.set_caption(F, "Label6", &stage_caption(label, f as f64, app.main.stage_start.elapsed().as_secs_f64()));
         }
         // the rows calculated so far (MB3D shows the image while it grows)
         let iv = if app.scene.width * app.scene.height > 2_000_000 { 900 } else { 300 };
@@ -905,10 +1000,22 @@ pub fn idle(app: &mut Mb3d, ui: &mut Ui) {
     }
     if ver != app.main.img_ver {
         app.main.img_ver = ver;
+        if cfg!(feature = "se-desktop") {
+            if let Some(base) = app.eng.base() {
+                app.main.image_scale = i32::from(base.scene.render_sampling);
+            }
+        }
         show_image(app, ui);
     }
     if finished != app.main.finished_seen && !running {
         app.main.finished_seen = finished;
+        if cfg!(feature = "se-desktop") {
+            app.main.repaint_running = false;
+            ui.set_visible(F, "ProgressBar1", false);
+            ui.set_caption(F, "Button2", "Render");
+            let text=app.eng.0.out.lock().unwrap().info_text.clone();
+            if err.is_empty() && !text.is_empty() { ui.set_text(F,"SeRenderInfo",&text); }
+        }
         if app.main.calculating {
             enable_buttons(app, ui);
             if app.main.led_running {
@@ -949,7 +1056,16 @@ pub fn idle(app: &mut Mb3d, ui: &mut Ui) {
                 let ao = if stats.stages.ao_with_shadows { "with HS".to_string() } else { stage(stats.stages.ao) };
                 ui.set_caption(F, "Label48", &ao);
                 ui.set_caption(F, "Label50", &stage(stats.stages.reflections.map(Some)));
-                let _ = secs;
+                if cfg!(feature = "se-desktop") {
+                    if let Some(base) = app.eng.base() {
+                        if let Some(path) = crate::appdirs::store_history(&base.scene, &stem(&app.title)) {
+                            if let Some((rgb, width, height)) = &app.main.rgb {
+                                main_se::save_history_thumbnail(&path, rgb, *width, *height);
+                            }
+                        }
+                    }
+                    ui.set_caption(F, "Label6", &format!("Rendered in {secs:.2} s"));
+                }
                 if let Some(p) = app.main.auto_m3i.take() {
                     save_m3i(app, ui, &p);
                 }
@@ -960,6 +1076,7 @@ pub fn idle(app: &mut Mb3d, ui: &mut Ui) {
                 super::tools_forms::batch_finished(app, ui);
             }
         }
+        super::postpro_form::sync_se_tabs(app, ui);
         super::light_form::calc_finished(app, ui);
     }
     // the history keeps the parameters after lighting changes (Timer2)
@@ -990,6 +1107,26 @@ pub fn show_image(app: &mut Mb3d, ui: &mut Ui) {
             clear_screen(app, ui);
         }
     }
+    if cfg!(feature = "se-desktop") {
+        set_image_actions(app, ui);
+    }
+}
+
+fn set_image_actions(app: &Mb3d, ui: &mut Ui) {
+    let ready = app.main.rgb.is_some() && !app.main.calculating;
+    ui.set_enabled(F, "SeActualSize", ready);
+    ui.set_enabled(F, "Button3", ready);
+    ui.set_enabled(F, "Button8", ready && app.eng.base().is_some());
+}
+
+pub(super) fn reset_sampling(app: &mut Mb3d) {
+    let sampling = i32::from(app.scene.render_sampling).clamp(1, 6);
+    let sampling = if app.scene.width % sampling == 0 && app.scene.height % sampling == 0 { sampling } else { 1 };
+    app.main.sampling = sampling;
+    app.main.image_scale = sampling;
+    app.scene.width /= sampling;
+    app.scene.height /= sampling;
+    app.scene.render_sampling = 1;
 }
 
 fn denoised(rgb: &[u8], w: usize, h: usize, sigma: f32) -> Vec<u8> {
@@ -1052,12 +1189,16 @@ fn clear_screen(app: &mut Mb3d, ui: &mut Ui) {
 /// `ParasChanged`: the hint on the image.
 fn paras_changed(app: &mut Mb3d, ui: &mut Ui) {
     app.main.image_text = true;
-    ui.set_caption(F, "Label6", "Press 'Calculate 3D' to render");
+    ui.set_caption(F, "Label6", if cfg!(feature = "se-desktop") { "Settings changed. Press Render." } else { "Press 'Calculate 3D' to render" });
 }
 
 pub fn update_scale(app: &mut Mb3d, ui: &mut Ui, scale: i32) {
     app.main.image_scale = scale.clamp(1, 10);
-    ui.set_caption(F, "SpeedButton35", &format!("1:{}", app.main.image_scale));
+    if cfg!(feature = "se-desktop") {
+        main_se::sampling_readout(ui, app.main.sampling);
+    } else {
+        ui.set_caption(F, "SpeedButton35", &format!("1:{}", app.main.image_scale));
+    }
     match app.main.rgb.clone() {
         Some((rgb, w, h)) => set_image(app, ui, rgb, w, h),
         None => {
@@ -1077,6 +1218,32 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
     let h = e.handler.as_str();
     match h {
         "Button2Click" => button2_click(app, ui),
+        "SeSceneControls" => ui.popup_menu(F, "SeSceneMenu", "SeSceneControls", 0, 24),
+        "SeSceneItem" => main_se::show_scene_page(ui, ui.tag(F, &e.sender) as usize),
+        "SeAutoThreads" => main_se::sync_thread_controls(ui),
+        "SeThreadCountChange" | "SeThreadCountExit" => {
+            if let Ok(n)=t(ui,"Edit21").parse::<i64>() {
+                ui.set_position(F,"UpDown3",n.clamp(0,256));
+                if h=="SeThreadCountExit" { set(ui,"Edit21",&n.clamp(0,256).to_string()); }
+            } else if h=="SeThreadCountExit" { set(ui,"Edit21","0");ui.set_position(F,"UpDown3",0); }
+        },
+        "SeMaps" => main_se::open_asset_folder(app, ui, false),
+        "SeBackgrounds" => main_se::open_asset_folder(app, ui, true),
+        "SeActualSize" => main_se::actual_size(ui),
+        "SeAppMenu" | "SeAbout" => super::about_se::show(ui),
+        "SeHistory" => app.main.history_paths = main_se::show_history(ui),
+        "SeHistoryDown" if matches!(e.ev, Ev::MouseDown { button: MouseButton::Left, .. }) => app.main.history_paths = main_se::show_history(ui),
+        "SeHistoryItem" if !app.main.calculating => {
+            if let Some(path) = app.main.history_paths.get(ui.tag(F, &e.sender) as usize).cloned() {
+                match app.load_params(ui, &path) {
+                    Ok(()) => {
+                        show_image(app, ui);
+                        button2_click(app, ui);
+                    }
+                    Err(error) => app.message(ui, &error),
+                }
+            }
+        }
         "CalcOnComboChange" => {
             let i = ui.item_index(F, "CalcOnCombo") as i64;
             set_calc_on(app, ui, i);
@@ -1138,9 +1305,25 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             let v = !ui.visible(F, "RotationPnl");
             ui.set_visible(F, "RotationPnl", v);
         }
+        "CameraAngleChange" => paras_changed(app, ui),
+        "CameraCopy" => {
+            if let Some(camera) = CameraCopy::read(ui, app.scene.vgrads) {
+                app.main.camera_copy = Some(camera);
+                ui.set_enabled(F, "CameraPaste", !app.main.calculating);
+            } else {
+                app.message(ui, "Enter finite Camera values before copying.");
+            }
+        }
+        "CameraPaste" if !app.main.calculating => {
+            if let Some(camera) = &app.main.camera_copy {
+                app.scene.vgrads = camera.restore(ui);
+                set_euler_edits(app, ui);
+                button2_click(app, ui);
+            }
+        }
         "SpeedButton30Click" => {
             if ui.caption(F, "SpeedButton30") == "click image" {
-                ui.set_caption(F, "SpeedButton30", "get midpoint");
+                ui.set_caption(F, "SpeedButton30", if cfg!(feature = "se-desktop") { "Get mid" } else { "get midpoint" });
                 app.main.get_pos = 0;
                 set_image_cursor(app, ui);
             } else {
@@ -1206,14 +1389,18 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
         }
         "N111Click" => {
             let s = ui.tag(F, &e.sender) as i32;
-            update_scale(app, ui, s);
+            if cfg!(feature = "se-desktop") {
+                change_sampling(app, ui, s.clamp(1, 6));
+            } else {
+                update_scale(app, ui, s);
+            }
         }
         "UpDown2Click" => {
             if let Ev::UpDown { up } = e.ev {
                 app.scene.tiling = None;
                 let (w, h) = (pti(&t(ui, "Edit11")), pti(&t(ui, "Edit12")));
                 app.main.user_change = false;
-                let (w2, h2) = if up { (w * 2, h * 2) } else { ((w / 2).max(1), (h / 2).max(1)) };
+                let (w2, h2) = if up { (w.saturating_mul(2), h.saturating_mul(2)) } else { ((w / 2).max(1), (h / 2).max(1)) };
                 // with "keep aspect" the height follows the kept ratio, so halving
                 // an odd height and doubling it again does not change the shape
                 let h2 = if ui.checked(F, "CheckBox10") { ((w2 as f64 / app.main.intern_aspect).round() as i32).max(1) } else { h2 };
@@ -1224,6 +1411,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
                 scale_rclip(ui, s);
                 app.scene.width = pti(&t(ui, "Edit11"));
                 app.scene.height = pti(&t(ui, "Edit12"));
+                if cfg!(feature = "se-desktop") { main_se::sampling_readout(ui, app.main.sampling); }
                 app.main.user_change = true;
             }
         }
@@ -1306,7 +1494,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
                 set_brush_size(ui, if delta < 0 { w - 2 } else { w + 2 });
             }
         }
-        "FormMouseWheel" => {
+        "FormMouseWheel" if !cfg!(feature = "se-desktop") => {
             if let Ev::Wheel { delta, x, y, .. } = e.ev {
                 let r = ui.ctl_rect(F, "ScrollBox1");
                 if r.contains(x, y) {
@@ -1418,7 +1606,9 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
         }
         "Button9Click" => {
             let o = crate::vcl::dialogs::FileOptions {
-                filter: "M3D Image + Parameter (*.m3i)|*.m3i".into(),
+                filter: if cfg!(feature = "se-desktop") {
+                    "Mandelbulb3D scenes (*.m3i; *.m3p)|*.m3i;*.m3p"
+                } else { "M3D Image + Parameter (*.m3i)|*.m3i" }.into(),
                 initial_dir: Some(app.ini.dir(super::ini::DIR_M3I)),
                 preview: true,
                 ..Default::default()
@@ -1461,9 +1651,11 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             match crate::m3p::raw_from_text(&text).and_then(|(raw, title)| crate::m3p::parse(&raw).map(|m| (m, title))) {
                 Ok((m, title)) => {
                     app.scene = m.scene;
+                    if cfg!(feature = "se-desktop") { reset_sampling(app); }
                     app.title = title;
                     app.eng.clear();
                     text_pars_load_success(app, ui);
+                    if cfg!(feature = "se-desktop") { button2_click(app, ui); }
                     for n in m.warnings {
                         app.message(ui, &n);
                     }
@@ -1513,6 +1705,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
         }
         "FormResize" => {
             place_sticky(app, ui, None, false);
+            if cfg!(feature = "se-desktop") { return; }
             let ph = ui.c(F, "Panel1").height;
             let mt = ui.c(F, "Memo1").top;
             let p4 = ui.c(F, "Panel4").height;
@@ -1543,7 +1736,9 @@ fn form_close(app: &mut Mb3d, ui: &mut Ui) {
     // a swarm worker gives its unit up; another computer takes it
     super::swarm_form::stop_worker(app, true);
     app.make_scene(ui);
-    crate::appdirs::store_history(&app.scene, &stem(&app.title));
+    if !cfg!(feature = "se-desktop") {
+        crate::appdirs::store_history(&app.scene, &stem(&app.title));
+    }
     let f = ui.f(F);
     let (w, h) = f.outer_size(&ui.theme);
     let (l, tp) = (f.left, f.top);
@@ -1551,7 +1746,8 @@ fn form_close(app: &mut Mb3d, ui: &mut Ui) {
     app.ini.set("m3dSize", &format!("{} {}", w + 16 - 2 * f.frame_w(), h + 38 - 2 * f.frame_w() - f.caption_h(&ui.theme)));
     app.ini.set("ScaleDEstop", if ui.checked(F, "CheckBox11") { "1" } else { "0" });
     app.ini.set("ThreadPriority", &if ui.checked(F, "CheckBox15") { ui.item_index(F, "ComboBox2").to_string() } else { "-1".into() });
-    app.ini.set("ThreadCount", &if ui.checked(F, "CheckBox12") { "Auto".into() } else { ui.position(F, "UpDown3").to_string() });
+    let threads=if cfg!(feature="se-desktop") { pti(&t(ui,"Edit21")).clamp(0,256) as i64 } else if ui.checked(F,"CheckBox12") { 0 } else { ui.position(F,"UpDown3") };
+    app.ini.set("ThreadCount", &if threads==0 { "Auto".into() } else { threads.to_string() });
     app.ini.set("MandRotDeg", &t(ui, "Edit4"));
     app.ini.set("SavePNGtextPars", if ui.checked(F, "CheckBox13") { "Yes" } else { "No" });
     app.ini.set("DisableTBoost", if ui.checked(F, "CheckBox14") { "Yes" } else { "No" });
@@ -1562,7 +1758,7 @@ fn form_close(app: &mut Mb3d, ui: &mut Ui) {
 
 fn button2_click(app: &mut Mb3d, ui: &mut Ui) {
     crate::maps::set_current_frame(pti(&t(ui, "FrameEdit")).max(1));
-    if ui.caption(F, "Button2") == "Stop" {
+    if app.main.calculating || app.eng.running() || ui.caption(F, "Button2") == "Stop" {
         app.eng.stop();
         super::voxel_form::stop(app);
         super::tools_forms::stop_tiling(app);
@@ -1576,9 +1772,10 @@ fn button2_click(app: &mut Mb3d, ui: &mut Ui) {
     }
     app.main.image_text = false;
     app.scene.stereo_mode = 0;
-    app.make_scene(ui);
-    let title = stem(&app.title);
-    crate::appdirs::store_history(&app.scene, &title);
+    if !cfg!(feature = "se-desktop") {
+        app.make_scene(ui);
+        crate::appdirs::store_history(&app.scene, &stem(&app.title));
+    }
     calc_mand(app, ui, true);
 }
 
@@ -1623,6 +1820,12 @@ fn speed_button3_click(app: &mut Mb3d, ui: &mut Ui, sender: &str) {
     update_scale(app, ui, p.image_scale.clamp(1, 5));
 }
 
+fn change_sampling(app: &mut Mb3d, ui: &mut Ui, factor: i32) {
+    app.main.sampling = factor;
+    main_se::sampling_readout(ui, factor);
+    paras_changed(app, ui);
+}
+
 fn edit11_change(app: &mut Mb3d, ui: &mut Ui, sender: &str) {
     if !app.main.user_change {
         return;
@@ -1662,6 +1865,7 @@ fn edit11_change(app: &mut Mb3d, ui: &mut Ui, sender: &str) {
         app.scene.height = h;
     }
     app.scene.tiling = None;
+    if cfg!(feature = "se-desktop") { main_se::sampling_readout(ui, app.main.sampling); }
 }
 
 /// The rotation buttons: left click turns around the viewer's axes, right
@@ -1735,12 +1939,21 @@ fn image_mouse_down(app: &mut Mb3d, ui: &mut Ui, ev: &Ev) {
                             ui.set_text("PostProForm", "Edit10", &fts_single(z));
                             ui.set_caption("PostProForm", "Button18", "Get Z2");
                         }
+                        super::postpro_form::sync_se_sliders(ui);
                     }
                 }
             }
             2 => {
                 if let Some((p, _)) = pick {
                     super::light_form::set_pos_light_from_image(app, ui, p);
+                }
+            }
+            23 => {
+                ui.set_caption("FNavigator", "SeCutPick", "Get values from image");
+                if let Some((position, _)) = pick {
+                    super::navi_form::set_cutting(app, ui, position);
+                } else {
+                    app.message(ui, "No object at this point.");
                 }
             }
             3 | 6 | 22 => {
@@ -1762,7 +1975,7 @@ fn image_mouse_down(app: &mut Mb3d, ui: &mut Ui, ev: &Ev) {
                             set(ui, "Edit3", &fts(p[2] + ze));
                             set(ui, "Edit9", &fts(p[0]));
                             set(ui, "Edit10", &fts(p[1]));
-                            ui.set_caption(F, "SpeedButton30", "get midpoint");
+                            ui.set_caption(F, "SpeedButton30", if cfg!(feature = "se-desktop") { "Get mid" } else { "get midpoint" });
                         }
                         _ => {
                             set(ui, "Edit23", &fts(p[0]));
@@ -2072,6 +2285,7 @@ pub fn dialog(app: &mut Mb3d, ui: &mut Ui, what: &str, r: &DialogResult) {
                         app.message(ui, "Parameters loaded, press \"Calculate 3D\" to render.");
                     }
                     show_image(app, ui);
+                    if cfg!(feature = "se-desktop") && app.eng.base().is_none() { button2_click(app, ui); }
                 }
                 Err(e) => app.message(ui, &e),
             }
@@ -2142,4 +2356,10 @@ pub fn dialog(app: &mut Mb3d, ui: &mut Ui, what: &str, r: &DialogResult) {
         }
         _ => {}
     }
+}
+
+#[cfg(test)] mod se_windows_progress_tests {
+ #[test] fn se_windows_progress_has_no_time_estimate() {
+  assert_eq!(super::stage_caption("Reflections",0.5,60.0),"Reflections: 50 %");
+ }
 }

@@ -67,7 +67,7 @@ impl Sample for u16 {
 }
 
 /// One light source (`TLight8`, global lights only).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Light {
     pub on: bool,
     pub color: [u8; 3],
@@ -121,7 +121,7 @@ impl Default for Light {
 }
 
 /// A surface colour of the palette (`TLCol8`).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PaletteColor {
     pub position: u16,
     pub diffuse: [u8; 3],
@@ -131,7 +131,7 @@ pub struct PaletteColor {
 /// The lighting record. The scalar values use MB3D's trackbar units so that
 /// they map one-to-one to `TLightingParas9.TBpos[]` (phase 2 reads them from
 /// .m3p files).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Lighting {
     pub lights: [Light; 6],
     /// `AmbCol` / `AmbCol2`
@@ -1659,6 +1659,8 @@ impl LightVals {
         let mut spe_out = [0f32; 3];
         let mut spe_a = 0f32;
         let mut dif_out = [0f32; 3];
+        let mut specular_light = [0f32; 3];
+        let mut depth_fog_light = [0f32; 3];
 
         let mut out: SVec;
         let mut dtmp;
@@ -1779,7 +1781,8 @@ impl LightVals {
             };
             iamb = sv_mul(iamb, idif);
             let dif_s = sv_scale(idif, s_diff); // LiLSDAI[0]
-            let total = sv_add(sv_add(iamb, sv_mul(dif_s, li_dif)), sv_mul(ispe, li_spe)); // [1]
+            specular_light = sv_mul(ispe, li_spe);
+            let total = sv_add(sv_add(iamb, sv_mul(dif_s, li_dif)), specular_light); // [1]
             if !self.ex_mode {
                 // CalcTotalLight1
                 let l3 = sv_add(iamb, sv_scale(sv_mul(dif_s, li_amb), d_amb_sh * if sqr { 0.11 } else { 0.3 }));
@@ -1838,11 +1841,13 @@ impl LightVals {
                 dfog = dfog.max(0.0);
             }
             let mut dtmp3 = (ir * self.s_dyn_fog_mul).min(1.0) * dfog;
-            out = sv_add(out, sv_scale(dep_c, (1.0 - dtmp).max(0.0)));
+            depth_fog_light=sv_scale(dep_c,(1.0-dtmp).max(0.0));
+            out = sv_add(out, depth_fog_light);
             if self.dfog_options & 1 != 0 {
                 dfog = dfog.clamp(0.0, 1.0);
                 dtmp3 = dtmp3.clamp(0.0, 1.0);
                 out = sv_scale(out, 1.0 - dfog);
+                depth_fog_light=sv_scale(depth_fog_light,1.0-dfog);
                 result = sv_scale(result, 1.0 - dfog);
             }
             out = sv_add(
@@ -1922,6 +1927,7 @@ impl LightVals {
                         * (1.0 - transp)
                         * (1.0 - fog_at);
                     let damb = (k * self.s_dyn_fog_mul).min(1.0) * dfog;
+                    depth_fog_light=sv_add(sv_scale(depth_fog_light,transp),sv_scale(dep_c,fog_at*(1.0-transp)));
                     out = sv_add(
                         sv_add(sv_scale(out, transp), sv_scale(dep_c, fog_at * (1.0 - transp))),
                         sv_add(
@@ -1946,10 +1952,10 @@ impl LightVals {
                 let emitted=emission.color[c]*strength;
                 let radiance=if self.sqr{emitted*emitted}else{emitted};
                 out[c]=out[c]*receive+255.*radiance+255.*received[c]*crate::emission::ILLUMINATION_GAIN+255.*dif_out[c]*self.s_diff*emission.bounce[c]*receive;
-                spe_out[c]*=receive;
+                spe_out[c]*=receive;depth_fog_light[c]*=receive;
             }
         }
-        Shaded { light: out, result, spe: spe_out, spe_a, dif: dif_out }
+        Shaded { light: out, result, spe: spe_out, spe_a, dif: dif_out, specular_light, depth_fog_light }
     }
 }
 
@@ -1997,6 +2003,9 @@ pub(crate) struct ShadeOpts<'a> {
 pub(crate) struct Shaded {
     /// light, 0..255 scale (not clipped)
     pub(crate) light: SVec,
+    pub(crate) specular_light: SVec,
+    /// Atmospheric depth fog, separate from the surface/material illumination.
+    pub(crate) depth_fog_light: SVec,
     /// share of the light that passes the fogs and visible lights
     pub(crate) result: SVec,
     /// specular colour and its alpha, diffuse colour of the surface

@@ -168,10 +168,15 @@ pub fn radio_items(f: &Form, id: Id) -> Vec<Rect> {
 /// list is drawn inside the window: below the box, or above it when it
 /// does not fit below; when it fits neither, it gets the larger side and
 /// shows as many rows as fit (it scrolls).
+pub fn combo_item_height(f:&Form,id:Id)->i32 {
+    let text=line_height(&f.font(id))+2;
+    if f.ctl[id].item_pictures.is_empty(){text}else{text.max(f.ctl[id].item_height)}
+}
+
 pub fn combo_list_rect(f: &Form, id: Id) -> Rect {
     let c = &f.ctl[id];
     let r = f.abs_rect(id);
-    let ih = line_height(&f.font(id)) + 2;
+    let ih = combo_item_height(f,id);
     let n = (c.items.len() as i32).clamp(1, c.drop_down_count.max(1));
     let (_, fh) = f.client_size();
     let (below, above) = (fh - r.bottom(), r.y);
@@ -186,16 +191,25 @@ pub fn combo_list_rect(f: &Form, id: Id) -> Rect {
         (fits(below), false)
     };
     let h = rows * ih + 2;
-    Rect::new(r.x, if up { r.y - h } else { r.bottom() }, r.w.max(40), h)
+    let width = if c.collapsed_text.is_some() {
+        c.items.iter().map(|text| f.measure(&f.font(id), text) + 30).max().unwrap_or(r.w).max(r.w).min(f.client_size().0)
+    } else { r.w.max(40) };
+    Rect::new(r.x.min((f.client_size().0 - width).max(0)), if up { r.y - h } else { r.bottom() }, width, h)
 }
 
 /// The rows the drop-down list of a combo box shows at once.
 pub fn combo_rows(f: &Form, id: Id) -> i32 {
-    (combo_list_rect(f, id).h - 2) / (line_height(&f.font(id)) + 2)
+    (combo_list_rect(f, id).h - 2) / combo_item_height(f,id)
 }
 
 pub const MENU_ITEM_H: i32 = 22;
 pub const MENU_SEP_H: i32 = 9;
+
+fn menu_row_height(control: &super::control::Control) -> i32 {
+    if control.caption == "-" { MENU_SEP_H }
+    else { control.item_height.max(control.picture.as_ref().map_or(MENU_ITEM_H, |image| MENU_ITEM_H.max(image.h as i32 + 6))) }
+}
+
 
 /// Visible items of a menu (popup menu or menu item children).
 pub fn menu_items(f: &Form, parent: Id) -> Vec<Id> {
@@ -209,23 +223,23 @@ pub fn menu_size(f: &Form, parent: Id) -> (i32, i32) {
     let mut h = 4;
     for k in menu_items(f, parent) {
         let c = &f.ctl[k];
-        if c.caption == "-" {
-            h += MENU_SEP_H;
-        } else {
-            w = w.max(f.measure(&font, &strip_amp(&c.caption)) + 60);
-            h += MENU_ITEM_H;
+        h += menu_row_height(c);
+        if c.caption != "-" {
+            let image_width = c.picture.as_ref().map_or(if c.name.starts_with("SeFormulaChoice") && c.item_height==38 {40}else{0}, |image| image.w as i32 + 8);
+            w = w.max(f.measure(&font, &strip_amp(&c.caption)) + 60 + image_width);
         }
     }
+    if f.ctl[parent].name == "SeFormulaMenu" { w = w.min(280); }
     (w, h)
 }
 
 /// Item rectangles of a menu level (form coordinates).
 pub fn menu_item_rects(f: &Form, lv: &MenuLevel) -> Vec<(Id, Rect)> {
-    let mut y = lv.rect.y + 2;
+    let mut y = lv.rect.y + 2 - lv.scroll;
     menu_items(f, lv.parent)
         .into_iter()
         .map(|k| {
-            let h = if f.ctl[k].caption == "-" { MENU_SEP_H } else { MENU_ITEM_H };
+            let h = menu_row_height(&f.ctl[k]);
             let r = Rect::new(lv.rect.x + 2, y, lv.rect.w - 4, h);
             y += h;
             (k, r)
@@ -325,7 +339,7 @@ impl Form {
 
     fn paint_ctl(&self, cv: &mut Canvas, th: &Theme, id: Id) {
         let r = self.abs_rect(id);
-        let old = cv.clip_to(r);
+        let old = cv.clip_to(if self.ctl[id].hover_bezel{r.inset(-3)}else{r});
         if !cv.clip_empty() {
             self.paint_self(cv, th, id, r);
         }
@@ -357,7 +371,7 @@ impl Form {
         match c.kind {
             Kind::Form | Kind::TabSheet | Kind::GridPanel => {
                 let bg = self.bg(id, th);
-                if c.kind == Kind::TabSheet && !th.glossy() && c.color.is_none() {
+                if c.transparent {} else if c.kind == Kind::TabSheet && !th.glossy() && c.color.is_none() {
                     cv.fill(r, th.v("tab.body.bg"));
                 } else {
                     th.fill_face(cv, r, bg);
@@ -395,7 +409,11 @@ impl Form {
                 let st = BtnState { hot, pressed, enabled: en, focused, default: c.default, ..Default::default() };
                 th.button(cv, r, st);
                 let off = if pressed && !th.glossy() { 1 } else { 0 };
-                cv.text_in(r.inset(2).offset(off, off), &strip_amp(&c.caption), &font, th.button_text(&st), HAlign::Center, VAlign::Center, c.word_wrap);
+                let text_rect = if c.popup_button { Rect::new(r.x+2,r.y+2,r.w-22,r.h-4) } else { r.inset(2) };
+                cv.text_in(text_rect.offset(off, off), &strip_amp(&c.caption), &font, th.button_text(&st), HAlign::Center, VAlign::Center, c.word_wrap);
+                if c.popup_button {
+                    th.arrow(cv, Rect::new(r.right()-18,r.y+2,14,r.h-4),Dir::Down,th.button_text(&st));
+                }
             }
             Kind::SpeedButton => self.paint_speed_button(cv, th, id, r, en, hot, pressed),
             Kind::ColorButton => {
@@ -452,9 +470,14 @@ impl Form {
                 let br = Rect::new(r.right() - 18, r.y + 1, 17, r.h - 2);
                 let open = matches!(self.popup, Some(Popup::Combo { id: pid, .. }) if pid == id);
                 th.small_button(cv, br, Some(Dir::Down), BtnState { hot: hot && self.hot_part == PART_BUTTON, pressed: open, enabled: en, ..Default::default() });
-                let tr = Rect::new(inner.x + 1, inner.y, br.x - inner.x - 2, inner.h);
+                let mut tr = Rect::new(inner.x + 1, inner.y, br.x - inner.x - 2, inner.h);
+                if let Some(Some(picture))=c.item_pictures.get(c.item_index.max(0) as usize) {
+                    let size=(tr.h-2).min(24).max(1);
+                    cv.image_stretch(Rect::new(tr.x+2,tr.y+1,size,size),picture,true);
+                    tr.x+=size+6;tr.w-=size+6;
+                }
                 if c.style == "csDropDownList" || c.style == "csOwnerDrawFixed" {
-                    let text = c.item_text();
+                    let text = c.collapsed_text.clone().unwrap_or_else(|| c.item_text());
                     let col = c.item_colors.get(c.item_index.max(0) as usize).copied().flatten().unwrap_or(tc);
                     if focused && !open {
                         th.selection(cv, tr, true);
@@ -532,7 +555,19 @@ impl Form {
             }
             Kind::ProgressBar => {
                 let range = (c.max - c.min).max(1) as f32;
-                th.progress(cv, r, (c.position - c.min) as f32 / range, c.vertical);
+                let fraction=((c.position-c.min) as f32/range).clamp(0.,1.);
+                if c.circular_progress {
+                    let size=r.w.min(r.h);let circle=Rect::new(r.x+(r.w-size)/2,r.y+(r.h-size)/2,size,size);
+                    cv.ellipse(circle,Some(th.face()),Some(th.text_disabled()));
+                    if fraction>0. {
+                        let cx=circle.x as f32+size as f32/2.;let cy=circle.y as f32+size as f32/2.;
+                        let radius=(size as f32/2.-2.).max(0.);
+                        let steps=(fraction*64.).ceil() as usize;
+                        let mut points=vec![(cx,cy)];
+                        for i in 0..=steps {let angle=-std::f32::consts::FRAC_PI_2+std::f32::consts::TAU*fraction*i as f32/steps as f32;points.push((cx+radius*angle.cos(),cy+radius*angle.sin()));}
+                        cv.polygon(&points,th.highlight());
+                    }
+                }else{th.progress(cv,r,fraction,c.vertical);}
             }
             Kind::ScrollBar => {
                 let hp = if hot { self.hot_part } else { PART_NONE };
@@ -548,28 +583,35 @@ impl Form {
                 }
             }
             Kind::Image => {
+                if c.hover_bezel&&hot&&en {th.bevel(cv,r.inset(-3),true);}
                 if let Some(p) = &c.picture {
                     let (pw, ph) = (p.w as i32, p.h as i32);
                     if c.device_pixels {
-                        let (x0, y0) = (cv.dx(r.x), cv.dy(r.y));
-                        cv.image_dev(x0, y0, pw, ph, p, false);
-                    } else if c.stretch || (c.proportional && (pw > r.w || ph > r.h)) {
-                        let dr = if c.proportional {
-                            let s = (r.w as f32 / pw as f32).min(r.h as f32 / ph as f32);
-                            let (w, h) = ((pw as f32 * s) as i32, (ph as f32 * s) as i32);
-                            if c.center {
-                                Rect::new(r.x + (r.w - w) / 2, r.y + (r.h - h) / 2, w, h)
-                            } else {
-                                Rect::new(r.x, r.y, w, h)
-                            }
-                        } else {
-                            r
-                        };
-                        cv.image_stretch(dr, p, true);
-                    } else if c.center {
-                        cv.image(r.x + (r.w - pw) / 2, r.y + (r.h - ph) / 2, p);
+                        cv.image_dev(cv.dx(r.x), cv.dy(r.y), pw, ph, p, false);
                     } else {
-                        cv.image(r.x, r.y, p);
+                        let stretch = c.stretch || (c.proportional && (pw > r.w || ph > r.h));
+                        let (w, h) = if stretch && c.proportional && pw > 0 && ph > 0 {
+                            let scale = (r.w as f32 / pw as f32).min(r.h as f32 / ph as f32);
+                            ((pw as f32 * scale) as i32, (ph as f32 * scale) as i32)
+                        } else if stretch {
+                            (r.w, r.h)
+                        } else {
+                            (pw, ph)
+                        };
+                        let (x, y) = if c.center { (r.x + (r.w - w) / 2, r.y + (r.h - h) / 2) } else { (r.x, r.y) };
+                        if stretch {
+                            cv.image_stretch(Rect::new(x, y, w, h), p, true);
+                        } else {
+                            cv.image(x, y, p);
+                        }
+                        if let Some(color) = c.image_text_color.filter(|_| !c.caption.is_empty()) {
+                            let font = Font { height: -14, bold: true, ..font.clone() };
+                            let outline = if color == 0xFF00_0000 { 0xFFFF_FFFF } else { 0xFF00_0000 };
+                            for (ox, oy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                                cv.text(x + 8 + ox, y + 6 + oy, &c.caption, &font, outline);
+                            }
+                            cv.text(x + 8, y + 6, &c.caption, &font, color);
+                        }
                     }
                 }
             }
@@ -919,21 +961,22 @@ impl Form {
         let buttons = c.style == "tsButtons" || c.style == "tsFlatButtons";
         let rects = self.tab_rects(id);
         let bottom = rects.iter().map(|(_, rr)| rr.bottom()).max().unwrap_or(0);
-        th.fill_face(cv, r, self.bg(id, th));
-        if !buttons {
+        if !c.transparent { th.fill_face(cv, r, self.bg(id, th)); }
+        if !buttons && !c.transparent {
             th.tab_body(cv, Rect::new(r.x, r.y + bottom, r.w, r.h - bottom));
         }
         let sel_key = if c.kind == Kind::PageControl { c.active_page.unwrap_or(usize::MAX) } else { c.tab_index.max(-1) as usize };
         for (i, (key, tr)) in rects.iter().enumerate() {
             let sel = *key == sel_key;
-            let hot = self.hot == Some(id) && self.hot_part == i as i32 && self.enabled(id);
+            let enabled = self.enabled(id) && (c.kind != Kind::PageControl || self.ctl[*key].enabled);
+            let hot = self.hot == Some(id) && self.hot_part == i as i32 && enabled;
             let mut tr = tr.offset(r.x, r.y);
             if sel && !buttons {
                 tr = Rect::new(tr.x - 2, tr.y - 2, tr.w + 4, tr.h + 3);
             }
             th.tab(cv, tr, sel, hot, buttons);
             let text = if c.kind == Kind::PageControl { strip_amp(&self.ctl[*key].caption) } else { strip_amp(&c.tabs[*key]) };
-            let col = if !self.enabled(id) { th.text_disabled() } else if buttons && (sel || hot) && th.glossy() { th.v("button.active.text") } else { th.tab_text(sel) };
+            let col = if !enabled { th.text_disabled() } else if buttons && (sel || hot) && th.glossy() { th.v("button.active.text") } else { th.tab_text(sel) };
             cv.text_in(tr, &text, font, col, HAlign::Center, VAlign::Center, false);
         }
     }
@@ -1011,10 +1054,10 @@ impl Form {
     pub(crate) fn listview_rows(&self, id: Id) -> (i32, i32, i32, i32, i32) {
         let font = self.font(id);
         let hh = line_height(&font) + 8;
-        let rh = line_height(&font) + 6;
+        let c = &self.ctl[id];
+        let rh = if c.images.is_empty() { line_height(&font) + 6 } else { c.default_row_height.max(18) };
         let r = self.abs_rect(id);
         let vis = ((r.h - 4 - hh) / rh).max(1);
-        let c = &self.ctl[id];
         let max = (c.cells.len() as i32 - vis).max(0);
         (hh, rh, vis, max, c.scroll_y.clamp(0, max))
     }
@@ -1053,6 +1096,15 @@ impl Form {
                 let txt = row.get(ci).map(String::as_str).unwrap_or("");
                 let o3 = cv.clip_to(Rect::new(x, y, w - 2, rh));
                 let mut tx = x + 5;
+                if ci == 0 {
+                    if let Some(image) = c.images.get(ri).filter(|image| image.w > 0 && image.h > 0) {
+                        let scale = ((w - 8).max(1) as f64 / image.w as f64)
+                            .min((rh - 6).max(1) as f64 / image.h as f64);
+                        let iw = (image.w as f64 * scale).round() as i32;
+                        let ih = (image.h as f64 * scale).round() as i32;
+                        cv.image_stretch(Rect::new(x + (w - iw) / 2, y + (rh - ih) / 2, iw, ih), image, true);
+                    }
+                }
                 if ci == 0 && c.checkboxes {
                     let on = c.checks.get(ri).copied().unwrap_or(false);
                     th.checkbox(cv, Rect::new(x + 3, y + (rh - 13) / 2, 13, 13), on as u8, en, false);
@@ -1082,7 +1134,7 @@ impl Form {
         let lr = combo_list_rect(self, id);
         cv.fill(lr, th.window());
         cv.frame(lr, th.menu_border());
-        let ih = line_height(&font) + 2;
+        let ih = combo_item_height(self,id);
         let vis = (lr.h - 2) / ih;
         let need_sb = c.items.len() as i32 > vis;
         let ir0 = Rect::new(lr.x + 1, lr.y + 1, lr.w - 2 - if need_sb { SB } else { 0 }, lr.h - 2);
@@ -1094,12 +1146,16 @@ impl Form {
             }
             let ir = Rect::new(ir0.x, y, ir0.w, ih);
             let col = c.item_colors.get(i).copied().flatten().unwrap_or(th.text());
-            if i as i32 == hot {
-                th.selection(cv, ir, true);
-                cv.text_in(ir.offset(3, 0), it, &font, th.selection_text(true), HAlign::Left, VAlign::Center, false);
-            } else {
-                cv.text_in(ir.offset(3, 0), it, &font, col, HAlign::Left, VAlign::Center, false);
+            let selected=i as i32==hot;
+            if selected {th.selection(cv,ir,true);}
+            let mut text_rect=ir.offset(3,0);
+            if !c.item_pictures.is_empty() {
+                if let Some(Some(picture))=c.item_pictures.get(i) {
+                    cv.image_stretch(Rect::new(ir.x+4,ir.y+(ih-32)/2,32,32),picture,true);
+                }
+                text_rect.x+=40;text_rect.w-=40;
             }
+            cv.text_in(text_rect,it,&font,if selected{th.selection_text(true)}else{col},HAlign::Left,VAlign::Center,false);
         }
         cv.set_clip(old);
         if need_sb {
@@ -1112,6 +1168,7 @@ impl Form {
         let font = self.font(0);
         cv.fill(lv.rect, th.menu_bg());
         cv.frame(lv.rect, th.menu_border());
+        let clip = cv.clip_to(lv.rect.inset(1));
         for (i, (k, ir)) in menu_item_rects(self, lv).into_iter().enumerate() {
             let c = &self.ctl[k];
             if c.caption == "-" {
@@ -1133,11 +1190,17 @@ impl Form {
                     cv.line_aa((cr.x + 5) as f32, (cr.y + 9) as f32, (cr.x + 10) as f32, (cr.y + 3) as f32, 1.5, col);
                 }
             }
-            cv.text_in(Rect::new(ir.x + 26, ir.y, ir.w - 40, ir.h), &strip_amp(&c.caption), &font, col, HAlign::Left, VAlign::Center, false);
+            let mut text_left = ir.x + 26;
+            if let Some(image) = &c.picture {
+                cv.image(text_left, ir.y + (ir.h - image.h as i32) / 2, image);
+                text_left += image.w as i32 + 8;
+            } else if c.name.starts_with("SeFormulaChoice") && c.item_height==38 { text_left+=40; }
+            cv.text_in(Rect::new(text_left, ir.y, ir.right() - text_left - 14, ir.h), &strip_amp(&c.caption), &font, col, HAlign::Left, VAlign::Center, false);
             if !menu_items(self, k).is_empty() {
                 th.arrow(cv, Rect::new(ir.right() - 14, ir.y, 12, ir.h), Dir::Right, col);
             }
         }
+        cv.set_clip(clip);
     }
 
     fn paint_hint(&self, cv: &mut Canvas, th: &Theme, text: &str, x: i32, y: i32) {
@@ -1176,7 +1239,14 @@ pub fn updown_rects(c: &Control, r: Rect) -> (Rect, Rect) {
 fn draw_app_icon(cv: &mut Canvas, x: i32, y: i32) {
     use std::sync::OnceLock;
     static ICON: OnceLock<Option<super::bitmap::Bitmap>> = OnceLock::new();
-    let icon = ICON.get_or_init(|| decode_ico(include_bytes!("../../assets/mb3d-rs.ico"), 16));
+    let icon = ICON.get_or_init(|| {
+        let bytes: &[u8] = if cfg!(feature = "se-desktop") {
+            include_bytes!("../../assets/m3d-se.ico")
+        } else {
+            include_bytes!("../../assets/mb3d-rs.ico")
+        };
+        decode_ico(bytes, 16)
+    });
     match icon {
         Some(b) => cv.image_stretch(Rect::new(x, y, 16, 16), b, true),
         None => cv.ellipse(Rect::new(x + 2, y + 2, 12, 12), Some(0xFFE07020), None),

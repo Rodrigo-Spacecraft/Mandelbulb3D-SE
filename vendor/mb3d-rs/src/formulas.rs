@@ -143,6 +143,7 @@ pub fn list_custom() -> Vec<String> {
             Some(p.file_stem()?.to_string_lossy().into_owned())
         })
         .collect();
+    v.extend(embedded::CATALOG.iter().map(|(name,_)|name.to_string()));
     v.sort_by_key(|a| a.to_ascii_lowercase());
     v.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
     v
@@ -159,6 +160,7 @@ pub fn list_custom_with_de() -> Vec<(String, i32)> {
             let de = dirs
                 .iter()
                 .find_map(|d| std::fs::read(d.join(format!("{name}.m3f"))).ok())
+                .or_else(||embedded_bytes(&name).map(|b|b.to_vec()))
                 .and_then(|b| {
                     let t = String::from_utf8_lossy(&b).to_ascii_lowercase();
                     let i = t.find(".deoption")?;
@@ -198,13 +200,13 @@ pub fn load_custom(name: &str) -> Result<Arc<crate::m3f::M3f>, String> {
         return Ok(f.clone());
     }
     let dirs = formula_dir_list();
-    let path = crate::m3f::find_formula(name, &dirs).ok_or_else(|| {
-        format!(
-            "formula '{name}' not found (searched {}); use --formulas DIR or MB3D_FORMULAS",
-            dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", ")
-        )
-    })?;
-    let f = Arc::new(crate::m3f::M3f::load(&path)?);
+    let f = Arc::new(if let Some(path)=crate::m3f::find_formula(name,&dirs) {
+        crate::m3f::M3f::load(&path)?
+    } else if let Some(formula)=load_embedded(name) {
+        formula?
+    } else {
+        return Err(format!("formula '{name}' not found in the embedded catalog or formula folders"));
+    });
     cache.lock().unwrap().push(f.clone());
     Ok(f)
 }
@@ -962,4 +964,25 @@ mod tests {
         );
         assert!((v[3] - 8.0).abs() < 1e-12); // r < minR^2 -> scale / minR^2
     }
+}
+
+mod embedded { include!(concat!(env!("OUT_DIR"),"/embedded_formulas.rs")); }
+/// Shipped formula source, embedded in SE executables. External overrides are optional.
+pub(crate) fn embedded_bytes(name:&str)->Option<&'static [u8]> {
+ embedded::CATALOG.iter().find(|(n,_)|n.eq_ignore_ascii_case(name.trim())).map(|(_,b)|*b)
+}
+fn load_embedded(name:&str)->Option<Result<crate::m3f::M3f,String>> {
+ let (name,bytes)=embedded::CATALOG.iter().find(|(n,_)|n.eq_ignore_ascii_case(name.trim()))?;
+ let text:String=bytes.iter().map(|b|*b as char).collect();
+ Some(crate::m3f::M3f::parse(name,&text))
+}
+#[cfg(all(test,feature="se-desktop"))] mod se_windows_embedded_tests {
+ use super::*;
+ #[test] fn se_windows_formula_catalog_loads_without_formula_files() {
+  assert!(embedded::CATALOG.len()>400);
+  for name in ["ABoxVaryScale","heartKluchIFS","SphereIFS"] {
+   let formula=load_embedded(name).expect("embedded entry").unwrap();assert!(formula.name.eq_ignore_ascii_case(name));
+  }
+  assert!(load_embedded("missing_formula").is_none());
+ }
 }

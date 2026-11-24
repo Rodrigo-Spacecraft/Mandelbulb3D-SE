@@ -7,10 +7,14 @@ use super::Mb3d;
 use crate::vcl::bitmap::Bitmap;
 use crate::vcl::{DialogResult, Ev, Event, MouseButton, Ui};
 
+#[path = "palette_se.rs"]
+pub(super) mod se;
+
 const F: &str = "ColorForm";
 
 #[derive(Default)]
 pub struct State {
+    pub(super) se: se::SeState,
     pub act: i64,
     pub start_x: i32,
     pub rand_mid: [u32; 2],
@@ -137,6 +141,15 @@ fn rand_col(r: &mut crate::mutagen::Rng, mid: u32, sat: f32, p: [f32; 3]) -> [u8
 
 pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
     let h = e.handler.as_str();
+    if cfg!(feature = "se-desktop") {
+        if h == "FormCreate" {
+            app.palette.rand_mid = [0xFF80_8080; 2];
+            se::configure(ui);
+        } else {
+            se::event(app, ui, e);
+        }
+        return;
+    }
     match h {
         "FormCreate" => app.palette.rand_mid = [0xFF80_8080, 0xFF80_8080],
         "FormShow" => {

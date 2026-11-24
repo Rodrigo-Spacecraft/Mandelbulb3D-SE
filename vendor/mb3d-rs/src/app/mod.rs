@@ -5,6 +5,9 @@
 //! module has the equivalents of MB3D's `SetEditsFromHeader` (scene ->
 //! controls) and `MakeHeader` (controls -> scene).
 
+mod about_se;
+mod formula_thumbnails;
+mod tooltips_se;
 pub mod anim_form;
 pub mod bulbtracer_form;
 pub mod engine;
@@ -14,11 +17,15 @@ pub mod formula_form;
 pub mod ini;
 pub mod jit_form;
 pub mod light_form;
+mod light_se;
+mod main_camera;
 pub mod main_form;
+mod main_se;
 pub mod mc_form;
 pub mod meshview;
 pub mod mutagen_form;
 pub mod navi_form;
+mod navi_se;
 pub mod palette_form;
 pub mod postpro_form;
 pub mod small_forms;
@@ -105,6 +112,10 @@ impl Mb3d {
         formula_form::update_from_header(self, ui);
         light_form::set_from_header(self, ui);
         postpro_form::set_from_header(self, ui);
+        if cfg!(feature = "se-desktop") {
+            ui.hide(palette_form::se::PICKER);
+            palette_form::se::refresh_if_open(self, ui);
+        }
         // the card's shaders for it, compiled meanwhile
         crate::render::prewarm_gpu(self.scene.clone());
     }
@@ -132,7 +143,11 @@ impl Mb3d {
         } else {
             (Scene::parse(&text)?, Vec::new())
         };
+        let saved_render = is_m3i.then(|| sc.clone());
         self.scene = sc;
+        if cfg!(feature = "se-desktop") {
+            main_form::reset_sampling(self);
+        }
         self.notes = notes;
         self.title = name;
         self.eng.clear();
@@ -141,10 +156,15 @@ impl Mb3d {
         for n in self.notes.clone() {
             self.message(ui, &n);
         }
-        if is_m3i {
+        if let Some(render) = saved_render {
             if let Some((w, h, g)) = crate::m3p::gbuffer_from_m3i(&data) {
-                if w == self.scene.width as usize && h == self.scene.height as usize {
-                    self.eng.set_gbuffer(&self.scene, g)?;
+                if w == render.width as usize && h == render.height as usize {
+                    self.eng.set_gbuffer(&render, g)?;
+                    if cfg!(feature="se-desktop") {
+                        ui.set_visible(MAIN,"ProgressBar1",true);
+                        ui.set_caption(MAIN,"Label6","Radiance");
+                        ui.set_caption(MAIN,"Button2","Stop");
+                    }
                 }
             }
         }
@@ -181,8 +201,11 @@ impl App for Mb3d {
             "FTextBox" => small_forms::textbox_event(self, ui, e),
             "ZBuf16BitGenFrm" => small_forms::zbuf_event(self, ui, e),
             "FNavigator" => navi_form::event(self, ui, e),
+            navi_se::SEARCH => navi_form::search_event(self, ui, e),
             "AnimationForm" => anim_form::event(self, ui, e),
+            "SeAboutForm" | "SeLicensesForm" => about_se::event(self, ui, &e.handler),
             "ColorForm" => palette_form::event(self, ui, e),
+            palette_form::se::PICKER => palette_form::se::picker_event(self, ui, e),
             "AniPreviewForm" => anim_form::preview_event(self, ui, e),
             "AniProcessForm" => anim_form::process_event(self, ui, e),
             "BatchForm1" => tools_forms::batch_event(self, ui, e),
@@ -201,6 +224,7 @@ impl App for Mb3d {
     }
 
     fn idle(&mut self, ui: &mut Ui) {
+        if cfg!(feature="se-desktop") { formula_thumbnails::idle(ui); }
         main_form::idle(self, ui);
         if ui.showing("FNavigator") {
             navi_form::idle(self, ui);
@@ -280,13 +304,17 @@ pub fn build(args: &[String]) -> Result<Option<(Ui, Mb3d)>, String> {
     crate::maps::add_map_dir(ini.dir(ini::DIR_MAPS));
     // the themes of the `Themes` folder next to the program
     crate::vcl::theme::check()?;
-    let style = Style::from_name(ini.get("VisualTheme")).unwrap_or_default();
+    let theme_name = if cfg!(feature = "se-desktop") { "Windows" } else { ini.get("VisualTheme") };
+    let style = Style::from_name(theme_name).unwrap_or_default();
     let mut ui = Ui::new(style);
     ui.set_ui_scale(scale_pct.clamp(50, 400) as f64 / 100.0);
     for f in FORMS {
         if let Err(e) = ui.add_form(forms::get(f)) {
             eprintln!("{f}: {e}");
         }
+    }
+    if cfg!(feature = "se-desktop") {
+        palette_form::se::add_picker(&mut ui)?;
     }
     ui.main_form = ui.form_index(MAIN).ok_or("no main form")?;
     let swarm = swarm_form::State::from_ini(&ini);
@@ -321,6 +349,7 @@ pub fn build(args: &[String]) -> Result<Option<(Ui, Mb3d)>, String> {
     app.process(&mut ui);
     main_form::start(&mut app, &mut ui);
     app.process(&mut ui);
+    if cfg!(feature = "se-desktop") { tooltips_se::install(&mut ui); }
     Ok(Some((ui, app)))
 }
 

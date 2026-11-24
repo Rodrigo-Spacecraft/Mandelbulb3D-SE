@@ -39,6 +39,8 @@ pub enum Request {
     Maximize(usize, bool),
     Move(usize, i32, i32),
     Cursor(usize, &'static str),
+    /// Fit one output image pixel to one device pixel, bounded by the screen.
+    ActualImageSize(usize,i32,i32,i32),
     /// hide and lock the mouse in the window and report its relative
     /// motion as `@MouseDelta` events (the Navigator's mouse look)
     MouseLook(usize, bool),

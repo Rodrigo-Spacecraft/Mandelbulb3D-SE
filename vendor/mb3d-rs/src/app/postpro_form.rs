@@ -9,7 +9,7 @@ use super::{Mb3d, MAIN};
 use crate::dof::DofParams;
 use crate::scene::ShadowParams;
 use crate::ssao::SsaoParams;
-use crate::vcl::{Event, Ui};
+use crate::vcl::{Ev, Event, Ui};
 
 const F: &str = "PostProForm";
 
@@ -36,6 +36,208 @@ const PANELS: [(&str, &str, &str); 7] = [
     ("DepthOfFieldBtn", "DepthOfFieldPnl", "CheckBox1"),
     ("NoiseFilterBtn", "NoiseFilterPnl", "NoiseAutoCbx"),
 ];
+
+const SE_PAGES: [(&str, &str, &str); 4] = [
+    ("SeHardShadows", "Hard Shadows", "CheckBox9"),
+    ("SeAmbientShadows", "Ambient Shadows", "CheckBox11"),
+    ("SeReflection", "Refl/Trans", "CheckBox24"),
+    ("SeDepthOfField", "Depth of Field", "CheckBox1"),
+];
+
+const SE_SLIDERS: [(&str, &str, i64, i64, f64); 10] = [
+    ("SeReflectionAmount", "Edit6", 0, 1000, 1000.0),
+    ("SeDofZ1", "Edit1", 0, 10000, 1000.0),
+    ("SeDofZ2", "Edit10", 0, 10000, 1000.0),
+    ("SeDofAperture", "Edit3", 0, 2000, 1000.0),
+    ("SeDofRadius", "Edit2", 1, 10000, 10.0),
+    ("SeAmbientLength", "Edit8", -2408, 2000, 1000.0),
+    ("SeTransStrength", "SeTransStrengthEdit", 0, 200, 100.0),
+    ("SeTransGlow", "SeTransGlowEdit", -100, 100, 100.0),
+    ("SeAmbientStrength", "SeAmbientStrengthEdit", 0, 500, 100.0),
+    ("SeSubsurfaceAmount", "SeSubsurfaceAmountEdit", 0, 1000, 1000.0),
+];
+
+fn configure_se(ui: &mut Ui) {
+    use super::main_se::place;
+    use crate::vcl::control::Control;
+    use crate::vcl::form::Form;
+
+    fn add(form: &mut Form, parent: usize, name: &str, class: &str, title: &str,
+           bounds: (i32, i32, i32, i32)) -> usize {
+        let mut control = Control::new(name, class);
+        control.caption = title.into();
+        control.set_bounds(bounds.0, bounds.1, bounds.2, bounds.3);
+        form.add_control(parent, control)
+    }
+
+    fn row(form: &mut Form, page: usize, name: &str, title: &str, y: i32, x: i32, width: i32) {
+        place(form, page, name, (x, y, width, 26));
+        add(form, page, &format!("SeLabel{name}"), "TLabel", title, (16, y + 5, x - 22, 17));
+    }
+
+    ui.set_client_size(F, 540, 440);
+    let form = ui.fm(F);
+    form.ctl[0].caption = "Post-process".into();
+    for (button, panel, _) in PANELS {
+        form.c_mut(button).visible = false;
+        form.c_mut(panel).visible = false;
+    }
+    for name in ["PostProcessHintPnl", "GroupBox4", "GroupBox6", "GroupBox10"] {
+        form.c_mut(name).visible = false;
+    }
+    let tabs = add(form, 0, "SePostTabs", "TPageControl", "", (12, 10, 516, 418));
+    let pages = SE_PAGES.map(|(name, title, _)| add(form, tabs, name, "TTabSheet", title, (0, 0, 0, 0)));
+    for (index, (page, (_, _, automatic), title, calculate, reset)) in [
+        (pages[0], SE_PAGES[0], "Calculate hard shadows automatically", "Button3", "Reset shadows"),
+        (pages[1], SE_PAGES[1], "Calculate ambient shadows automatically", "Button10", "Reset shadows"),
+        (pages[2], SE_PAGES[2], "Calculate Reflections (and, if selected, Transparency) automatically", "Button15", "Reset"),
+        (pages[3], SE_PAGES[3], "Calculate DoF automatically", "Button1", "Reset DoF"),
+    ].into_iter().enumerate() {
+        place(form, page, automatic, (16, 14, 463, 25));
+        form.c_mut(automatic).caption = title.into();
+        place(form, page, calculate, (264, 346, 218, 30));
+        form.c_mut(calculate).caption = "Calculate now".into();
+        let id = add(form, page, &format!("SePostReset{index}"), "TButton", reset, (16, 346, 218, 30));
+        form.ctl[id].tag = index as i64;
+        form.ctl[id].events.insert("OnClick".into(), "SePostReset".into());
+    }
+
+    let [hard, ambient, reflection, dof] = pages;
+    for i in 0..6 {
+        let name = format!("CheckBox{}", i + 2);
+        place(form, hard, &name, (16 + (i % 3) * 155, 52 + (i / 3) * 32, 140, 24));
+        form.c_mut(&name).caption = format!("Light {}", i + 1);
+    }
+    place(form, hard, "CheckBox29", (16, 122, 245, 24));
+    form.c_mut("CheckBox29").caption = "Softer hard shadows".into();
+    place(form, hard, "CheckBox10", (16, 154, 315, 24));
+    form.c_mut("CheckBox10").caption = "Set light function to cosine".into();
+    row(form, hard, "Edit5", "Max length (0.001–100)", 196, 300, 182);
+    row(form, hard, "Edit7", "Radius", 230, 300, 182);
+
+    let method = add(form, ambient, "SeAmbientMethod", "TComboBox", "", (210, 50, 272, 27));
+    form.ctl[method].style = "csDropDownList".into();
+    // Keep legacy method indices so imported scenes retain their method.
+    form.ctl[method].items = ["Fast approximation", "SSAO 24-bit", "SSAO 24-bit random", "DE ray tracing"]
+        .map(str::to_string).into();
+    form.ctl[method].events.insert("OnChange".into(), "SeAmbientMethod".into());
+    add(form, ambient, "SeAmbientMethodLabel", "TLabel", "Method", (16, 55, 180, 18));
+    add(form, ambient, "SeAmbientStrengthEdit", "TEdit", "", (0, 0, 0, 0));
+    row(form, ambient, "SeAmbientStrengthEdit", "Strength (0–5)", 92, 390, 92);
+    row(form, ambient, "Edit8", "Max length", 130, 390, 92);
+    row(form, ambient, "Edit34", "Threshold", 130, 390, 92);
+    row(form, ambient, "Edit9", "Border mirror", 168, 390, 92);
+    row(form, ambient, "Edit21", "Random samples", 206, 390, 70);
+    place(form, ambient, "UpDown3", (460, 206, 22, 26));
+    place(form, ambient, "CheckBox12", (16, 244, 240, 24));
+    place(form, ambient, "CheckBox22", (16, 244, 240, 24));
+    form.c_mut("CheckBox22").caption = "Random first step".into();
+    let rays = add(form, ambient, "SeAmbientRays", "TComboBox", "", (390, 168, 92, 26));
+    form.ctl[rays].style = "csDropDownList".into();
+    form.ctl[rays].items = ["3", "7", "17", "33"].map(str::to_string).into();
+    form.ctl[rays].events.insert("OnChange".into(), "SeAmbientRays".into());
+    add(form, ambient, "SeAmbientRaysLabel", "TLabel", "Rays", (16, 173, 150, 18));
+
+    row(form, reflection, "Edit6", "Amount (0–1)", 50, 307, 175);
+    row(form, reflection, "Edit11", "Depth (1–30)", 94, 307, 147);
+    place(form, reflection, "UpDown2", (460, 94, 22, 26));
+    form.c_mut("Edit11").read_only = false;
+    for event in ["OnExit", "OnKeyDown"] {
+        form.c_mut("Edit11").events.insert(event.into(), "SePostDepth".into());
+    }
+    place(form, reflection, "CheckBox27", (16, 125, 228, 24));
+    form.c_mut("CheckBox27").caption = "Calculate transparency".into();
+    place(form, reflection, "CheckBox28", (258, 125, 125, 24));
+    form.c_mut("CheckBox28").caption = "Only DIFS".into();
+    row(form, reflection, "Edit13", "Absorption (0–10000000000)", 158, 307, 175);
+    row(form, reflection, "Edit14", "Refractive index (0.1–10)", 196, 307, 175);
+    row(form, reflection, "Edit17", "Light scattering", 234, 307, 175);
+    let translucency = add(form, reflection, "SeTranslucency", "TCheckBox", "Translucency", (16, 286, 109, 26));
+    form.ctl[translucency].events.insert("OnClick".into(), "SeTransparency".into());
+    for (name, title, x, field) in [
+        ("SeTransStrengthEdit", "Strength", 126, 263), ("SeTransGlowEdit", "Glow", 321, 430),
+    ] {
+        add(form, reflection, &format!("SeLabel{name}"), "TLabel", title, (x, 292, if title=="Glow" {31}else{51}, 16));
+        add(form, reflection, name, "TEdit", "", (field, 286, 52, 26));
+    }
+    let subsurface = add(form, reflection, "SeSubsurface", "TCheckBox", "Subsurface scattering", (16, 315, 198, 24));
+    form.ctl[subsurface].events.insert("OnClick".into(), "SeSubsurface".into());
+    form.ctl[subsurface].hint = "Trace light through the material. Adds light rays when enabled.".into();
+    add(form,reflection,"SeSubsurfaceAmountLabel","TLabel","Amount",(216,320,52,20));
+    add(form,reflection,"SeSubsurfaceAmountEdit","TEdit","1",(405,314,77,26));
+    for name in ["CheckBox27", "CheckBox28"] {
+        form.c_mut(name).events.insert("OnClick".into(), "SeTransparency".into());
+    }
+
+    for (name, title, y) in [
+        ("Edit1", "Z1 sharp", 52), ("Edit10", "Z2 sharp", 98),
+        ("Edit3", "Aperture", 144), ("Edit2", "Clipping radius", 190),
+    ] {
+        row(form, dof, name, title, y, 305, 86);
+    }
+    place(form, dof, "Button2", (400, 52, 82, 26));
+    place(form, dof, "Button18", (400, 98, 82, 26));
+    place(form, dof, "Button19", (16, 242, 164, 28));
+    form.c_mut("Button19").caption = "Copy Z1 to Z2".into();
+    add(form, dof, "SeDofPassesLabel", "TLabel", "Passes", (280, 247, 65, 18));
+    let passes = add(form, dof, "SeDofPasses", "TComboBox", "", (362, 242, 120, 28));
+    form.ctl[passes].style = "csDropDownList".into();
+    form.ctl[passes].items = ["1", "2", "3"].map(str::to_string).into();
+    form.ctl[passes].events.insert("OnChange".into(), "SeDofPasses".into());
+
+    for ((slider, field, min, max, _), (page, x, y, width)) in SE_SLIDERS.into_iter().zip([
+        (reflection, 140, 50, 151), (dof, 144, 52, 147), (dof, 144, 98, 147),
+        (dof, 144, 144, 147), (dof, 144, 190, 147), (ambient, 184, 130, 192),
+        (reflection, 181, 286, 75), (reflection, 357, 286, 66), (ambient, 184, 92, 192),
+        (reflection,272,315,120),
+    ]) {
+        let id = add(form, page, slider, "TTrackBar", "", (x, y, width, 26));
+        form.ctl[id].min = min;
+        form.ctl[id].max = max;
+        form.ctl[id].fine_track_drag = true;
+        form.ctl[id].tick_style = "tsNone".into();
+        form.ctl[id].modifier_resets_track = slider == "SeTransGlow";
+        form.ctl[id].events.insert("OnChange".into(), "SePostSlider".into());
+        if slider=="SeSubsurfaceAmount" {form.ctl[id].events.insert("OnMouseUp".into(),"SeSubsurfaceCommit".into());form.ctl[id].events.insert("OnKeyUp".into(),"SeSubsurfaceCommit".into());}
+        let edit = form.c_mut(field);
+        edit.events.insert("OnExit".into(), "SePostValue".into());
+        edit.events.insert("OnKeyDown".into(), "SePostValue".into());
+    }
+    // Legacy checkbox captions default to placing the box on the right.
+    for control in &mut form.ctl {
+        if control.kind == crate::vcl::control::Kind::CheckBox {
+            control.props.retain(|(key, _)| key != "Alignment");
+        }
+    }
+}
+
+pub(super) fn sync_se_sliders(ui: &mut Ui) {
+    if !cfg!(feature = "se-desktop") {
+        return;
+    }
+    for (name, field, _, _, scale) in SE_SLIDERS {
+        let Some(mut value) = parse_float(&ui.text(F, field)).filter(|v| v.is_finite()) else { continue };
+        if name == "SeAmbientLength" { value = value.max(1.0 / 255.0).log10(); }
+        if matches!(name, "SeReflectionAmount" | "SeDofZ1" | "SeDofZ2") {
+            let nominal: f64 = if name == "SeReflectionAmount" { 1.0 } else { 10.0 };
+            ui.cm(F, name).max = (nominal.max(value * 1.1) * scale).ceil() as i64;
+        }
+        ui.set_position(F, name, (value * scale).round() as i64);
+    }
+}
+
+fn sync_se_transparency(ui: &mut Ui, cache_ready: bool) {
+    let on = ui.checked(F, "CheckBox27");
+    for name in ["CheckBox28", "Edit13", "Edit14", "Edit17", "SeTranslucency"] {
+        ui.set_enabled(F, name, on);
+    }
+    let translucency = on && ui.checked(F, "SeTranslucency");
+    ui.set_enabled(F, "SeSubsurface", translucency);
+    for name in ["SeSubsurfaceAmount","SeSubsurfaceAmountEdit"] {ui.set_enabled(F,name,translucency&&ui.checked(F,"SeSubsurface"));}
+    for name in ["SeTransStrength", "SeTransStrengthEdit", "SeTransGlow", "SeTransGlowEdit"] {
+        ui.set_enabled(F, name, translucency && (name.ends_with("Edit") || cache_ready));
+    }
+}
 
 /// The strength of the noise filter (Noise Filter section), 0 when off.
 pub fn noise_sigma(ui: &Ui) -> f32 {
@@ -103,10 +305,24 @@ pub fn make_header(app: &mut Mb3d, ui: &mut Ui) {
     m.transparency = ui.checked(F, "CheckBox27");
     m.only_difs = ui.checked(F, "CheckBox28");
     m.reflection_amount = ptf(&ui.text(F, "Edit6")).clamp(0.0, 100.0) as f32;
-    m.reflection_depth = ui.position(F, "UpDown2").clamp(1, 8) as u8;
-    m.absorption = ptf(&ui.text(F, "Edit13")).clamp(1e-30, 1e10) as f32;
+    m.reflection_depth = if cfg!(feature = "se-desktop") {
+        pti(&ui.text(F, "Edit11")).clamp(1, 30) as u8
+    } else { ui.position(F, "UpDown2").clamp(1, 8) as u8 };
+    let min_absorption = if cfg!(feature = "se-desktop") { 0.0 } else { 1e-30 };
+    m.absorption = ptf(&ui.text(F, "Edit13")).clamp(min_absorption, 1e10) as f32;
     m.refraction_index = ptf(&ui.text(F, "Edit14")).clamp(0.1, 10.0) as f32;
     m.scattering = ptf(&ui.text(F, "Edit17")).max(0.0) as f32;
+    if cfg!(feature = "se-desktop") {
+        let enabled = ui.checked(F, "SeTranslucency");
+        sc.translucency_enabled = enabled;
+        sc.subsurface_scattering = ui.checked(F, "SeSubsurface");
+        sc.subsurface_amount=ptf(&ui.text(F,"SeSubsurfaceAmountEdit")).clamp(0.0,1.0) as f32;
+        sc.transmission_blur = if enabled { ptf(&ui.text(F, "SeTransStrengthEdit")).clamp(0.0, 2.0) as f32 } else { 0.0 };
+        sc.translucency_glow = if enabled { ptf(&ui.text(F, "SeTransGlowEdit")).clamp(-1.0, 1.0) as f32 } else { 0.0 };
+        if ao_on {
+            sc.lighting.amb_shadow = ptf(&ui.text(F, "SeAmbientStrengthEdit")).clamp(0.0, 5.0) as f32 * 53.0;
+        }
+    }
     m.soft_shadow_radius = parse_float(&ui.text(F, "Edit7")).unwrap_or(1.0).clamp(0.01, 20.0) as f32;
 }
 
@@ -158,14 +374,33 @@ pub fn set_from_header(app: &mut Mb3d, ui: &mut Ui) {
     let m = sc.mc;
     ui.set_checked(F, "CheckBox24", m.reflections);
     ui.set_text(F, "Edit6", &fts_single(m.reflection_amount as f64));
-    ui.set_position(F, "UpDown2", (m.reflection_depth as i64).clamp(1, 8));
-    ui.set_text(F, "Edit11", &(m.reflection_depth as i64).clamp(1, 8).to_string());
+    let depth = m.reflection_depth.clamp(1, if cfg!(feature = "se-desktop") { 30 } else { 8 });
+    ui.set_position(F, "UpDown2", i64::from(depth));
+    ui.set_text(F, "Edit11", &depth.to_string());
     ui.set_text(F, "Edit13", &fts_single(m.absorption as f64));
     ui.set_text(F, "Edit14", &fts_single(m.refraction_index as f64));
     ui.set_text(F, "Edit17", &fts_single(m.scattering as f64));
     ui.set_checked(F, "CheckBox27", m.transparency);
     ui.set_checked(F, "CheckBox28", m.only_difs);
     ui.set_text(F, "Edit7", &fts_single(m.soft_shadow_radius as f64));
+    if cfg!(feature = "se-desktop") {
+        if sc.deao.is_none() {
+            let defaults = crate::deao::DeaoParams::default();
+            ui.set_text(F, "Edit8", &fts_single(defaults.max_len as f64));
+            ui.set_position(F, "UpDown1", i64::from(defaults.quality));
+        }
+        let translucency = sc.translucency_enabled;
+        ui.set_checked(F, "SeTranslucency", translucency);
+        ui.set_checked(F, "SeSubsurface", sc.subsurface_scattering);
+        ui.set_text(F,"SeSubsurfaceAmountEdit",&fts_single(sc.subsurface_amount as f64));
+        ui.set_text(F, "SeTransStrengthEdit", &fts_single(if translucency { sc.transmission_blur as f64 } else { 1.0 }));
+        ui.set_text(F, "SeTransGlowEdit", &fts_single(sc.translucency_glow as f64));
+        ui.set_text(F, "SeAmbientStrengthEdit", &fts_single(sc.lighting.amb_shadow as f64 / 53.0));
+        ui.set_item_index(F, "SeDofPasses", ui.item_index(F, "RadioGroup1"));
+        radio_group3_click(ui);
+        sync_se_sliders(ui);
+        sync_se_transparency(ui, false);
+    }
     check_box2(ui);
     update_captions(ui);
 }
@@ -173,6 +408,17 @@ pub fn set_from_header(app: &mut Mb3d, ui: &mut Ui) {
 fn radio_group3_click(ui: &mut Ui) {
     let t = ui.c(F, "TabControl1").tab_index;
     let b = t < 3;
+    if cfg!(feature = "se-desktop") {
+        ui.set_item_index(F, "SeAmbientMethod", t);
+        ui.set_item_index(F, "SeAmbientRays", ui.position(F, "UpDown1") as i32);
+        for (name, visible) in [
+            ("SeLabelEdit8", !b), ("SeAmbientLength", !b), ("SeAmbientRays", !b),
+            ("SeAmbientRaysLabel", !b), ("SeLabelEdit34", b),
+            ("SeLabelEdit21", t == 2), ("SeLabelEdit9", t == 1 || t == 2),
+        ] {
+            ui.set_visible(F, name, visible);
+        }
+    }
     for c in ["RadioGroup5", "CheckBox22", "Label15", "Label16", "Label17", "Edit8", "UpDown1"] {
         ui.set_visible(F, c, !b);
     }
@@ -199,6 +445,10 @@ fn check_box2(ui: &mut Ui) {
 /// `UpdateButtonCaption`: a check mark glyph on the section buttons whose
 /// processing runs automatically.
 fn update_captions(ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") {
+        update_se_tabs(ui, [false; 4]);
+        return;
+    }
     let img = ui.c(F, "ImageList1").images.first().cloned();
     for (btn, _, cb) in PANELS {
         let on = ui.checked(F, cb);
@@ -206,6 +456,24 @@ fn update_captions(ui: &mut Ui) {
         c.glyph = if on { img.clone() } else { None };
         c.num_glyphs = 1;
         c.alignment = crate::vcl::canvas::HAlign::Left;
+    }
+}
+
+fn update_se_tabs(ui: &mut Ui, applied: [bool; 4]) {
+    for ((name, title, automatic), applied) in SE_PAGES.into_iter().zip(applied) {
+        let mark = if applied || ui.checked(F, automatic) { "*" } else { "" };
+        ui.set_caption(F, name, &format!("{title}{mark}"));
+    }
+}
+
+pub(super) fn sync_se_tabs(app: &Mb3d, ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") {
+        let applied = app.eng.base().map_or([false; 4], |base| {
+            let scene = &base.scene;
+            [scene.shadows.is_some(), scene.ao.is_some(), scene.mc.reflections, scene.dof.is_some()]
+        });
+        update_se_tabs(ui, applied);
+        sync_se_transparency(ui, app.eng.has_transmission_cache());
     }
 }
 
@@ -251,6 +519,68 @@ pub fn repaint(app: &mut Mb3d, ui: &mut Ui, stage: &'static str) {
 
 /// The selection in the image (MB3D's `iRect` with `ClipIRect`'s checks),
 /// in pixels of the image; None (and the message) without one.
+fn preview_translucency(app:&mut Mb3d,ui:&mut Ui) {
+    if app.main.calculating || !ui.checked(F,"CheckBox27") || !ui.checked(F,"SeTranslucency") { return; }
+    let Some(strength)=parse_float(&ui.text(F,"SeTransStrengthEdit")).filter(|v|v.is_finite()) else{return};
+    let Some(glow)=parse_float(&ui.text(F,"SeTransGlowEdit")).filter(|v|v.is_finite()) else{return};
+    app.scene.transmission_blur=strength.clamp(0.,2.) as f32;
+    app.scene.translucency_glow=glow.clamp(-1.,1.) as f32;
+    app.scene.translucency_enabled=true;
+    app.scene.subsurface_scattering=ui.checked(F,"SeSubsurface");
+    let Some(base)=app.eng.base().filter(|_|app.eng.has_transmission_cache()) else {sync_se_transparency(ui,false);return};
+    // Recompose the rendered scene, without rounding unrelated form values
+    // or changing the automatic-calculation flags of a Calculate Now result.
+    let mut scene=base.scene.clone();
+    scene.transmission_blur=app.scene.transmission_blur;
+    scene.translucency_glow=app.scene.translucency_glow;
+    scene.subsurface_scattering=app.scene.subsurface_scattering;
+    if app.eng.can_repaint_translucency(&scene) {
+        app.eng.start(super::engine::Job::Repaint{scene});
+        sync_se_transparency(ui,true);
+    } else {sync_se_transparency(ui,false);}
+}
+
+fn preview_ambient_strength(app: &mut Mb3d, ui: &mut Ui) {
+    if app.main.calculating {
+        return;
+    }
+    let Some(value) = parse_float(&ui.text(F, "SeAmbientStrengthEdit")).filter(|v| v.is_finite()) else { return };
+    let strength = value.clamp(0.0, 5.0) as f32 * 53.0;
+    let Some(base) = app.eng.base().filter(|base| base.scene.ao.is_some() || base.scene.deao.is_some()) else { return };
+    let mut scene = base.scene.clone();
+    scene.lighting.amb_shadow = strength;
+    app.scene.lighting.amb_shadow = strength;
+    app.eng.start(super::engine::Job::Repaint { scene });
+}
+
+fn se_post_ready(app: &mut Mb3d, ui: &mut Ui) -> bool {
+    if app.main.calculating {
+        return false;
+    }
+    if app.eng.base().is_none() {
+        app.message(ui, "Calculate the image first.");
+        return false;
+    }
+    true
+}
+
+fn reset_se_effect(app: &mut Mb3d, ui: &mut Ui, effect: i64) {
+    if app.main.calculating || app.eng.base().is_none() {
+        return;
+    }
+    app.make_scene(ui);
+    let mut scene = app.scene.clone();
+    match effect {
+        0 => { app.post.hs_now = false; scene.shadows = None; }
+        1 => { app.post.ao_now = false; scene.ao = None; scene.deao = None; }
+        2 => { app.post.refl_now = false; scene.mc.reflections = false; }
+        3 => { app.post.dof_now = false; scene.dof = None; }
+        _ => return,
+    }
+    started(app, ui, "post processing");
+    app.eng.start(super::engine::Job::Repaint { scene });
+}
+
 fn selection_rect(app: &Mb3d, ui: &mut Ui) -> Option<[i32; 4]> {
     if !ui.visible(MAIN, "Shape1") {
         ui.show_message("Please make a selection in the image first.");
@@ -298,19 +628,77 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
         }
     }
     match h {
+        "FormCreate" if cfg!(feature = "se-desktop") => configure_se(ui),
+        "SeAmbientMethod" => {
+            ui.cm(F, "TabControl1").tab_index = ui.item_index(F, "SeAmbientMethod");
+            radio_group3_click(ui);
+        }
+        "SeAmbientRays" => ui.set_position(F, "UpDown1", i64::from(ui.item_index(F, "SeAmbientRays"))),
+        "SeDofPasses" => ui.set_item_index(F, "RadioGroup1", ui.item_index(F, "SeDofPasses")),
+        "SeSubsurface" | "SeSubsurfaceCommit" => {
+            sync_se_transparency(ui,false);
+            if se_post_ready(app,ui) {app.post.refl_now=true;repaint(app,ui,"subsurface scattering");}
+        },
+        "SeTransparency" => sync_se_transparency(ui, app.eng.has_transmission_cache()),
+        "SePostSlider" => {
+            if let Some((name, field, _, _, scale)) = SE_SLIDERS.iter().find(|(name, ..)| *name == e.sender) {
+                let mut value = ui.position(F, name) as f64 / scale;
+                if *name == "SeAmbientLength" { value = 10.0_f64.powf(value); }
+                ui.set_text(F, field, &fts_single(value));
+                if *name == "SeAmbientStrength" {
+                    preview_ambient_strength(app, ui);
+                }
+                if matches!(*name, "SeTransStrength" | "SeTransGlow") { preview_translucency(app,ui); }
+            }
+        }
+        "SePostValue" if matches!(e.ev, Ev::Exit | Ev::KeyDown { key: 13, .. }) => {
+            sync_se_sliders(ui);
+            if e.sender=="SeSubsurfaceAmountEdit" {
+                if se_post_ready(app,ui){app.post.refl_now=true;repaint(app,ui,"subsurface scattering");}
+            }
+            if matches!(e.sender.as_str(),"SeTransStrengthEdit"|"SeTransGlowEdit") {
+                preview_translucency(app,ui);
+                return;
+            }
+            if e.sender == "SeAmbientStrengthEdit" {
+                preview_ambient_strength(app, ui);
+                return;
+            }
+            app.make_scene(ui);
+            sync_se_transparency(ui, app.eng.can_repaint_translucency(&app.scene));
+        }
+        "SePostDepth" if matches!(e.ev, Ev::Exit | Ev::KeyDown { key: 13, .. }) => {
+            let depth = pti(&ui.text(F, "Edit11")).clamp(1, 30);
+            ui.set_position(F, "UpDown2", i64::from(depth));
+            ui.set_text(F, "Edit11", &depth.to_string());
+        }
+        "SePostReset" => reset_se_effect(app, ui, ui.tag(F, &e.sender)),
         "NoiseFilterNowBtnClick" => super::main_form::denoise_picture(app, ui, noise_sigma(ui)),
         "NoiseAutoCbxClick" => update_captions(ui),
         "FormShow" => {
             super::main_form::place_sticky(app, ui, Some(F), true);
             ui.cm(F, "Edit11").hint = "Depth of reflections: 1 to see only one reflection,\nwith 2 you could see reflections in the reflected object, ... and so on.".into();
             ui.cm(F, "Edit12").hint = "Divides the actual \"Raystep multiplier\" by this value,\nincrease the value to reduce overstepping.".into();
-            align_panels(ui);
-            update_captions(ui);
+            if cfg!(feature = "se-desktop") {
+                sync_se_tabs(app, ui);
+            } else {
+                align_panels(ui);
+                update_captions(ui);
+            }
         }
         "FormHide" => {
             let f = ui.f(F);
             let s = format!("{} {}", f.left, f.top);
             app.ini.set("PostpPos", &s);
+        }
+        "CheckBox9Click" | "CheckBox11Click" | "CheckBox24Click" | "CheckBox1Click"
+            if cfg!(feature = "se-desktop") =>
+        {
+            let page = SE_PAGES.iter().position(|(_, _, automatic)| *automatic == e.sender).unwrap();
+            if !ui.checked(F, &e.sender) && app.eng.base().is_some() && !app.main.calculating {
+                reset_se_effect(app, ui, page as i64);
+            }
+            sync_se_tabs(app, ui);
         }
         "CheckBox23Click" | "CheckBox9Click" | "CheckBox11Click" | "CheckBox24Click" | "CheckBox1Click" => update_captions(ui),
         "CheckBox2Click" => check_box2(ui),
@@ -321,6 +709,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             repaint(app, ui, "Normals on ZBuf");
         }
         "Button3Click" => {
+            if cfg!(feature = "se-desktop") && !se_post_ready(app, ui) { return; }
             if shadow_params(ui).lights == 0 {
                 ui.show_message("Please select the lights first.  No HS for lightmaps.");
                 return;
@@ -338,10 +727,12 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             repaint(app, ui, "hard shadow calculation");
         }
         "Button10Click" => {
+            if cfg!(feature = "se-desktop") && !se_post_ready(app, ui) { return; }
             app.post.ao_now = true;
             repaint(app, ui, "ambient shadow calculation");
         }
         "Button11Click" => {
+            if cfg!(feature = "se-desktop") && !se_post_ready(app, ui) { return; }
             if ui.checked(F, "CheckBox25") {
                 // "Calculate only a selection in the image": the reflections
                 // of the selection only (MB3D's CalcSRT with the selection)
@@ -363,6 +754,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             repaint(app, ui, "Reflections");
         }
         "Button1Click" => {
+            if cfg!(feature = "se-desktop") && !se_post_ready(app, ui) { return; }
             if app.scene.tiling.is_some() {
                 ui.show_message("No DoF on tiles.");
                 return;
@@ -372,11 +764,16 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
         }
         "Button2Click" => {
             let tg = ui.tag(F, &e.sender) as i32;
+            if cfg!(feature = "se-desktop") && !se_post_ready(app, ui) { return; }
             if ui.caption(F, &e.sender) == "Click on image" {
                 ui.set_caption(F, &e.sender, if tg == 1 { "Get Z1" } else { "Get Z2" });
                 app.main.get_pos = 0;
                 ui.cm(MAIN, "Image1").cursor = "crDefault".into();
             } else {
+                if cfg!(feature = "se-desktop") {
+                    ui.set_caption(F, if tg == 1 { "Button18" } else { "Button2" },
+                        if tg == 1 { "Get Z2" } else { "Get Z1" });
+                }
                 app.main.get_pos = tg;
                 ui.set_caption(F, &e.sender, "Click on image");
                 ui.cm(MAIN, "Image1").cursor = "crCross".into();
@@ -385,6 +782,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
         "Button19Click" => {
             let t = ui.text(F, "Edit1");
             ui.set_text(F, "Edit10", &t);
+            sync_se_sliders(ui);
         }
         "Button16Click" => {
             // "Reset now": the processings applied by hand are dropped

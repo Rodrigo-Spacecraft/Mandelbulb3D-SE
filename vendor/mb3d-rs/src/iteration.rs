@@ -80,6 +80,17 @@ pub struct Iteration {
     /// Weights of the two formulas of an interpolation hybrid
     /// (`PSingle(@nHybrid[0..1])^`).
     pub ipol: [f32; 2],
+    /// Transmission traces individual DIFS instances, keeping internal surfaces.
+    pub difs_inside_components: Option<Vec<i32>>,
+    /// Clear containing media omitted while evaluating ambient-shadow rays.
+    pub difs_ignored_components: Vec<i32>,
+    /// Restrict a material-thickness query to one geometric instance.
+    pub difs_only_component: Option<i32>,
+    /// Canonical geometric instance selected by the last DIFS evaluation.
+    pub difs_component_id: i32,
+    /// Reused per-evaluation registry: slot, input orbit/scale, and raw distance.
+    /// Coincident evaluations share an identity without changing palette indices.
+    pub(crate) difs_orbit_components: std::collections::HashMap<[u64; 11], i32>,
 }
 
 impl Iteration {
@@ -405,6 +416,8 @@ impl Iteration {
                 self.j = [c[0], c[1], c[2], self.j[3]];
             }
         }
+        let trace_components = self.difs_inside_components.is_some() || !self.difs_ignored_components.is_empty() || self.difs_only_component.is_some();
+        self.difs_orbit_components.clear();
         let Some(m) = self.emu.as_deref_mut() else {
             return 0.0;
         };
@@ -431,6 +444,7 @@ impl Iteration {
         let mut min_de = 65535.0f64;
         let mut dfree2 = 0.0;
         let mut it_min = 0i32;
+        let mut component_min = 0i32;
         let mut it = 0i32;
         // registers as in doHybridIFS3D: ebx = slot, ecx = remaining count,
         // edi = variable buffer; the formula's values of these registers are
@@ -462,6 +476,17 @@ impl Iteration {
                 if g > 64 {
                     break 'outer;
                 }
+            }
+            // Match the evaluated geometry, rather than assuming a particular
+            // option name means a primitive is static. Transformed copies have
+            // different orbit inputs and remain distinct, even in one slot.
+            let mut orbit = [0u64; 11];
+            if trace_components {
+                orbit[0] = n as u64;
+                for k in 0..4 { orbit[1+k] = m.get_f64(b+off::X+8*k as u32).to_bits(); }
+                for k in 0..3 { orbit[5+k] = m.get_f64(b+off::J1+8*k as u32).to_bits(); }
+                orbit[8] = m.get_f64(b+off::J4).to_bits();
+                orbit[9] = m.get_f64(b+off::VARY_SCALE).to_bits();
             }
             crate::diagnostics::formula(n);
             let regs = if let Some((f, p)) = direct.get(n).copied().flatten() {
@@ -498,9 +523,23 @@ impl Iteration {
             }
             it += 1;
             m.put_u32(b + off::IT_RESULT, it as u32);
-            let de = m.get_f64(b + off::ROUT) / m.get_f64(b + off::VARY_SCALE);
+            let mut de = m.get_f64(b + off::ROUT) / m.get_f64(b + off::VARY_SCALE);
+            let component = if trace_components {
+                // Iteration-dependent geometry is not a coincident copy even
+                // if the formula does not modify its input vector.
+                orbit[10] = de.to_bits();
+                *self.difs_orbit_components.entry(orbit).or_insert(it)
+            } else { it };
+            if self.difs_only_component.is_some_and(|id|id != component) || self.difs_ignored_components.contains(&component) {
+                if it >= self.max_it { break; }
+                continue;
+            }
+            if self.difs_inside_components.as_ref().is_some_and(|ids|ids.contains(&component)) {
+                de=2.0*rstopd/1.03-de;
+            }
             if de < min_de {
                 it_min = it;
+                component_min = component;
                 dfree2 = m.get_f64(b + off::DFREE1);
                 min_de = de;
                 if !inside && de < rstopd {
@@ -521,6 +560,7 @@ impl Iteration {
         }
         self.rout = m.get_f64(b + off::ROUT);
         self.it_result = it_min;
+        self.difs_component_id = component_min;
         self.smooth_it = it_min as f32;
         self.otrap = dfree2;
         min_de

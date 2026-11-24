@@ -1,6 +1,6 @@
 Third-party notices — Mandelbulb3D SE
 
-Corresponding release source: https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel4
+Corresponding release source: https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel3
 
 macOS application, interface, and additional rendering features by Glenn Olander.
 

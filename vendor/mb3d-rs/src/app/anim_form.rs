@@ -15,6 +15,9 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+#[path = "anim_se.rs"]
+mod se;
+
 const F: &str = "AnimationForm";
 const PV: &str = "AniPreviewForm";
 const PR: &str = "AniProcessForm";
@@ -78,10 +81,15 @@ fn output_plan(app: &mut Mb3d, ui: &Ui) -> Result<(Animation, FrameRun, Vec<usiz
         return Err("The animation needs at least two keyframes.".into());
     }
     if a.output_folder.trim().is_empty() {
+        if cfg!(feature = "se-desktop") { return Err("Choose an output folder before pressing Start Render.".into()); }
         a.output_folder = app.ini.dir(super::ini::DIR_ANIOUT).display().to_string();
     }
-    let to = ui.text(F, "Edit11").trim().parse::<i64>().ok();
-    let from = ui.text(F, "Edit8").trim().parse::<i64>().ok();
+    let (from, to) = if cfg!(feature = "se-desktop") {
+        let (start, end) = se::frame_range(ui, &a)?;
+        (Some(a.file_index(start)), Some(a.file_index(end - 1)))
+    } else {
+        (ui.text(F, "Edit8").trim().parse::<i64>().ok(), ui.text(F, "Edit11").trim().parse::<i64>().ok())
+    };
     // (a stopped animation continues in the middle of its frame)
     let run = FrameRun { from_index: from, to_index: to, resume: crate::checkpoint::Policy::Continue, ..Default::default() };
     let frames = run.frames(&a);
@@ -132,6 +140,8 @@ pub struct State {
     pub preview_start: usize,
     pub play_frame: usize,
     pub playing: bool,
+    inline_preview: bool,
+    inline_preview_pending: bool,
 }
 
 impl Default for State {
@@ -153,6 +163,8 @@ impl Default for State {
             preview_start: 1,
             play_frame: 0,
             playing: false,
+            inline_preview: false,
+            inline_preview_pending: false,
         }
     }
 }
@@ -164,8 +176,9 @@ fn count(app: &Mb3d) -> usize {
 /// The animation settings of the window into `anim` (size, output, ...).
 fn read_settings(app: &mut Mb3d, ui: &Ui) {
     let a = &mut app.anim.anim;
-    a.width = pti(&ui.text(F, "Edit6")).max(8);
-    a.height = pti(&ui.text(F, "Edit7")).max(8);
+    let min = if cfg!(feature = "se-desktop") { 16 } else { 8 };
+    a.width = pti(&ui.text(F, "Edit6")).max(min);
+    a.height = pti(&ui.text(F, "Edit7")).max(min);
     a.scale = ui.position(F, "UpDown3").clamp(1, 3) as u32;
     a.interpolation = if ui.item_index(F, "RadioGroup2") == 0 { Interpolation::Linear } else { Interpolation::Bezier };
     a.looped = ui.checked(F, "CheckBox2");
@@ -182,6 +195,13 @@ fn read_settings(app: &mut Mb3d, ui: &Ui) {
     a.save_depth = ui.checked(F, "CheckBox7");
     a.transparent = ui.checked(F, "TransparentCheck") && a.format == OutputFormat::Png;
     a.stereo_bits = if ui.checked(F, "CheckBox4") { 1 | if ui.checked(F, "CheckBox5") { 2 } else { 0 } } else { 0 };
+    if cfg!(feature = "se-desktop") {
+        a.scale = (ui.item_index(F, "SeSampling").clamp(0, 5) + 1) as u32;
+        a.interpolation = if ui.item_index(F, "SeInterpolation") == 0 { Interpolation::Linear } else { Interpolation::Bezier };
+        a.format = OutputFormat::Png;
+        a.stereo_bits = 0;
+        a.overwrite = false;
+    }
 }
 
 fn write_settings(app: &Mb3d, ui: &mut Ui) {
@@ -201,6 +221,10 @@ fn write_settings(app: &Mb3d, ui: &mut Ui) {
     ui.set_checked(F, "CheckBox4", a.stereo_bits & 1 != 0);
     ui.set_checked(F, "CheckBox5", a.stereo_bits & 2 != 0);
     ui.set_enabled(F, "CheckBox5", a.stereo_bits & 1 != 0);
+    if cfg!(feature = "se-desktop") {
+        ui.set_item_index(F, "SeSampling", a.scale.clamp(1, 6) as i32 - 1);
+        ui.set_item_index(F, "SeInterpolation", i32::from(a.interpolation != Interpolation::Linear));
+    }
 }
 
 fn show_project_name(app: &Mb3d, ui: &mut Ui) {
@@ -236,6 +260,10 @@ fn render_thumb(app: &mut Mb3d, ui: &Ui, i: usize) {
 
 /// `PaintBox1Paint`: five keyframe images around the current one.
 fn paint_box(app: &Mb3d, ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") {
+        se::refresh(app, ui);
+        return;
+    }
     let st = &app.anim;
     let n = count(app);
     let cur = st.current;
@@ -309,6 +337,10 @@ fn set_scroll_button(app: &Mb3d, ui: &mut Ui) {
 
 /// `calcTimeForPreviewRender`: frames and memory of the preview.
 fn calc_time(app: &Mb3d, ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") {
+        se::estimate(app, ui);
+        return;
+    }
     let n = count(app);
     if n == 0 {
         ui.set_caption(F, "Label14", "0:00");
@@ -381,14 +413,27 @@ pub fn idle(app: &mut Mb3d, ui: &mut Ui) {
         j.changed = false;
         (c, std::mem::take(&mut j.thumbs), j.running, j.done, j.total, j.error.clone(), j.last.take(), j.frames.len())
     };
+    let thumbnails_changed = !thumbs.is_empty();
     for (i, id, b) in thumbs {
         if let Some(k) = app.anim.ids.iter().position(|&x| x == id) {
             let _ = i;
             app.anim.thumbs[k] = Some(b);
         }
     }
-    if changed {
+    if (cfg!(feature = "se-desktop") && thumbnails_changed) || (!cfg!(feature = "se-desktop") && changed) {
         paint_box(app, ui);
+    }
+    if cfg!(feature = "se-desktop") && changed && app.anim.inline_preview_pending {
+        if done > 0 {
+            se::show_cached(app, ui, if running { done - 1 } else { 0 });
+        }
+        if !running {
+            app.anim.inline_preview_pending = false;
+            ui.set_enabled(F, "SePlayback", done > 1);
+            if done > 1 && !app.anim.stop.load(Ordering::SeqCst) && err.is_empty() {
+                se::play(app, ui);
+            }
+        }
     }
     if !changed && !running {
         // the flip book of the preview
@@ -400,10 +445,17 @@ pub fn idle(app: &mut Mb3d, ui: &mut Ui) {
     if let Some((rgb, w, h)) = last {
         // MB3D shows the frames in the main window while rendering
         if !app.main.calculating {
-            let c = ui.cm(MAIN, "Image1");
-            c.width = w as i32;
-            c.height = h as i32;
-            c.picture = Some(Bitmap::from_rgb(w, h, &rgb));
+            if cfg!(feature = "se-desktop") {
+                let number = se::frame_range(ui, &app.anim.anim).map_or(done, |(start, _)| start + done);
+                ui.set_position(F, "SeTimeline", number as i64);
+                ui.set_text(F, "SeCurrentFrame", &number.to_string());
+                se::show_image(ui, Some(Bitmap::from_rgb(w, h, &rgb)), number);
+            } else {
+                let c = ui.cm(MAIN, "Image1");
+                c.width = w as i32;
+                c.height = h as i32;
+                c.picture = Some(Bitmap::from_rgb(w, h, &rgb));
+            }
         }
     }
     if ui.showing(PV) && frames_len > 0 {
@@ -411,14 +463,17 @@ pub fn idle(app: &mut Mb3d, ui: &mut Ui) {
         let c = ui.cm(PV, "ScrollBar1");
         c.max = (frames_len as i64 - 1).max(0);
     }
+    if cfg!(feature = "se-desktop") && !running && !err.is_empty() {
+        ui.set_caption(F, "Label19", &err);
+    }
     let el = app.anim.started.elapsed().as_secs();
     if making_video {
         ui.set_caption(F, "Label19", "Making the video...");
-    } else if running || done > 0 {
+    } else if (running || done > 0) && err.is_empty() {
         ui.set_caption(F, "Label19", &format!("Done: {done} of {total}"));
         ui.set_caption(F, "Label22", &format!("{}:{:02}:{:02}", el / 3600, el / 60 % 60, el % 60));
     }
-    if !running {
+    if !running && (!cfg!(feature = "se-desktop") || !thumbnails_changed || total > 0) {
         end_rendering(app, ui);
         if !err.is_empty() {
             app.message(ui, &format!("Animation: {err}"));
@@ -433,6 +488,11 @@ pub fn idle(app: &mut Mb3d, ui: &mut Ui) {
 }
 
 fn end_rendering(app: &mut Mb3d, ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") {
+        se::job_controls(ui, false, "");
+        paint_box(app, ui);
+        return;
+    }
     ui.set_caption(F, "Button2", "Start rendering animation images");
     ui.set_enabled(F, "Button2", count(app) > 1);
     for b in ["SpeedButton1", "SpeedButton9", "SpeedButton10", "SpeedButton11", "Edit1", "Button3"] {
@@ -452,6 +512,11 @@ fn parse_waiting(st: &str) -> Option<(usize, usize)> {
 }
 
 fn start_rendering(app: &mut Mb3d, ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") && app.main.calculating { return; }
+    if cfg!(feature = "se-desktop") && app.anim.job.lock().unwrap().running {
+        app.anim.stop.store(true, Ordering::SeqCst);
+        return;
+    }
     let cap = ui.caption(F, "Button2");
     if cap == "Pause rendering" {
         app.anim.pause.store(true, Ordering::SeqCst);
@@ -469,6 +534,9 @@ fn start_rendering(app: &mut Mb3d, ui: &mut Ui) {
         Err(_) if app.anim.anim.keyframes.len() < 2 => return,
         Err(e) => return ui.show_message(&e),
     };
+    if cfg!(feature = "se-desktop") && (a.width as i64 * a.scale as i64 > 16384 || a.height as i64 * a.scale as i64 > 16384) {
+        return ui.show_message("Oversampled animation dimensions must not exceed 16384.");
+    }
     let _ = std::fs::create_dir_all(&a.output_folder);
     if ui.checked(F, "TransparentCheck") && a.format != OutputFormat::Png {
         return ui.show_message("A transparent background needs PNG frames: choose PNG as the output format.");
@@ -481,7 +549,12 @@ fn start_rendering(app: &mut Mb3d, ui: &mut Ui) {
     for b in ["SpeedButton1", "SpeedButton2", "SpeedButton3", "SpeedButton4", "SpeedButton5", "SpeedButton8", "SpeedButton9", "SpeedButton10", "SpeedButton11", "SpeedButton12", "SpeedButton14", "Edit1", "Button3", "Button4"] {
         ui.set_enabled(F, b, false);
     }
-    ui.set_caption(F, "Button2", "Pause rendering");
+    if cfg!(feature = "se-desktop") {
+        se::reset_preview(app, ui);
+        se::job_controls(ui, true, "Button2");
+    } else {
+        ui.set_caption(F, "Button2", "Pause rendering");
+    }
     app.anim.started = Instant::now();
     app.anim.stop.store(false, Ordering::SeqCst);
     app.anim.pause.store(false, Ordering::SeqCst);
@@ -609,21 +682,59 @@ fn start_rendering(app: &mut Mb3d, ui: &mut Ui) {
 }
 
 /// `Button4Click` / `AniPreviewForm.StartRendering`: small frames to play.
-fn start_preview(app: &mut Mb3d, ui: &mut Ui) {
-    read_settings(app, ui);
-    let a = app.anim.anim.clone();
-    if a.keyframes.len() < 2 {
+fn start_preview(app: &mut Mb3d, ui: &mut Ui, single: bool) {
+    if cfg!(feature = "se-desktop") && app.main.calculating { return; }
+    if app.anim.job.lock().unwrap().running {
+        if cfg!(feature = "se-desktop") { app.anim.stop.store(true, Ordering::SeqCst); }
         return;
     }
-    let every = ui.position(F, "UpDown1").max(1) as usize;
-    let down = ui.position(F, "UpDown2").max(1) as f64;
+    read_settings(app, ui);
+    let mut a = app.anim.anim.clone();
+    if a.keyframes.is_empty() || (!single && a.keyframes.len() < 2) {
+        return;
+    }
+    let inline = cfg!(feature = "se-desktop");
+    if inline && !single {
+        a.scale = 1;
+    }
+    if inline && (a.width as i64 * a.scale as i64 > 16384 || a.height as i64 * a.scale as i64 > 16384) {
+        return ui.show_message("Oversampled animation dimensions must not exceed 16384.");
+    }
+    let every = if inline { if single { 1 } else { se::preview_step(ui) } } else { ui.position(F, "UpDown1").max(1) as usize };
+    let down = if inline { if single { 1.0 } else { se::preview_divisor(ui) } } else { ui.position(F, "UpDown2").max(1) as f64 };
     let n = a.keyframes.len();
     let k0 = pti(&ui.text(F, "Edit9")).clamp(1, n as i32) as usize - 1;
     let k1 = ui.text(F, "Edit10").trim().parse::<usize>().ok().filter(|&v| v >= 1 && v <= n).unwrap_or(n) - 1;
-    let (f0, f1) = (a.first_frame_of(k0), if k1 + 1 >= n { a.frame_count() } else { a.first_frame_of(k1) + 1 });
-    let fast = ui.checked(F, "CheckBox3");
+    let (f0, f1) = if inline && single {
+        let frame = pti(&ui.text(F, "SeCurrentFrame")).clamp(1, a.frame_count().max(1) as i32) as usize;
+        (frame - 1, frame)
+    } else if inline {
+        match se::frame_range(ui, &a) {
+            Ok(range) => range,
+            Err(error) => return ui.show_message(&error),
+        }
+    } else {
+        (a.first_frame_of(k0), if k1 + 1 >= n { a.frame_count() } else { a.first_frame_of(k1) + 1 })
+    };
+    let fast = !inline && ui.checked(F, "CheckBox3");
     let frames: Vec<usize> = (f0..f1.min(a.frame_count())).step_by(every).collect();
-    let run = FrameRun { every: 1, preview: 1.0 / down, ..Default::default() };
+    if frames.is_empty() { return; }
+    let preview_factor = if inline && !single {
+        (1.0 / down).max(16.0 / f64::from(a.width.min(a.height)))
+    } else { 1.0 / down };
+    if inline {
+        let pixels = (f64::from(a.width) * f64::from(a.height) * preview_factor.powi(2)).ceil() as u64;
+        let bytes = pixels.saturating_mul(frames.len() as u64).saturating_mul(4);
+        if crate::render::memory_available().is_some_and(|available| bytes > available / 2) {
+            return ui.show_message("The preview would use too much memory. Reduce its size or frame range.");
+        }
+        se::reset_preview(app, ui);
+        app.anim.inline_preview = true;
+        app.anim.inline_preview_pending = true;
+        app.anim.started = Instant::now();
+        se::job_controls(ui, true, if single { "SeRenderFrame" } else { "Button4" });
+    }
+    let run = FrameRun { every: 1, preview: preview_factor, ..Default::default() };
     app.anim.preview_step = every;
     app.anim.preview_start = f0 + 1;
     app.anim.playing = false;
@@ -634,12 +745,14 @@ fn start_preview(app: &mut Mb3d, ui: &mut Ui) {
     }
     // the preview window: an image of the frame size
     let (w, h) = ((a.width as f64 / down).round() as i32, (a.height as f64 / down).round() as i32);
-    setup_preview_window(ui, w, h, frames.len());
-    // (the AniGif button shows when the frames are done)
-    ui.set_visible(PV, "SpeedButton1", false);
-    ui.show(PV);
-    ui.set_visible(PV, "ProgressBar1", true);
-    ui.cm(PV, "ProgressBar1").max = frames.len() as i64;
+    if !inline {
+        setup_preview_window(ui, w, h, frames.len());
+        // (the AniGif button shows when the frames are done)
+        ui.set_visible(PV, "SpeedButton1", false);
+        ui.show(PV);
+        ui.set_visible(PV, "ProgressBar1", true);
+        ui.cm(PV, "ProgressBar1").max = frames.len() as i64;
+    }
     let job = app.anim.job.clone();
     let stop = app.anim.stop.clone();
     let waker = ui.waker();
@@ -659,7 +772,8 @@ fn start_preview(app: &mut Mb3d, ui: &mut Ui) {
                     s.ao = None;
                     s.dof = None;
                 }
-                crate::frames::render_scaled(&s, 1, false, false, &|_, _| {}, &cancel)
+                let aa = if inline && single { a.scale as usize } else { 1 };
+                crate::frames::render_scaled(&s, aa, false, false, &|_, _| {}, &cancel)
             });
             let mut j = job.lock().unwrap();
             match r {
@@ -932,15 +1046,28 @@ pub fn process_event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
 pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
     let h = e.handler.as_str();
     let n = count(app);
+    if cfg!(feature = "se-desktop") {
+        if h == "FormCreate" {
+            se::configure(ui);
+            return;
+        }
+        if se::event(app, ui, e) { return; }
+        if matches!(h, "SpeedButton5Click" | "SpeedButton2Click" | "SpeedButton3Click" | "SpeedButton12Click") {
+            se::reset_preview(app, ui);
+        }
+    }
     match h {
         "FormShow" => {
             if app.anim.first_show {
                 app.anim.first_show = false;
+                if cfg!(feature = "se-desktop") { se::initialize(app, ui); }
                 ui.cm(F, "Edit21").hint = "1:  none\n2:  2x2\n3:  3x3".into();
                 ui.set_item_index(F, "RadioGroup2", app.ini.get("AniSmoothPar").parse::<i32>().unwrap_or(1).clamp(0, 1));
                 let out = app.ini.dir(super::ini::DIR_ANIOUT).display().to_string();
-                ui.set_text(F, "Edit2", &out);
-                app.anim.anim.output_folder = out;
+                if !cfg!(feature = "se-desktop") {
+                    ui.set_text(F, "Edit2", &out);
+                    app.anim.anim.output_folder = out;
+                }
                 ui.set_item_index(F, "RadioGroup3", 1);
                 show_project_name(app, ui);
                 ui.set_checked(F, "TransparentCheck", app.ini.get_extra("AniTransparent") == Some("1"));
@@ -948,8 +1075,9 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
                 let fps = app.ini.get_extra("AniVideoFps").filter(|f| !f.is_empty()).unwrap_or("25").to_string();
                 ui.set_text(F, "VideoFpsEdit", &fps);
             }
-            let fc = app.ini.get("AniFrameCount").to_string();
-            ui.set_text(F, "Edit5", &fc);
+            let fc = if cfg!(feature = "se-desktop") { "30".to_string() } else { app.ini.get("AniFrameCount").to_string() };
+            if !cfg!(feature = "se-desktop") || ui.text(F, "Edit5").is_empty() { ui.set_text(F, "Edit5", &fc); }
+            if cfg!(feature = "se-desktop") { read_settings(app, ui); }
             paint_box(app, ui);
             calc_time(app, ui);
         }
@@ -962,6 +1090,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             }
         }
         "SpeedButton1Click" => {
+            if cfg!(feature = "se-desktop") { return se::capture(app, ui, false); }
             let s = main_scene(app, ui);
             insert_keyframe(app, ui, s);
         }
@@ -1048,11 +1177,17 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
                 s.slice_2d = 0;
                 app.scene = s;
                 app.main.image_scale = a.scale as i32;
+                if cfg!(feature = "se-desktop") {
+                    app.scene.width = a.width;
+                    app.scene.height = a.height;
+                    app.main.image_scale = 1;
+                }
                 app.eng.clear();
                 app.scene_to_forms(ui);
                 app.title = format!("Keyframe #{cur}");
                 super::main_form::set_caption(app, ui);
                 super::main_form::show_image(app, ui);
+                if cfg!(feature = "se-desktop") { super::main_form::calc_mand(app, ui, true); }
             }
         }
         "SpeedButton14Click" => {
@@ -1080,6 +1215,11 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             let cur = app.anim.current;
             if cur >= 1 && cur < n {
                 let c = app.anim.anim.keyframes[cur - 1].frames;
+                if cfg!(feature = "se-desktop") {
+                    let s = ((c / 2) + 1).to_string();
+                    dialog(app, ui, "between", &DialogResult::Text(Some(s)));
+                    return;
+                }
                 ui.input_query("anim:between", "Linear interpolate a keyframe inbetween", "At which subframe:", &((c + 1) / 2).to_string());
             }
         }
@@ -1127,7 +1267,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
         }
         "Button2Click" => start_rendering(app, ui),
         "FfmpegBtnClick" => ffmpeg_command(app, ui),
-        "Button4Click" => start_preview(app, ui),
+        "Button4Click" => start_preview(app, ui, false),
         "SpeedButton10Click" => ui.show(PR),
         "SpeedButton9Click" => {
             let o = crate::vcl::dialogs::FileOptions {
@@ -1156,6 +1296,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
 pub fn load_animation(app: &mut Mb3d, ui: &mut Ui, p: &std::path::Path) {
     match crate::animfile::load(p) {
         Ok(af) => {
+            if cfg!(feature = "se-desktop") { se::reset_preview(app, ui); }
             app.anim.anim = af.anim;
             let n = app.anim.anim.keyframes.len();
             app.anim.thumbs = (0..n).map(|i| af.previews.get(i).cloned().flatten().map(|pv| Bitmap::from_rgb(pv.width, pv.height, &pv.rgb))).collect();
@@ -1224,11 +1365,12 @@ pub fn dialog(app: &mut Mb3d, ui: &mut Ui, what: &str, r: &DialogResult) {
             }
         }
         ("clear", DialogResult::Button(b)) if *b == crate::vcl::form::MR_YES => {
+            if cfg!(feature = "se-desktop") { se::reset_preview(app, ui); }
             app.anim.anim.keyframes.clear();
             app.anim.thumbs.clear();
             app.anim.ids.clear();
             app.anim.current = 1;
-            let fc = app.ini.get("AniFrameCount").to_string();
+            let fc = if cfg!(feature = "se-desktop") { "30".to_string() } else { app.ini.get("AniFrameCount").to_string() };
             ui.set_text(F, "Edit5", &fc);
             paint_box(app, ui);
             calc_time(app, ui);

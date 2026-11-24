@@ -107,6 +107,8 @@ fn geometry_key(sc: &Scene) -> String {
     g.deao = None;
     g.dof = None;
     g.mc = Default::default();
+    g.subsurface_scattering = false;
+    g.subsurface_amount = 1.0;
     g.threads = 0;
     g.to_text()
 }
@@ -123,6 +125,8 @@ pub extern "C" fn mb3dx_rust_render(
     transmission_blur: f64,
     translucency_glow: f64,
     translucency_enabled: i32,
+    subsurface_scattering: i32,
+    subsurface_amount: f64,
     token: *mut c_void,
     cancel: extern "C" fn(*mut c_void) -> i32,
     progress: extern "C" fn(*mut c_void, i32, i32),
@@ -167,6 +171,9 @@ pub extern "C" fn mb3dx_rust_render(
             }
             let mut sc = loaded.scene;
             let translucency_enabled = translucency_enabled != 0 && sc.mc.transparency;
+            sc.translucency_enabled = translucency_enabled;
+            sc.subsurface_scattering = subsurface_scattering != 0 && translucency_enabled;
+            sc.subsurface_amount = subsurface_amount.clamp(0.0,1.0) as f32;
             if translucency_enabled {
                 sc.transmission_blur = transmission_blur.clamp(0.0, 2.0) as f32;
                 sc.translucency_glow = translucency_glow.clamp(-1.0, 1.0) as f32;

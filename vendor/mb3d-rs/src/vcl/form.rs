@@ -17,6 +17,7 @@ pub const SS_LEFT: u8 = 8;
 pub const SS_RIGHT: u8 = 16;
 pub const SS_MIDDLE: u8 = 32;
 pub const SS_DOUBLE: u8 = 64;
+pub const SS_SUPER: u8 = 128;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MouseButton {
@@ -106,6 +107,7 @@ pub struct MenuLevel {
     /// position in form client coordinates
     pub rect: Rect,
     pub hot: i32,
+    pub scroll: i32,
 }
 
 #[derive(Clone, Debug)]
@@ -155,6 +157,7 @@ pub struct Form {
     pub cap_button: Option<MouseButton>,
     pub cap_start: (i32, i32),
     pub cap_value: i64,
+    pub cap_track: (i32, f64),
     pub popup: Option<Popup>,
     /// the control the last popup menu was opened for (`PopupComponent`)
     pub popup_owner: Option<Id>,
@@ -245,6 +248,7 @@ impl Form {
             cap_button: None,
             cap_start: (0, 0),
             cap_value: 0,
+            cap_track: (0, 0.0),
             popup: None,
             popup_owner: None,
             hint: None,

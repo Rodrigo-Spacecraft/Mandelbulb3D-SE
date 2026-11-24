@@ -13,6 +13,15 @@ use std::time::Instant;
 const F: &str = "LightAdjustForm";
 const PID180: f64 = std::f64::consts::PI / 180.0;
 
+#[derive(Clone, PartialEq)]
+struct LightingSnapshot {
+    lighting: Lighting,
+    emission: Option<[f32; 3]>,
+    opacity: [f32; 10],
+    volume: Option<crate::vollight::VolLightParams>,
+    fog_iteration: u16,
+}
+
 pub struct State {
     pub user_change: bool,
     /// colour start / stop while the fine adjustment is down
@@ -20,11 +29,13 @@ pub struct State {
     pub col_stop: i64,
     /// positional light: the last positions of the relative sliders
     pub old_tb: [i64; 3],
+    pub strength_origin: f32,
     pub custom: Vec<Option<Lighting>>,
     pub custom_tb: Vec<[i64; 3]>,
     pub repaint_pending: bool,
     pub last_change: Instant,
-    pub undo: Vec<Lighting>,
+    undo: Vec<LightingSnapshot>,
+    position_drag_start: Option<LightingSnapshot>,
     pub undo_pos: usize,
     pub hist: Vec<u32>,
     pub hist_ot: Vec<u32>,
@@ -39,11 +50,13 @@ impl Default for State {
             col_start: 0,
             col_stop: 0,
             old_tb: [0; 3],
-            custom: vec![None; 10],
-            custom_tb: vec![[50, 50, 90]; 10],
+            strength_origin: 1.0,
+            custom: vec![None; if cfg!(feature = "se-desktop") { 20 } else { 10 }],
+            custom_tb: vec![[50, 50, 90]; if cfg!(feature = "se-desktop") { 20 } else { 10 }],
             repaint_pending: false,
             last_change: Instant::now(),
             undo: Vec::new(),
+            position_drag_start: None,
             undo_pos: 0,
             hist: Vec::new(),
             hist_ot: Vec::new(),
@@ -475,11 +488,14 @@ fn set_preset(app: &mut Mb3d, ui: &mut Ui, nr: usize, keep_lights: bool) {
 // ---------------------------------------------------------------------------
 
 fn swatch(c: [u8; 3]) -> Bitmap {
-    let (w, h) = (15, 13);
+    sized_swatch(c, 15, 13)
+}
+
+fn sized_swatch(c: [u8; 3], w: usize, h: usize) -> Bitmap {
     let mut b = Bitmap::new(w, h, 0xFFFF_00FF);
-    for y in 0..13 {
-        for x in 1..14 {
-            let edge = y == 0 || y == 12 || x == 1 || x == 13;
+    for y in 0..h {
+        for x in 1..w - 1 {
+            let edge = y == 0 || y == h - 1 || x == 1 || x == w - 2;
             b.px[y * w + x] = if edge { 0xFF00_0000 } else { argb(c) };
         }
     }
@@ -491,7 +507,11 @@ fn set_button_color(ui: &mut Ui, nr: i32, c: [u8; 3]) {
     let name = format!("SpeedButton{nr}");
     if ui.f(F).has(&name) {
         let b = ui.cm(F, &name);
-        b.glyph = Some(swatch(c));
+        b.glyph = Some(if cfg!(feature = "se-desktop") && nr == 12 {
+            sized_swatch(c, 66, 17)
+        } else {
+            swatch(c)
+        });
         b.num_glyphs = 1;
     }
 }
@@ -499,6 +519,7 @@ fn set_button_color(ui: &mut Ui, nr: i32, c: [u8; 3]) {
 /// Palette preview glyphs of the Diff / Spec / Cuts buttons
 /// (`PaintSDPreviewColors`, `SetSDButtonColors`).
 fn set_sd_button_colors(app: &Mb3d, ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") { super::light_se::refresh_palettes(ui, &app.scene); }
     let l = &app.scene.lighting;
     let wid = 34usize;
     let (w, h) = (wid + 4, 13);
@@ -522,7 +543,12 @@ fn set_sd_button_colors(app: &Mb3d, ui: &mut Ui) {
         let (a, b) = (&l.palette[act - 1], &l.palette[act % 10]);
         let (cd, cs) = if l.no_col_ipol { (argb(a.diffuse), argb(a.specular)) } else { (mix3(a.diffuse, b.diffuse, w1), mix3(a.specular, b.specular, w1)) };
         for y in 1..12 {
-            dif.px[y * w + x + 2] = cd;
+            dif.px[y * w + x + 2] = if cfg!(feature = "se-desktop") && y < 4 {
+                let left = app.scene.emissive_opacity[act - 1];
+                let right = app.scene.emissive_opacity[act % 10];
+                let opacity = if l.no_col_ipol { left } else { left * w1 + right * (1.0 - w1) };
+                argb([(opacity.clamp(0.0, 1.0) * 255.0).round() as u8; 3])
+            } else { cd };
         }
         for y in 1..12 {
             spe.px[y * w + x + 2] = if y < 4 { 0xFF80_8080 } else { cs };
@@ -567,6 +593,15 @@ fn set_button_colors(app: &Mb3d, ui: &mut Ui) {
 /// `SetLightFromHeader`.
 pub fn set_from_header(app: &mut Mb3d, ui: &mut Ui) {
     app.light.user_change = false;
+    if cfg!(feature = "se-desktop") {
+        for (name, inside) in [("SeOutsideZoom", false), ("SeInsideZoom", true)] {
+            ui.set_checked(F, name, false);
+            super::light_se::zoom_object_range(ui, inside);
+        }
+        if let Some(color) = super::light_se::emissive_swatch(&app.scene) {
+            app.scene.lighting.dyn_fog_col = rgb_of(color);
+        }
+    }
     let l = app.scene.lighting.clone();
     let fine = l.fine_col_adj.is_some();
     ui.cm(F, "SBFineAdj").down = fine;
@@ -640,6 +675,10 @@ pub fn set_from_header(app: &mut Mb3d, ui: &mut Ui) {
     set_button_colors(app, ui);
     check_box15(app, ui);
     set_bg_preview(app, ui);
+    if cfg!(feature = "se-desktop") {
+        super::light_se::load(ui, &app.scene);
+        super::light_se::sync_object_mode(ui, &app.scene);
+    }
     app.light.user_change = true;
 }
 
@@ -695,6 +734,7 @@ pub fn put_light_in_header(app: &mut Mb3d, ui: &mut Ui) {
     l.far_fog = ui.checked(F, "CheckBox3");
     l.amb_rel_obj = ui.checked(F, "CheckBox9");
     l.gamma = pos(ui, "TrackBar18") as f32;
+    if cfg!(feature = "se-desktop") { super::light_se::put(ui, &mut app.scene); }
 }
 
 /// `TriggerRepaint`: repaints the kept image with the new lighting.
@@ -704,20 +744,38 @@ pub fn trigger_repaint(app: &mut Mb3d, ui: &mut Ui) {
     }
     app.make_scene(ui);
     if app.eng.base().is_some() {
-        app.eng.start(super::engine::Job::Repaint { scene: app.scene.clone() });
+        let scene=app.scene.clone();
+        app.eng.start(if cfg!(feature="se-desktop") { super::engine::Job::Lighting { scene } } else { super::engine::Job::Repaint { scene } });
     }
     ui.cm(F, "ComboBox3").font = Some(crate::vcl::font::Font { color: ui.theme.text_disabled(), custom_color: true, ..Default::default() });
 }
 
-fn store_undo_light(app: &mut Mb3d) {
-    let l = app.scene.lighting.clone();
+fn lighting_snapshot(app: &Mb3d) -> LightingSnapshot {
+    let scene = &app.scene;
+    LightingSnapshot {
+        lighting: scene.lighting.clone(),
+        emission: scene.emissive_difs,
+        opacity: scene.emissive_opacity,
+        volume: scene.vol_light,
+        fog_iteration: scene.dfog_on_it,
+    }
+}
+
+fn push_lighting_snapshot(app: &mut Mb3d, snapshot: LightingSnapshot) {
     let st = &mut app.light;
+    if cfg!(feature = "se-desktop") && st.undo_pos.checked_sub(1).and_then(|i| st.undo.get(i)) == Some(&snapshot) {
+        return;
+    }
     st.undo.truncate(st.undo_pos);
-    st.undo.push(l);
+    st.undo.push(snapshot);
     if st.undo.len() > 40 {
         st.undo.remove(0);
     }
     st.undo_pos = st.undo.len();
+}
+
+fn store_undo_light(app: &mut Mb3d) {
+    push_lighting_snapshot(app, lighting_snapshot(app));
 }
 
 /// The engine finished: the colour histogram of the new image.
@@ -744,9 +802,12 @@ pub fn calc_finished(app: &mut Mb3d, ui: &mut Ui) {
         app.light.hist_int = hi;
         repaint_col_histo(app, ui);
     }
-    store_undo_light(app);
+    if app.light.position_drag_start.is_none() {
+        store_undo_light(app);
+    }
     let n = app.light.undo.len();
     ui.set_enabled(F, "SpeedButton9", n > 1);
+    if cfg!(feature = "se-desktop") { ui.set_enabled(F, "SeLightingUndo", n > 1); }
 }
 
 /// `RepaintColHisto`: the histogram of the colour values over the colour
@@ -767,17 +828,25 @@ fn repaint_col_histo(app: &Mb3d, ui: &mut Ui) {
     let hist = if ui.checked(F, "CheckBox2") { &st.hist_ot } else { &st.hist };
     let maxn = hist.iter().copied().max().unwrap_or(1).max(1) as f64;
     let mut b = Bitmap::new(w, h, 0xFFFF_FFFF);
-    let mut x2: i64 = if fine { (-16384.0 * dmul + dmin).round() as i64 } else { 0 };
+    let zoom = cfg!(feature = "se-desktop") && ui.checked(F, "SeOutsideZoom");
+    let zoom_from = ui.c(F, "TrackBar9").min as f64;
+    let zoom_to = ui.c(F, "TrackBar9").max as f64;
+    let histogram_index = |x: usize| {
+        let t = x as f64 / (w - 1) as f64;
+        if zoom {
+            let endpoint = zoom_from + t * (zoom_to - zoom_from);
+            (((endpoint + 30.0) / 90.0).powi(2) * 32767.0 - 10900.0).round() as i64
+        } else if fine {
+            ((t * 65535.0 - 16384.0) * dmul + dmin).round() as i64
+        } else { ((t * 4.0 / 3.0).powi(2) * 32767.0 - 10900.0).round() as i64 }
+    };
+    let mut x2: i64 = if zoom || fine { histogram_index(0) } else { 0 };
     let col = |d: f64| {
         let c = 255 - (d.clamp(0.0, 1.0).sqrt().sqrt() * 255.0).round() as u32;
         0xFF00_0000 | c << 16 | c << 8 | (((c & 0xFE) + 200) >> 1).min(255)
     };
     for x in 0..w {
-        let x3 = if fine {
-            ((x as f64 * 65535.0 / (w - 1) as f64 - 16384.0) * dmul + dmin).round() as i64
-        } else {
-            ((x as f64 * 4.0 / (3.0 * (w - 1) as f64)).powi(2) * 32767.0 - 10900.0).round() as i64
-        };
+        let x3 = histogram_index(x);
         let inc = (x3 - x2).signum();
         let (mut a, mut d) = (0, 0.0);
         loop {
@@ -804,7 +873,13 @@ fn repaint_col_histo(app: &Mb3d, ui: &mut Ui) {
         let m = st.hist_int.iter().skip(1).copied().max().unwrap_or(1).max(1) as f64;
         let mut b2 = Bitmap::new(w2, h2, 0xFFFF_FFFF);
         for x in 0..w2 {
-            let c = col(st.hist_int[x] as f64 / m);
+            let bin = if cfg!(feature = "se-desktop") && ui.checked(F, "SeInsideZoom") {
+                let slider = ui.c(F, "TrackBar12");
+                let t = x as f64 / (w2 - 1).max(1) as f64;
+                let position = slider.min as f64 + t * (slider.max - slider.min) as f64;
+                (position * (w2 - 1) as f64 / 127.0).round() as usize
+            } else { x };
+            let c = col(st.hist_int[bin.min(w2 - 1)] as f64 / m);
             for y in 0..h2 {
                 b2.px[y * w2 + x] = c;
             }
@@ -836,6 +911,13 @@ fn light_page(l: &Light) -> usize {
 }
 
 fn update_tab_header(app: &Mb3d, ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") {
+        ui.cm(F, "TabControl1").tabs = (0..6).map(|i| {
+            let marker = if app.scene.lighting.lights[i].on { "*" } else { "" };
+            format!("Light {}{marker}", i + 1)
+        }).collect();
+        return;
+    }
     let tabs: Vec<String> = (0..6).map(|i| if app.scene.lighting.lights[i].on { format!("Li.{} \u{00BB}", i + 1) } else { format!("Li.{}", i + 1) }).collect();
     ui.cm(F, "TabControl1").tabs = tabs;
 }
@@ -847,7 +929,7 @@ fn tab_control1_change(app: &mut Mb3d, ui: &mut Ui) {
     let i = tab(ui);
     let li = app.scene.lighting.lights[i].clone();
     ui.set_checked(F, "CheckBox4", li.on);
-    ui.set_checked(F, "CheckBox7", li.hs_enabled);
+    ui.set_checked(F, "CheckBox7", li.hs_enabled != cfg!(feature = "se-desktop"));
     let page = ["TabSheet1", "TabSheet2", "TabSheet6"][light_page(&li)];
     ui.set_active_page(F, "PageControl1", page);
     set_button_color(ui, 12, li.color);
@@ -891,6 +973,16 @@ fn page_control1_show(app: &mut Mb3d, ui: &mut Ui) {
         }
     }
     ui.set_text(F, "Edit1", &short_float_str(li.amplitude));
+    if cfg!(feature = "se-desktop") {
+        ui.set_item_index(F, "SeLightType", page as i32);
+        ui.set_visible(F, "ButtonGetPos", page == 1);
+        ui.set_visible(F, "SeLightColorLabel", page < 2);
+        ui.set_visible(F, "Label25", page < 2);
+        ui.set_visible(F, "ComboBox4", page < 2);
+        app.light.strength_origin=li.amplitude;
+        ui.set_position(F, "SeLightStrength", 0);
+        super::light_se::sync_source_fields(ui, &li);
+    }
 }
 
 /// `ShortFloatToStr`: "m.m" + "e" + exponent as MB3D shows the intensity.
@@ -942,6 +1034,9 @@ fn set_bg_preview(app: &Mb3d, ui: &mut Ui) {
 }
 
 fn check_box15(app: &Mb3d, ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") {
+        super::light_se::sync_object_mode(ui, &app.scene);
+    }
     let on = ui.checked(F, "CheckBox15");
     ui.set_visible(F, "Panel1", !on);
     ui.set_visible(F, "Panel2", on);
@@ -994,8 +1089,11 @@ fn move_pos_light(app: &mut Mb3d, ui: &mut Ui) {
 /// Light position from a point picked in the main image (`iGetPosFromImage = 2`).
 pub fn set_pos_light_from_image(app: &mut Mb3d, ui: &mut Ui, p: [f64; 3]) {
     let i = tab(ui);
-    ui.set_caption(F, "ButtonGetPos", "mid");
+    ui.set_caption(F, "ButtonGetPos", if cfg!(feature = "se-desktop") { "Place on render…" } else { "mid" });
     app.scene.lighting.lights[i].position = p;
+    if cfg!(feature = "se-desktop") {
+        super::light_se::sync_source_fields(ui, &app.scene.lighting.lights[i]);
+    }
     trigger_repaint(app, ui);
 }
 
@@ -1007,19 +1105,182 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
     let h = e.handler.as_str();
     let uc = app.light.user_change;
     let i = tab(ui);
+    if cfg!(feature = "se-desktop") && matches!(h, "TrackBar3Change" | "TrackBar6Change" | "TrackBar19Change") {
+        super::light_se::update_controls(ui);
+    }
+    if cfg!(feature = "se-desktop") && h == "TrackBar2Change" {
+        super::light_se::sync_object_values(ui);
+    }
     match h {
+        "SeLightStrength" if uc => {
+            let strength = (app.light.strength_origin + app.light.strength_origin.abs().max(0.01) * pos(ui, "SeLightStrength") as f32 / 100.0).max(0.0);
+            app.scene.lighting.lights[i].amplitude = strength;
+            ui.set_text(F, "Edit1", &strength.to_string());
+            trigger_repaint(app, ui);
+        }
+        "SeLightStrengthUp" => {
+            let position=pos(ui,"SeLightStrength");
+            if position == -100 || position == 100 {
+                app.light.strength_origin=app.scene.lighting.lights[i].amplitude;
+                setp(ui,"SeLightStrength",0);
+            }
+        }
+        _ if (h.starts_with("SeLightAngle") || h.starts_with("SeLightPosition"))
+            && matches!(e.ev, Ev::Exit | Ev::KeyDown { key: 13, .. }) =>
+        {
+            let axis = h.as_bytes().last().map_or(0, |n| (n - b'0') as usize);
+            let li = &mut app.scene.lighting.lights[i];
+            if let Some(value) = parse_float(&ui.text(F, h)).filter(|value| value.is_finite()) {
+                if li.positional && h.starts_with("SeLightPosition") {
+                    li.position[axis] = value;
+                } else if !li.positional && h.starts_with("SeLightAngle") {
+                    let angle = value.clamp(-180.0, 180.0).to_radians();
+                    if axis == 0 {
+                        li.x_angle = angle;
+                        setp(ui, "TrackBar1", (-angle.to_degrees()).round() as i64);
+                    } else {
+                        li.y_angle = angle;
+                        setp(ui, "TrackBar2", angle.to_degrees().round() as i64);
+                    }
+                }
+                super::light_se::sync_source_fields(ui, li);
+                trigger_repaint(app, ui);
+            } else {
+                super::light_se::sync_source_fields(ui, li);
+            }
+        }
+        "SePaletteColoring" | "SeMapColoring" => {
+            ui.set_checked(F, "CheckBox15", h == "SeMapColoring");
+            if h == "SeMapColoring" {
+                super::light_se::refresh_map_menu(ui, &app.ini.dir(super::ini::DIR_MAPS));
+            }
+            check_box15(app, ui);
+            trigger_repaint(app, ui);
+        }
+        "SeDiffuseMap" => {
+            let name = ui.c(F, "SeDiffuseMap").item_text();
+            if let Some(number) = super::light_se::map_number(&name) {
+                ui.set_text(F, "Edit21", &number.to_string());
+                ui.set_position(F, "UpDownDiffMap", number);
+                check_box15(app, ui);
+                trigger_repaint(app, ui);
+            }
+        }
+        "SeMapMode" => {
+            ui.set_item_index(F, "RadioGroup1", ui.item_index(F, "SeMapMode"));
+            super::light_se::sync_object_values(ui);
+            trigger_repaint(app, ui);
+        }
+        "SeObjectMode" => {
+            let mode = ui.item_index(F, "SeObjectMode");
+            ui.set_checked(F, "CheckBox2", mode > 0);
+            if mode > 0 {
+                ui.set_item_index(super::MAIN, "RadioGroup1", mode - 1);
+            }
+            repaint_col_histo(app, ui);
+            if mode > 0 && !app.main.calculating && app.eng.base().is_some() {
+                super::main_form::calc_mand(app, ui, true);
+            } else { trigger_repaint(app, ui); }
+        }
+        "SeObjectValue" | "SeObjectMapValue" if matches!(e.ev, Ev::Exit | Ev::KeyDown { key: 13, .. }) => {
+            if super::light_se::object_value_edited(ui, ui.tag(F, &e.sender) as usize, h == "SeObjectMapValue") {
+                trigger_repaint(app, ui);
+            }
+        }
+        "SeOpenColors" => {
+            super::palette_form::se::open(app, ui, ui.tag(F, &e.sender) != 0);
+        }
+        "SeOutsideZoom" | "SeInsideZoom" => {
+            super::light_se::zoom_object_range(ui, h == "SeInsideZoom");
+            repaint_col_histo(app, ui);
+        }
+        "SeAddFavorite" => {
+            if let Some(index) = app.light.custom.iter().position(Option::is_none) {
+                put_light_in_header(app, ui);
+                app.light.custom[index] = Some(app.scene.lighting.clone());
+                app.light.custom_tb[index] = [pos(ui, "TrackBar7"), pos(ui, "TrackBar5"), pos(ui, "TrackBar8")];
+                save_custom_preset(app, index);
+                refresh_se_favorite(app, ui, index);
+            }
+        }
+        "SeFavoriteMouseUp" if matches!(e.ev, Ev::MouseUp { button: MouseButton::Right, .. }) => {
+            let index = ui.tag(F, &e.sender).saturating_sub(6) as usize;
+            let path = crate::appdirs::config_folder().join(format!("color_preset_{}.bin", index + 1));
+            if std::fs::remove_file(path).is_ok() {
+                app.light.custom[index] = None;
+                refresh_se_favorite(app, ui, index);
+            }
+        }
+        "SeRadianceMode" | "SeVolSource" => {
+            let previous_volume = app.scene.vol_light;
+            super::light_se::update_controls(ui);
+            put_light_in_header(app, ui);
+            if previous_volume.is_none() && app.scene.vol_light.is_none() {
+                trigger_repaint(app, ui);
+            }
+        }
+        "SeFogIteration" | "SeVolumeSize" if matches!(e.ev, Ev::Exit | Ev::KeyDown { key: 13, .. }) => {
+            put_light_in_header(app, ui);
+            if h == "SeFogIteration" { trigger_repaint(app, ui); }
+        }
+        "SeEmitStop" => super::light_se::opacity_text(ui, &app.scene),
+        "SeEmitOpacity" if matches!(e.ev, Ev::Exit | Ev::KeyDown { key: 13, .. }) => {
+            super::light_se::set_opacity(app, ui);
+            set_sd_button_colors(app, ui);
+        }
+        "SeLightingRender" => {
+            if !app.main.calculating { super::main_form::calc_mand(app, ui, true); }
+        }
+        "SeAdjustColors" => super::palette_form::se::open(app, ui, false),
+        "SeLightingReset" => {
+            if app.main.calculating { return; }
+            put_light_in_header(app, ui);
+            store_undo_light(app);
+            let l = &mut app.scene.lighting;
+            *l = Lighting::default();
+            for stop in &mut l.palette {
+                stop.diffuse = [160; 3];
+                stop.specular = [64; 3];
+            }
+            l.palette_alpha = Some([0; 10]);
+            for (index, light) in l.lights.iter_mut().enumerate() {
+                light.on = index == 0;
+                light.color = [255; 3];
+                light.positional = false;
+                light.map = 0;
+                light.amplitude = 1.0;
+            }
+            app.scene.emissive_difs = None;
+            app.scene.emissive_opacity = [1.0; 10];
+            app.scene.vol_light = None;
+            app.scene.dfog_on_it = 0;
+            set_from_header(app, ui);
+            store_undo_light(app);
+            ui.set_enabled(F, "SeLightingUndo", true);
+            trigger_repaint(app, ui);
+        }
+        "SeLightingUndo" => undo_lighting(app, ui, MouseButton::Left),
         "FormShow" => {
+            if cfg!(feature = "se-desktop") {
+                super::light_se::refresh_map_menu(ui, &app.ini.dir(super::ini::DIR_MAPS));
+            }
             super::main_form::place_sticky(app, ui, Some(F), true);
             if app.light.first_show {
                 app.light.first_show = false;
                 for k in 1..=5 {
                     let (l, tb) = builtin_preset(k);
-                    let c = ui.cm(F, &format!("SpeedButton{}", k + 14));
+                    let name = if cfg!(feature = "se-desktop") {
+                        super::light_se::builtin_favorite_control(k - 1)
+                    } else { format!("SpeedButton{}", k + 14) };
+                    let c = ui.cm(F, &name);
                     c.glyph = Some(preset_glyph(&l, tb));
                     c.num_glyphs = 1;
                 }
-                for k in 0..10 {
-                    if load_custom_preset(app, k) {
+                for k in 0..app.light.custom.len() {
+                    let loaded = load_custom_preset(app, k);
+                    if cfg!(feature = "se-desktop") {
+                        refresh_se_favorite(app, ui, k);
+                    } else if loaded {
                         let l = app.light.custom[k].clone().unwrap();
                         let tb = app.light.custom_tb[k];
                         let c = ui.cm(F, &format!("SpeedButton{}", k + 20));
@@ -1033,6 +1294,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             }
         }
         "FormCreate" => {
+            if cfg!(feature = "se-desktop") { super::light_se::configure(ui); }
             // MB3D starts with its start preset (`SetStartPreset`): the
             // preset's colours and lights, everything else as the window's
             // controls start (`PutLightFInHeader`)
@@ -1068,23 +1330,52 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
         "TrackBar1Change" => {
             if uc {
                 app.scene.lighting.lights[i].x_angle = pos(ui, "TrackBar1") as f64 * -PID180;
+                if cfg!(feature = "se-desktop") {
+                    super::light_se::sync_source_fields(ui, &app.scene.lighting.lights[i]);
+                }
                 trigger_repaint(app, ui);
             }
         }
         "TrackBarYangleChange" => {
             if uc {
                 app.scene.lighting.lights[i].y_angle = pos(ui, "TrackBar2") as f64 * PID180;
+                if cfg!(feature = "se-desktop") {
+                    super::light_se::sync_source_fields(ui, &app.scene.lighting.lights[i]);
+                }
                 trigger_repaint(app, ui);
             }
         }
         "TrackBar16Change" => {
             if uc {
+                let form = ui.f(F);
+                if cfg!(feature = "se-desktop") && form.capture == form.id(&e.sender)
+                    && app.light.position_drag_start.is_none()
+                {
+                    app.light.position_drag_start = Some(lighting_snapshot(app));
+                }
                 move_pos_light(app, ui);
+                if cfg!(feature = "se-desktop") {
+                    super::light_se::sync_source_fields(ui, &app.scene.lighting.lights[i]);
+                }
                 trigger_repaint(app, ui);
             }
         }
         "TrackBar16MouseUp" => {
+            if matches!(e.ev, Ev::MouseUp { button: MouseButton::Left, .. }) {
+                if let Some(before) = app.light.position_drag_start.take() {
+                    if before != lighting_snapshot(app) {
+                        push_lighting_snapshot(app, before);
+                        store_undo_light(app);
+                        ui.set_enabled(F, "SeLightingUndo", app.light.undo_pos > 1);
+                    }
+                }
+            }
             app.light.user_change = false;
+            let slider = ui.c(F, &e.sender);
+            if cfg!(feature = "se-desktop") && slider.position > slider.min && slider.position < slider.max {
+                app.light.user_change = uc;
+                return;
+            }
             setp(ui, &e.sender, 0);
             let k = match e.sender.as_str() {
                 "TrackBar15" => 0,
@@ -1119,6 +1410,11 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
                 let dv = crate::math::sub(lv, cp);
                 let d = crate::math::dot(&dv, &m[2]).abs();
                 let mut d = (sc.step_width() + d * (sc.fov_y * PID180 / sc.height as f64).sin()) * 0.5;
+                if cfg!(feature = "se-desktop") {
+                    let Some(step) = parse_float(&ui.text(F, "SeLightMoveStep"))
+                        .filter(|step| step.is_finite() && *step > 0.0) else { return };
+                    d = step;
+                }
                 if !up {
                     d = -d;
                 }
@@ -1130,6 +1426,9 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
                     np[k] += m[t.min(2)][k] * d;
                 }
                 app.scene.lighting.lights[i].position = np;
+                if cfg!(feature = "se-desktop") {
+                    super::light_se::sync_source_fields(ui, &app.scene.lighting.lights[i]);
+                }
                 trigger_repaint(app, ui);
             }
         }
@@ -1138,6 +1437,10 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
                 let d = parse_float(&ui.text(F, "Edit1")).unwrap_or(1.0) * if up { 1.414 } else { 0.707 };
                 app.scene.lighting.lights[i].amplitude = crate::m3p::short_float_round(d as f32);
                 ui.set_text(F, "Edit1", &short_float_str(app.scene.lighting.lights[i].amplitude));
+                if cfg!(feature = "se-desktop") {
+                    app.light.strength_origin=app.scene.lighting.lights[i].amplitude;
+                    setp(ui, "SeLightStrength", 0);
+                }
                 trigger_repaint(app, ui);
             }
         }
@@ -1145,6 +1448,10 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             if uc {
                 if let Some(d) = parse_float(&ui.text(F, "Edit1")) {
                     app.scene.lighting.lights[i].amplitude = crate::m3p::short_float_round(d as f32);
+                    if cfg!(feature = "se-desktop") {
+                        app.light.strength_origin=app.scene.lighting.lights[i].amplitude;
+                    setp(ui, "SeLightStrength", 0);
+                    }
                     trigger_repaint(app, ui);
                 }
             }
@@ -1183,7 +1490,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
         }
         "CheckBox7Click" => {
             if uc {
-                app.scene.lighting.lights[i].hs_enabled = ui.checked(F, "CheckBox7");
+                app.scene.lighting.lights[i].hs_enabled = ui.checked(F, "CheckBox7") != cfg!(feature = "se-desktop");
                 if ui.checked(F, "CheckBox4") {
                     trigger_repaint(app, ui);
                 }
@@ -1218,7 +1525,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             if uc {
                 app.light.user_change = false;
                 let page0 = light_page(&app.scene.lighting.lights[i]) == 0;
-                let idx = if page0 { ui.item_index(F, "ComboBox4") } else { ui.item_index(F, "ComboBox5") };
+                let idx = if page0 || cfg!(feature = "se-desktop") { ui.item_index(F, "ComboBox4") } else { ui.item_index(F, "ComboBox5") };
                 ui.set_item_index(F, "ComboBox4", idx);
                 ui.set_item_index(F, "ComboBox5", idx);
                 app.scene.lighting.lights[i].visible = index_to_vis(idx.max(0));
@@ -1226,7 +1533,14 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
                 trigger_repaint(app, ui);
             }
         }
-        "PageControl1Change" => {
+        "PageControl1Change" | "SeLightType" => {
+            if h == "SeLightType" {
+                let page = ui.item_index(F, "SeLightType").clamp(0, 2) as usize;
+                if page == light_page(&app.scene.lighting.lights[i]) {
+                    return;
+                }
+                ui.set_active_page(F, "PageControl1", ["TabSheet1", "TabSheet2", "TabSheet6"][page]);
+            }
             let page = match ui.active_page(F, "PageControl1").as_str() {
                 "TabSheet2" => 1,
                 "TabSheet6" => 2,
@@ -1299,12 +1613,12 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             }
         }
         "ButtonGetPosClick" => {
-            if ui.caption(F, "ButtonGetPos") == "image" {
-                ui.set_caption(F, "ButtonGetPos", "mid");
+            if app.main.get_pos == 2 {
+                ui.set_caption(F, "ButtonGetPos", if cfg!(feature = "se-desktop") { "Place on render…" } else { "mid" });
                 app.main.get_pos = 0;
                 ui.cm(super::MAIN, "Image1").cursor = "crDefault".into();
             } else {
-                ui.set_caption(F, "ButtonGetPos", "image");
+                ui.set_caption(F, "ButtonGetPos", if cfg!(feature = "se-desktop") { "Click on render" } else { "image" });
                 app.main.get_pos = 2;
                 ui.cm(super::MAIN, "Image1").cursor = "crCross".into();
             }
@@ -1322,7 +1636,11 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
                 30 => l.dyn_fog_col2,
                 _ => return,
             };
-            ui.pick_color(&format!("light:color:{t}"), argb(c));
+            if cfg!(feature = "se-desktop") {
+                super::palette_form::se::open_light_picker(app, ui, format!("color:{t}:{i}"), c);
+            } else {
+                ui.pick_color(&format!("light:color:{t}"), argb(c));
+            }
         }
         "SpeedButton3MouseUp" => {
             if let Ev::MouseUp { button: MouseButton::Right, .. } = e.ev {
@@ -1439,7 +1757,10 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             repaint_col_histo(app, ui);
             trigger_repaint(app, ui);
         }
-        "SpeedButton34Click" => fit_colors_to_histogram(app, ui),
+        "SpeedButton34Click" => {
+            fit_colors_to_histogram(app, ui);
+            if cfg!(feature = "se-desktop") { super::light_se::sync_object_values(ui); }
+        }
         "CheckBox1Click" => {
             if uc {
                 trigger_repaint(app, ui);
@@ -1454,6 +1775,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
         "CheckBox22Click" => {
             app.scene.lighting.no_col_ipol = ui.checked(F, "CheckBox22");
             set_sd_button_colors(app, ui);
+            if cfg!(feature="se-desktop") { super::palette_form::se::refresh_if_open(app,ui); }
             if uc {
                 trigger_repaint(app, ui);
             }
@@ -1515,23 +1837,11 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             setp(ui, "TrackBar3", 128);
             setp(ui, "TrackBar6", 53);
             setp(ui, "TrackBar19", 128);
+            if cfg!(feature = "se-desktop") { super::light_se::update_controls(ui); }
             trigger_repaint(app, ui);
         }
         "SpeedButton9MouseUp" => {
-            if let Ev::MouseUp { button, .. } = e.ev {
-                let n = app.light.undo.len();
-                match button {
-                    MouseButton::Left if app.light.undo_pos > 1 => app.light.undo_pos -= 1,
-                    MouseButton::Right if app.light.undo_pos < n => app.light.undo_pos += 1,
-                    _ => return,
-                }
-                if let Some(l) = app.light.undo.get(app.light.undo_pos - 1).cloned() {
-                    app.scene.lighting = l;
-                    set_from_header(app, ui);
-                    ui.set_item_index(F, "ComboBox3", -1);
-                    trigger_repaint(app, ui);
-                }
-            }
+            if let Ev::MouseUp { button, .. } = e.ev { undo_lighting(app, ui, button); }
         }
         "ComboBox3DropDown" => {
             ui.cm(F, "ComboBox3").font = None;
@@ -1615,8 +1925,17 @@ fn fit_colors_to_histogram(app: &mut Mb3d, ui: &mut Ui) {
             b += 1;
         }
     }
+    if cfg!(feature = "se-desktop") {
+        ui.set_checked(F, "SeOutsideZoom", false);
+        super::light_se::zoom_object_range(ui, false);
+    }
     setp(ui, "TrackBar9", a);
     setp(ui, "TrackBar10", b);
+    if cfg!(feature = "se-desktop") {
+        ui.set_checked(F, "SeOutsideZoom", true);
+        super::light_se::zoom_object_range(ui, false);
+        repaint_col_histo(app, ui);
+    }
     trigger_repaint(app, ui);
 }
 
@@ -1678,9 +1997,11 @@ fn load_light_file(app: &mut Mb3d, ui: &mut Ui, p: &std::path::Path) {
 pub fn dialog(app: &mut Mb3d, ui: &mut Ui, what: &str, r: &DialogResult) {
     match (what, r) {
         (w, DialogResult::Color(Some(c))) if w.starts_with("color:") => {
-            let t: i32 = w[6..].parse().unwrap_or(0);
+            let (tag, index) = w[6..].split_once(':').unwrap_or((&w[6..], ""));
+            let t: i32 = tag.parse().unwrap_or(0);
             let c = rgb_of(*c);
-            let i = tab(ui);
+            let selected = tab(ui);
+            let i = index.parse::<usize>().ok().filter(|&i| i < 6).unwrap_or(selected);
             let l = &mut app.scene.lighting;
             match t {
                 3 => l.amb_top = c,
@@ -1693,7 +2014,7 @@ pub fn dialog(app: &mut Mb3d, ui: &mut Ui, what: &str, r: &DialogResult) {
                 _ => {}
             }
             set_button_colors(app, ui);
-            set_button_color(ui, 12, app.scene.lighting.lights[i].color);
+            set_button_color(ui, 12, app.scene.lighting.lights[selected].color);
             trigger_repaint(app, ui);
         }
         ("load", DialogResult::File(Some(p))) => {
@@ -1753,4 +2074,36 @@ pub fn dialog(app: &mut Mb3d, ui: &mut Ui, what: &str, r: &DialogResult) {
         }
         _ => {}
     }
+}
+
+fn undo_lighting(app: &mut Mb3d, ui: &mut Ui, button: MouseButton) {
+    let n = app.light.undo.len();
+    match button {
+        MouseButton::Left if app.light.undo_pos > 1 => app.light.undo_pos -= 1,
+        MouseButton::Right if app.light.undo_pos < n => app.light.undo_pos += 1,
+        _ => return,
+    }
+    if let Some(snapshot) = app.light.undo.get(app.light.undo_pos - 1).cloned() {
+        app.scene.lighting = snapshot.lighting;
+        if cfg!(feature = "se-desktop") {
+            app.scene.emissive_difs = snapshot.emission;
+            app.scene.emissive_opacity = snapshot.opacity;
+            app.scene.vol_light = snapshot.volume;
+            app.scene.dfog_on_it = snapshot.fog_iteration;
+            ui.set_enabled(F, "SeLightingUndo", app.light.undo_pos > 1);
+        }
+        set_from_header(app, ui);
+        ui.set_item_index(F, "ComboBox3", -1);
+        trigger_repaint(app, ui);
+    }
+}
+
+fn refresh_se_favorite(app: &Mb3d, ui: &mut Ui, index: usize) {
+    let name = super::light_se::favorite_control(index);
+    let control = ui.cm(F, &name);
+    control.enabled = app.light.custom[index].is_some();
+    control.glyph = app.light.custom[index].as_ref().map(|l| preset_glyph(l, app.light.custom_tb[index]));
+    control.num_glyphs = 1;
+    control.caption = if control.enabled { String::new() } else { (index + 1).to_string() };
+    ui.set_enabled(F, "SeAddFavorite", app.light.custom.iter().any(Option::is_none));
 }

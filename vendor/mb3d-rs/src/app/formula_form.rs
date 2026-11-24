@@ -9,6 +9,9 @@ use crate::formulas::Formula;
 use crate::scene::{DeCombParams, FormulaEntry, InsideMode};
 use crate::vcl::{DialogResult, Ev, Event, Ui};
 
+#[path = "formula_se.rs"]
+mod se;
+
 const F: &str = "FormulaGUIForm";
 const PID180: f64 = std::f64::consts::PI / 180.0;
 /// the buttons with a formula list (ListBoxEx1..12, ListBoxEx11 = search)
@@ -16,6 +19,7 @@ const LIST_COUNT: usize = 12;
 
 #[derive(Clone, Default)]
 pub struct State {
+    se_clipboard: Option<(Option<Formula>, i32)>,
     /// the six slots; None = empty (`iFnr = -1`)
     pub slots: Vec<Option<Formula>>,
     pub its: [i32; 6],
@@ -90,6 +94,7 @@ pub fn update_from_header(app: &mut Mb3d, ui: &mut Ui) {
         st.mix_color = d.mix_color as i32;
         ui.set_text(F, "MaxIterHybridPart2Edit", &d.iterations2.to_string());
     } else {
+        st.decomb_smooth = 0.5;
         st.start2 = 1;
         st.repeat2 = 1;
     }
@@ -149,7 +154,8 @@ pub fn make_header(app: &mut Mb3d, ui: &mut Ui) {
         if kind < 6 {
             d.smooth = ptf(&ui.text(F, "Edit23")).clamp(0.0, 100.0) as f32;
         } else {
-            d.mix_color = pti(&ui.text(F, "Edit23")).clamp(0, 2) as u8;
+            d.mix_color = if cfg!(feature="se-desktop") {st.mix_color.clamp(0,2) as u8} else {pti(&ui.text(F, "Edit23")).clamp(0, 2) as u8};
+            if cfg!(feature="se-desktop") {d.smooth=ptf(&ui.text(F,"Edit23")).clamp(0.0,100.0) as f32;}
             let p = ptf(&ui.text(F, "Edit25")).clamp(-100.0, 100.0) as f32;
             d.mix_pow = if p == 0.0 { 1e-6 } else { p };
         }
@@ -262,7 +268,7 @@ pub fn load_formula_names(app: &mut Mb3d, ui: &mut Ui) {
     }
     // the dIFS buttons (SSE2 machines in MB3D)
     let w9 = ui.c(F, "SpeedButtonEx9").width;
-    if !ui.visible(F, "SpeedButtonEx9") {
+    if !cfg!(feature = "se-desktop") && !ui.visible(F, "SpeedButtonEx9") {
         ui.cm(F, "Bevel1").width += w9 * 3;
         for b in ["SpeedButtonEx9", "SpeedButtonEx10", "SpeedButtonEx11"] {
             ui.set_visible(F, b, true);
@@ -358,11 +364,25 @@ pub fn tab_control1_change(app: &mut Mb3d, ui: &mut Ui) {
     ui.set_visible(F, "Button3", false);
     radio_group1_click(app, ui);
     app.formula.user_change = true;
+    if cfg!(feature = "se-desktop") {
+        ui.set_visible(F,"ComboEdit1",false);
+        ui.set_visible(F,"ListBoxEx11",false);
+        ui.set_visible(F,"Panel2",false);
+        ui.set_visible(F,"Panel3",false);
+        ui.set_visible(F,"SeFormulaPane",true);
+        se::sync(app,ui);
+    }
 }
 
 /// `Check4DandInfo`: the 4D rotation panel for 4D formulas, the
 /// "normalise" button.
 fn check_4d_and_info(app: &mut Mb3d, ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") {
+        ui.set_visible(F,"Panel2",false);
+        let enabled = app.formula.slots[tab(ui)].as_ref().is_some_and(|f| matches!(f, Formula::Custom(_)));
+        ui.set_enabled(F,"SeInfo",enabled);
+        return;
+    }
     let is4d = app.formula.slots.iter().flatten().any(|f| matches!(f.de_option(), 4 | 5 | 6));
     ui.set_visible(F, "Panel2", is4d);
     adjust_tc1_height(ui);
@@ -381,6 +401,7 @@ fn check_4d_and_info(app: &mut Mb3d, ui: &mut Ui) {
 }
 
 fn adjust_tc1_height(ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") { return; }
     let mut i = if ui.visible(F, "Panel3") { ui.c(F, "Panel3").height } else { 0 };
     if ui.visible(F, "Panel2") {
         i += ui.c(F, "Panel2").height;
@@ -410,6 +431,11 @@ fn radio_group1_click(app: &mut Mb3d, ui: &mut Ui) {
     let k = ui.item_index(F, "DECombineCmb");
     if app.formula.user_change {
         app.formula.decomb_kind = k;
+    }
+    if cfg!(feature="se-desktop") {
+        ui.set_text(F,"Edit23",&fts_single(app.formula.decomb_smooth.clamp(0.0,100.0) as f64));
+        if k > 4 { ui.set_text(F,"Edit25",&fts_single(app.formula.mix_pow as f64)); }
+        return;
     }
     let l18 = k > 2;
     ui.set_visible(F, "Label18", l18);
@@ -531,6 +557,7 @@ fn mouse_in(ui: &mut Ui, ctl: &str) -> bool {
 pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
     slots_init(&mut app.formula);
     let h = e.handler.as_str();
+    if cfg!(feature = "se-desktop") && se::event(app,ui,e) { return; }
     match h {
         "FormShow" => {
             super::main_form::place_sticky(app, ui, Some(F), true);
@@ -540,6 +567,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             tab_control1_change(app, ui);
         }
         "FormCreate" => {
+            if cfg!(feature = "se-desktop") { se::configure(ui); }
             ui.cm(F, "DECombineCmb").hint = "Combination Methods:\nMin: Both fractals are visible, minimum combine the DE's\nMax: Only overlapping parts, maximum combine the DE's\nInv max: Invert DE of second Hybrid and combine 'Max'\nMin lin: Minimum combine with a linear overlap function\nMin nlin: Like S1, nonlinear function, more smooth overlap\nMix: First F1..FendHybrid1 then use FstartHybrid2..F6 (dIFS) with modified vector.".into();
         }
         "FormHide" => {
@@ -985,4 +1013,24 @@ pub fn dialog(app: &mut Mb3d, ui: &mut Ui, what: &str, r: &DialogResult) {
         }
         _ => {}
     }
+}
+
+#[cfg(all(test,feature="se-desktop"))] mod se_windows_smooth_tests {
+ use super::*;
+ #[test] fn se_windows_smooth_decomb_survives_slot_selection_and_mix_mode() {
+  let (mut ui,mut app)=crate::app::build(&[]).unwrap().unwrap();
+  app.scene.decomb=None;update_from_header(&mut app,&mut ui);assert_eq!(ui.text(F,"Edit23"),"0.5");
+  app.formula.hybrid=2;ui.set_item_index(F,"DECombineCmb",3);
+  ui.set_text(F,"Edit23","1.25e-2");
+  let e=Event{form:F.into(),sender:"Edit23".into(),handler:"SeSmoothDecomb".into(),ev:Ev::Change};
+  event(&mut app,&mut ui,&e);
+  for slot in [1,0,2] {
+   ui.cm(F,"TabControl1").tab_index=slot;tab_control1_change(&mut app,&mut ui);
+   assert!((ptf(&ui.text(F,"Edit23"))-0.0125).abs()<1e-6);
+  }
+  app.formula.mix_color=1;app.formula.mix_pow=2.5;ui.set_item_index(F,"DECombineCmb",5);tab_control1_change(&mut app,&mut ui);
+  assert!((ptf(&ui.text(F,"Edit23"))-0.0125).abs()<1e-6);
+  make_header(&mut app,&mut ui);let d=app.scene.decomb.unwrap();assert_eq!(d.mix_color,1);assert_eq!(d.mix_pow,2.5);assert!((d.smooth-0.0125).abs()<1e-6);
+  app.eng.stop();app.navi.eng.stop();
+ }
 }

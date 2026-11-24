@@ -165,6 +165,9 @@ static void saveM3IHeaders(int width,int height) {
     ReflectionSettings rf=scene.reflections;h[336]=rf.automatic|(rf.transparency<<1)|(rf.only_difs<<2);h[337]=rf.depth;put32f(h+332,rf.amount);put32f(h+370,rf.absorption);put32f(h+116,rf.refractive_index);put32f(h+120,rf.scattering);
     memcpy(extra+4080,"TLE1",4);
     extra[4084]=scene.translucency_mode==2;
+    memcpy(extra+4088,"SSS2",4);
+    float sssAmount=copysignf((float)clamp(scene.subsurface_amount,0,1),scene.subsurface_scattering?1.0f:-1.0f);
+    uint32_t sssBits;memcpy(&sssBits,&sssAmount,4);put32(extra+4092,sssBits);
     if(scene.translucency_glow!=0){memcpy(extra+4068,"TGL1",4);put64f(extra+4072,scene.translucency_glow);}
     if(scene.translucency_mode||scene.transmission_blur>0){memcpy(extra+4056,"TBL1",4);put64f(extra+4060,scene.transmission_blur);}
     memcpy(extra+3712,"OPA1",4);put32(extra+3716,rf.opacity_set);for(int c=0;c<2;c++)for(int i=0;i<10;i++)put64f(extra+3720+(c*10+i)*8,rf.opacity_set?rf.opacity[c][i]:1);
@@ -1283,7 +1286,7 @@ static RenderOptions scene_settings(int w,int h,int threads,int cameraOverride) 
     Vec ambientColors[]={scene.amb_top,scene.amb_bottom,scene.bg_top,scene.bg_bottom};for(int i=0;i<4;i++){settings.ambient.colors[i][0]=ambientColors[i].x;settings.ambient.colors[i][1]=ambientColors[i].y;settings.ambient.colors[i][2]=ambientColors[i].z;}
     settings.ssao_override=1;settings.ssao=scene.ssao;settings.color_option=scene.color_option;settings.color_multiplier=scene.color_multiplier;
     settings.fog_override=1;settings.fog=scene.fog;
-    settings.dof_override=1;settings.dof=scene.dof;settings.reflections_override=1;settings.reflections=scene.reflections;settings.transmission_blur=scene.transmission_blur;settings.translucency_glow=scene.translucency_glow;settings.translucency_mode=scene.translucency_mode;
+    settings.dof_override=1;settings.dof=scene.dof;settings.reflections_override=1;settings.reflections=scene.reflections;settings.transmission_blur=scene.transmission_blur;settings.translucency_glow=scene.translucency_glow;settings.translucency_mode=scene.translucency_mode;settings.subsurface_scattering=scene.subsurface_scattering;settings.subsurface_amount=scene.subsurface_amount;
     settings.shadows_override=1;settings.shadows=scene.shadows;
     settings.lights_override=1;
     for(int i=0;i<6;i++) {
@@ -1466,7 +1469,7 @@ static RenderResult render_scene_core(const char *input,RenderOptions options) {
     if(options.sequence_override && !options.program_override && options.kind2==4 && options.power2>=2&&options.power2<=8&&isfinite(options.z_multiplier2)&&fabs(options.z_multiplier2)<=100) {
         scene.power2=options.power2;scene.zmul2=options.z_multiplier2;
     }
-    if(options.reflections_override){if(!valid_reflections(options.reflections)){snprintf(result.error,sizeof result.error,"Invalid Reflections + Transparency settings");return result;}scene.reflections=options.reflections;scene.translucency_mode=options.translucency_mode;scene.transmission_blur=isfinite(options.transmission_blur)?clamp(options.transmission_blur,0,2):0;scene.translucency_glow=isfinite(options.translucency_glow)?clamp(options.translucency_glow,-1,1):0;
+    if(options.reflections_override){if(!valid_reflections(options.reflections)){snprintf(result.error,sizeof result.error,"Invalid Reflections + Transparency settings");return result;}scene.reflections=options.reflections;scene.translucency_mode=options.translucency_mode;scene.subsurface_scattering=!!options.subsurface_scattering;scene.subsurface_amount=isfinite(options.subsurface_amount)?clamp(options.subsurface_amount,0,1):1;scene.transmission_blur=isfinite(options.transmission_blur)?clamp(options.transmission_blur,0,2):0;scene.translucency_glow=isfinite(options.translucency_glow)?clamp(options.translucency_glow,-1,1):0;
         if(!scene.translucency_mode)scene.translucency_mode=1+(scene.transmission_blur>0||scene.translucency_glow!=0);
     }
     if(options.normals_override){if(options.normal_smoothing<0||options.normal_smoothing>15||(options.normal_zbuffer&~1)){snprintf(result.error,sizeof result.error,"Invalid normal smoothing");return result;}scene.normal_smoothing=options.normal_smoothing;scene.normal_zbuffer=options.normal_zbuffer;}

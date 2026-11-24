@@ -24,6 +24,12 @@ int main(){@autoreleasepool{
  [experimental replaceBytesInRange:NSMakeRange(prefix+32,sizeof(retiredValue)) withBytes:&retiredValue];
  legacy=animationUnpack(experimental);
  assert(legacy.translucency_mode==1&&legacy.transmission_blur==1&&legacy.reflections.depth==baseline.reflections.depth);
+ int renders=a.renders;
+ for(int enabled=0;enabled<=1;enabled++){
+  a.subsurfaceCheck.state=enabled;[a subsurfaceChanged:a.subsurfaceCheck];
+  assert(a.renders==renders&&a.formulaSettings.subsurface_scattering==enabled);
+  assert(!a.glowCacheReady);
+ }
  NSButton *button=[NSButton buttonWithTitle:@"Reset" target:nil action:nil];
  for(int automatic=0;automatic<=1;automatic++){
   RenderOptions initial=baseline;initial.shadows.hard_auto=initial.shadows.ambient_auto=automatic;initial.shadows.hard_enabled=initial.shadows.ambient_enabled=1;initial.reflections.automatic=initial.dof.automatic=automatic;initial.reflections.enabled=initial.dof.enabled=1;

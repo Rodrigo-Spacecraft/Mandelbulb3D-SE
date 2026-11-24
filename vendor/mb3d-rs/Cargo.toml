@@ -10,6 +10,7 @@ license = "LGPL-2.1-only"
 # the command line renderer is built, which has no dependencies
 default = ["gui", "gpu"]
 gui = ["dep:winit", "dep:softbuffer", "dep:fontdue", "dep:arboard", "dep:open"]
+se-desktop = ["gui"]
 # ray marching on the graphics card (wgpu: Vulkan, Metal, DirectX 12),
 # see src/gpu.rs
 gpu = ["dep:wgpu", "dep:pollster"]

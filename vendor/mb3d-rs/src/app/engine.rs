@@ -23,6 +23,8 @@ pub enum Job {
     Blocky { scene: Scene },
     /// lighting / post processing changed: repaint the kept G-buffer
     Repaint { scene: Scene },
+    /// Interactive lighting only; keep saved shadows and skip post effects.
+    Lighting { scene: Scene },
     /// "Recalculate a selection" (MB3D's `CalcPartT`): rectangle (left,
     /// top, width, height) of the image with the raystep divided,
     /// optionally only nearer parts, its hard shadows (`hs`) and DEAO
@@ -116,6 +118,7 @@ pub struct Output {
     /// the last job finished (for "Calculate 3D" -> enable buttons)
     pub finished: u64,
     pub was_calc3d: bool,
+    pub info_text: String,
 }
 
 /// The calculation under way, for its live picture: the rows marched
@@ -183,6 +186,8 @@ pub fn post_sig(sc: &Scene) -> String {
     }
     s.dof = None;
     s.mc = Default::default();
+    s.subsurface_scattering = false;
+    s.subsurface_amount = 1.0;
     s.threads = 0;
     s.to_text()
 }
@@ -199,6 +204,8 @@ pub fn calc_sig(sc: &Scene) -> String {
     s.normals_on_zbuf = false;
     s.dof = None;
     s.mc = Default::default();
+    s.subsurface_scattering = false;
+    s.subsurface_amount = 1.0;
     s.threads = 0;
     s.to_text()
 }
@@ -244,22 +251,38 @@ impl Engine {
 
     /// Starts a job; a running one is cancelled.
     pub fn start(&self, job: Job) {
+        let mut queued=self.0.job.lock().unwrap();
         let gen = self.0.gen.fetch_add(1, Ordering::SeqCst) + 1;
         {
             let mut o = self.0.out.lock().unwrap();
             o.running = true;
+            o.stage = match &job {
+                Job::Calc { .. } => "main rendering",
+                Job::Repaint { .. } | Job::Lighting { .. } => "painting",
+                Job::Recalc { .. } => "recalculating the selection",
+                Job::ReflectSel { .. } => "reflections",
+                Job::Blocky { .. } => "rough image",
+                Job::Preview { .. } => "painting a preview",
+                Job::Swarm { .. } => "swarm",
+            }.into();
             o.error.clear();
             o.was_calc3d = matches!(job, Job::Calc { slice: 0, .. } | Job::Swarm { .. });
         }
         self.0.progress.store(0, Ordering::Relaxed);
-        *self.0.job.lock().unwrap() = Some((gen, job));
+        *queued = Some((gen, job));
         self.0.cv.notify_all();
     }
 
     /// Stops the running calculation (the "Stop" button).
     pub fn stop(&self) {
         self.0.gen.fetch_add(1, Ordering::SeqCst);
-        *self.0.job.lock().unwrap() = None;
+        let mut queued=self.0.job.lock().unwrap();
+        let removed=queued.take().is_some();
+        // A cancelled queued job has no worker to publish its completion.
+        // The worker sets busy while holding the same queue lock.
+        if removed && !self.0.busy.load(Ordering::SeqCst) {
+            self.0.finish(None);
+        }
     }
 
     pub fn running(&self) -> bool {
@@ -317,6 +340,21 @@ impl Engine {
     /// size.
     pub fn set_preview_step(&self, step: usize) {
         self.0.preview_step.store(step.max(1), Ordering::Relaxed);
+    }
+
+    pub fn has_transmission_cache(&self) -> bool {
+        self.base().is_some_and(|base| {
+            base.scene.transmission_cache.as_ref().is_some_and(|cache| {
+                cache.lock().is_ok_and(|entry| entry.is_some())
+            })
+        })
+    }
+
+    pub fn can_repaint_translucency(&self, scene: &Scene) -> bool {
+        self.base().is_some_and(|base| {
+            let target = repaint_target(scene, &base);
+            transmission_matches(&target, &base) && self.has_transmission_cache()
+        })
     }
 
     pub fn base(&self) -> Option<Arc<Base>> {
@@ -382,18 +420,30 @@ impl Engine {
             return Err("the image buffer has the wrong size".into());
         }
         let raw = Arc::new(gbuf);
-        let rgb = crate::render::paint(sc, &p, &raw);
+        let background=cfg!(feature="se-desktop");
+        let rgb = if background { Vec::new() } else { crate::render::paint(sc, &p, &raw) };
         *self.0.base.lock().unwrap() = Some(Arc::new(Base { scene: sc.clone(), params: p, raw: raw.clone(), post: raw, post_sig: post_sig(sc), w, h }));
         let mut o = self.0.out.lock().unwrap();
-        o.rgb = Some(Arc::new(rgb));
+        if !background { o.rgb = Some(Arc::new(rgb)); }
         o.w = w;
         o.h = h;
         o.ver += 1;
+        drop(o);
+        if background { self.start(Job::Repaint { scene: sc.clone() }); }
         Ok(())
     }
 }
 
 impl Inner {
+    fn report_stage(&self,name:&str) {
+        crate::diagnostics::phase(match name {
+            "hard shadows"=>3,"ambient"|"ambient occlusion"|"ambient shadows"=>4,
+            "reflections"=>6,_=>7,
+        });
+        self.progress.store(0,Ordering::Relaxed);
+        self.out.lock().unwrap().stage=name.into();
+    }
+
     fn wake(&self) {
         if let Some(w) = self.waker.lock().unwrap().as_ref() {
             w.wake();
@@ -470,15 +520,21 @@ fn worker(e: Arc<Inner>) {
             while j.is_none() {
                 j = e.cv.wait(j).unwrap();
             }
+            e.busy.store(true, Ordering::SeqCst);
             j.take().unwrap()
         };
-        e.busy.store(true, Ordering::SeqCst);
         let cancel = || e.gen.load(Ordering::SeqCst) != gen;
+        let report_scene=if cfg!(feature="se-desktop") {
+            match &job { Job::Calc{scene,..}=>Some((scene.clone(),false)),Job::Repaint{scene}=>Some((scene.clone(),true)),_=>None }
+        } else { None };
+        let report_start=Instant::now();
+        if report_scene.is_some() { crate::diagnostics::reset();crate::diagnostics::phase(0); }
         // a panic ends the job with an error message instead of leaving
         // the window waiting for it
         let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match job {
             Job::Calc { scene, slice, resume, name } => calc(&e, &scene, slice, resume, &name, &cancel),
             Job::Repaint { scene } => repaint(&e, &scene, &cancel),
+            Job::Lighting { scene } => repaint_lighting(&e, &scene, &cancel),
             Job::Blocky { scene } => blocky(&e, &scene, &cancel),
             Job::Preview { scene } => preview(&e, &scene, &cancel),
             Job::Recalc { scene, rect, div, nearer, hs, deao, keep_as } => recalc(&e, &scene, rect, div, nearer, (hs, deao, keep_as), &cancel),
@@ -489,9 +545,20 @@ fn worker(e: Arc<Inner>) {
             let m = p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
             Err(format!("The calculation failed: {}", m.lines().last().unwrap_or("").trim()))
         });
+        if res.is_ok() && !cancel() {
+            if let Some((scene,cached))=report_scene {
+                let mut counts=crate::diagnostics::snapshot();
+                counts.valid=1;
+                counts.elapsed=report_start.elapsed().as_secs_f64();
+                counts.threads=crate::render::thread_count(&scene) as i32;
+                let mut out=e.out.lock().unwrap();
+                out.info_text=super::main_se::render_info(&scene,&counts,out.stats,cached);
+            }
+        }
         e.busy.store(false, Ordering::SeqCst);
         // a newer job may already wait: only report when this one is the last
-        if e.job.lock().unwrap().is_none() {
+        let queued=e.job.lock().unwrap();
+        if queued.is_none() {
             e.finish(res.err());
         }
     }
@@ -556,7 +623,8 @@ pub fn unfinished_calc(sc: &Scene) -> Option<crate::checkpoint::Entry> {
 }
 
 fn calc(e: &Inner, sc: &Scene, slice: u8, resume: crate::checkpoint::Policy, name: &str, cancel: &(dyn Fn() -> bool + Sync)) -> Result<(), String> {
-    let sc = calc_scene(sc, slice);
+    let mut sc = calc_scene(sc, slice);
+    prepare_transmission_cache(&mut sc, None);
     let t0 = Instant::now();
     let params = CalcParams::new(&sc)?;
     let [_, _, w, h] = params.rect;
@@ -573,11 +641,10 @@ fn calc(e: &Inner, sc: &Scene, slice: u8, resume: crate::checkpoint::Policy, nam
             _ => "2D calculation".into(),
         };
     }
-    let progress = |d: usize, t: usize| e.progress.store((d * 1000 / t.max(1)) as u32, Ordering::Relaxed);
+    let progress = |d: usize, t: usize| { e.progress.fetch_max((d.saturating_mul(1000) / t.max(1)).min(1000) as u32, Ordering::Relaxed); };
     // each stage after the march: its name for the window, the bar from zero
     let stage = |name: &str| {
-        e.out.lock().unwrap().stage = name.to_string();
-        e.progress.store(0, Ordering::Relaxed);
+        e.report_stage(name);
     };
     let sink = |y: usize, row: &[SiLight]| e.partial_row(y, row);
     let (p, raw) = crate::render::calculate_with(&sc, &progress, &stage, cancel, 0, Some(&sink), ck.as_ref())?;
@@ -605,8 +672,8 @@ fn calc(e: &Inner, sc: &Scene, slice: u8, resume: crate::checkpoint::Policy, nam
     let post_s = if needs_post(&sc, &p) { (t2 - t1).as_secs_f64() } else { 0.0 };
     let mut stats = stats_of(&post, &p, (t1 - t0).as_secs_f64(), post_s);
     stats.stages = stages;
-    e.publish(rgb, w, h, "", Some(stats));
     *e.base.lock().unwrap() = Some(Arc::new(Base { scene: sc.clone(), params: p, raw, post, post_sig: post_sig(&sc), w, h }));
+    e.publish(rgb, w, h, "", Some(stats));
     if let Some(ck) = ck {
         ck.finish();
     }
@@ -624,7 +691,7 @@ fn blocky(e: &Inner, sc: &Scene, cancel: &(dyn Fn() -> bool + Sync)) -> Result<(
     e.free_big_base(w, h);
     e.begin_partial(params, &sc, w, h);
     e.out.lock().unwrap().stage = "rough image".into();
-    let progress = |d: usize, t: usize| e.progress.store((d * 1000 / t.max(1)) as u32, Ordering::Relaxed);
+    let progress = |d: usize, t: usize| { e.progress.fetch_max((d.saturating_mul(1000) / t.max(1)).min(1000) as u32, Ordering::Relaxed); };
     let sink = |y: usize, row: &[SiLight]| e.partial_row(y, row);
     let (p, g) = crate::render::calculate_blocky(&sc, &progress, cancel, &sink)?;
     *e.partial.lock().unwrap() = None;
@@ -653,7 +720,7 @@ fn preview(e: &Inner, sc: &Scene, cancel: &(dyn Fn() -> bool + Sync)) -> Result<
         let f = w as f64 / sc.width as f64;
         ps.width = w;
         ps.height = ((sc.height as f64 * f).round() as i32).max(4);
-        let progress = |d: usize, t: usize| e.progress.store((d * 1000 / t.max(1)) as u32, Ordering::Relaxed);
+        let progress = |d: usize, t: usize| { e.progress.fetch_max((d.saturating_mul(1000) / t.max(1)).min(1000) as u32, Ordering::Relaxed); };
         let (p, g) = crate::render::calculate_cancellable(&ps, &progress, cancel)?;
         if cancel() {
             return Err("cancelled".into());
@@ -669,22 +736,73 @@ fn preview(e: &Inner, sc: &Scene, cancel: &(dyn Fn() -> bool + Sync)) -> Result<
     Ok(())
 }
 
+fn repaint_target(scene: &Scene, base: &Base) -> Scene {
+    let mut target = scene.clone();
+    target.width = base.scene.width;
+    target.height = base.scene.height;
+    target.render_sampling = base.scene.render_sampling;
+    target.slice_2d = base.scene.slice_2d;
+    target.calc_rect = None;
+    target
+}
+
+fn transmission_key(scene: &Scene) -> String {
+    let mut trace = scene.clone();
+    trace.transmission_blur = 0.0;
+    trace.translucency_glow = 0.0;
+    trace.transmission_cache = None;
+    trace.emission_cache = Default::default();
+    trace.stats = Default::default();
+    format!("{trace:?}")
+}
+
+fn transmission_matches(target: &Scene, base: &Base) -> bool {
+    target.translucency_enabled && target.mc.transparency && target.mc.reflections
+        && base.scene.transmission_cache.is_some()
+        && transmission_key(target) == transmission_key(&base.scene)
+}
+
+fn prepare_transmission_cache(target: &mut Scene, base: Option<&Base>) {
+    if cfg!(feature = "se-desktop") && target.translucency_enabled
+        && target.mc.transparency && target.mc.reflections && target.slice_2d == 0
+    {
+        target.transmission_cache = base.filter(|base| transmission_matches(target, base))
+            .and_then(|base| base.scene.transmission_cache.clone())
+            .or_else(|| Some(Default::default()));
+    } else {
+        target.transmission_cache = None;
+    }
+}
+
+fn repaint_lighting(e: &Inner, sc: &Scene, cancel: &(dyn Fn() -> bool + Sync)) -> Result<(), String> {
+    let Some(base)=e.base.lock().unwrap().clone() else { return Ok(()) };
+    let target=repaint_target(sc,&base);
+    let rgb=crate::render::paint_preview(&target,&base.params,&base.post);
+    if cancel() { return Err("cancelled".into()); }
+    e.publish(rgb,base.w,base.h,"",None);
+    // Keep the rendered scene, shadow signature, and transmission cache intact.
+    // A later explicit render/recalculation uses the edited scene from the UI.
+    Ok(())
+}
+
 fn repaint(e: &Inner, sc: &Scene, cancel: &(dyn Fn() -> bool + Sync)) -> Result<(), String> {
     let Some(b) = e.base.lock().unwrap().clone() else { return Ok(()) };
-    let mut target = sc.clone();
-    target.width = b.scene.width;
-    target.height = b.scene.height;
-    target.slice_2d = b.scene.slice_2d;
-    target.calc_rect = None;
+    let mut target = repaint_target(sc, &b);
+    prepare_transmission_cache(&mut target, Some(&b));
     let psig = post_sig(&target);
     let reuse = psig == b.post_sig || b.params.slice_2d != 0;
     let post = if reuse {
         b.post.clone()
     } else {
-        e.out.lock().unwrap().stage = "post processing".into();
         let mut g = (*b.raw).clone();
+        let stage = |name: &str| {
+            e.report_stage(name);
+        };
+        let progress = |done: usize, total: usize| {
+            e.progress.fetch_max((done.saturating_mul(1000) / total.max(1)).min(1000) as u32, Ordering::Relaxed);
+        };
         if needs_post(&target, &b.params) {
-            crate::render::post_process_cancellable(&target, &b.params, &mut g, crate::render::thread_count(&target), cancel)?;
+            crate::render::post_process_reporting(&target, &b.params, &mut g, crate::render::thread_count(&target), &progress, &stage, cancel)?;
         }
         Arc::new(g)
     };
@@ -692,7 +810,14 @@ fn repaint(e: &Inner, sc: &Scene, cancel: &(dyn Fn() -> bool + Sync)) -> Result<
         return Err("cancelled".into());
     }
     // (stopped during the reflections or the DoF: the image stays as it was)
-    let rgb = crate::render::paint_cancellable(&target, &b.params, &post, cancel)?;
+    let stage = |name: &str| {
+        e.report_stage(name);
+    };
+    let progress = |done: usize, total: usize| {
+        e.progress.fetch_max((done.saturating_mul(1000) / total.max(1)).min(1000) as u32, Ordering::Relaxed);
+    };
+    let (rgb, _) = crate::render::paint_reporting(&target, &b.params, &post, &progress, &stage, cancel);
+    if cancel() { return Err("cancelled".into()); }
     e.publish(rgb, b.w, b.h, "", None);
     let mut g = e.base.lock().unwrap();
     // (the buffers painted on meanwhile ("Paint on image") are kept: their
@@ -724,7 +849,7 @@ fn recalc(e: &Inner, sc: &Scene, rect: [i32; 4], div: f64, nearer: bool, opts: (
     let mut rs = sc.clone();
     rs.calc_rect = Some([x0 as i32, y0 as i32, rw as i32, rh as i32]);
     rs.z_step_div = (rs.z_step_div / div.max(1.0)).max(1e-4);
-    let progress = |d: usize, t: usize| e.progress.store((d * 1000 / t.max(1)) as u32, Ordering::Relaxed);
+    let progress = |d: usize, t: usize| { e.progress.fetch_max((d.saturating_mul(1000) / t.max(1)).min(1000) as u32, Ordering::Relaxed); };
     let (_, g) = crate::render::calculate_raw_cancellable(&rs, &progress, cancel)?;
     let mut target = sc.clone();
     target.calc_rect = None;
@@ -791,6 +916,7 @@ fn reflect_sel(e: &Inner, sc: &Scene, rect: [i32; 4], cancel: &(dyn Fn() -> bool
     let mut target = sc.clone();
     target.width = b.scene.width;
     target.height = b.scene.height;
+    target.render_sampling = b.scene.render_sampling;
     target.slice_2d = b.scene.slice_2d;
     target.calc_rect = None;
     target.mc.reflections = true;
@@ -806,4 +932,52 @@ fn reflect_sel(e: &Inner, sc: &Scene, rect: [i32; 4], cancel: &(dyn Fn() -> bool
     put_rect(&mut rgb, w, r, 3, &painted);
     e.publish(rgb, w, h, "", None);
     Ok(())
+}
+
+#[cfg(test)]
+mod cancellation_tests {
+    use super::*;
+
+    #[test]
+    fn stopping_immediately_does_not_leave_a_queued_job_running() {
+        let engine=Engine::new();
+        let scene=Scene::preset("Integer Power").unwrap();
+        for _ in 0..32 {
+            engine.start(Job::Repaint { scene:scene.clone() });
+            engine.stop();
+            let deadline=Instant::now()+std::time::Duration::from_secs(2);
+            while engine.running() && Instant::now()<deadline {
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+            assert!(!engine.running(),"cancelled render remained marked running");
+        }
+    }
+}
+
+#[cfg(all(test,feature="se-desktop"))] mod se_windows_saved_image_tests {
+ use super::*;
+ #[test] fn se_windows_saved_image_repaints_on_worker() {
+  let engine=Engine::new();let mut scene=Scene::preset("Integer Power").unwrap();scene.width=16;scene.height=16;scene.mc.reflections=false;
+  let before=engine.0.out.lock().unwrap().finished;
+  engine.set_gbuffer(&scene,vec![SiLight::default();256]).unwrap();
+  let deadline=Instant::now()+std::time::Duration::from_secs(5);
+  while engine.running()&&Instant::now()<deadline {std::thread::sleep(std::time::Duration::from_millis(1));}
+  let out=engine.0.out.lock().unwrap();assert!(!out.running);assert!(out.finished>before);assert!(out.error.is_empty(),"{}",out.error);assert_eq!(out.rgb.as_ref().unwrap().len(),256*3);
+ }
+}
+
+#[cfg(all(test,feature="se-desktop"))] mod se_windows_lighting_tests {
+ use super::*;
+ #[test] fn se_windows_lighting_keeps_post_buffers_and_skips_effect_passes() {
+  let engine=Engine::new();let mut scene=Scene::preset("Integer Power").unwrap();scene.width=16;scene.height=16;scene.mc.reflections=false;
+  engine.set_gbuffer(&scene,vec![SiLight::default();256]).unwrap();
+  let deadline=Instant::now()+std::time::Duration::from_secs(5);
+  while engine.running()&&Instant::now()<deadline {std::thread::sleep(std::time::Duration::from_millis(1));}
+  assert!(!engine.running());let before=engine.base().unwrap();
+  scene.mc.reflections=true;scene.mc.transparency=true;scene.lighting.gamma=1.5;
+  let expected=crate::render::paint_preview(&repaint_target(&scene,&before),&before.params,&before.post);
+  repaint_lighting(&engine.0,&scene,&||false).unwrap();
+  assert!(Arc::ptr_eq(&before,&engine.base().unwrap()));
+  let out=engine.0.out.lock().unwrap();assert_eq!(out.rgb.as_ref().unwrap().as_ref(),&expected);
+ }
 }

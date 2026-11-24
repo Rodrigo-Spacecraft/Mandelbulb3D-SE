@@ -230,6 +230,9 @@ struct SrCtx<'a> {
     /// the rays are marched on the graphics card
     gpu: bool,
     capture_transmission: bool,
+    translucency_thickness: bool,
+    subsurface_amount: f32,
+    static_difs: bool,
 }
 
 struct SrTracer<'a, 'c> {
@@ -239,6 +242,7 @@ struct SrTracer<'a, 'c> {
     sr_si: SiLight,
     normal: Vec3,
     transmission: Transmission,
+    difs_materials: Vec<(i32,Sd)>,
     t_amb: S3,
     plv: Plv,
     light_z: Vec<(f32, f32)>,
@@ -253,19 +257,41 @@ struct SrTracer<'a, 'c> {
     stop: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 struct Transmission {
     base: S3,
     light: S3,
     interior_light: S3,
+    material_light: S3,
+    entry_light: S3,
+    entry_fog: S3,
+    entry_visibility: S3,
+    entry_specular: S3,
+    entry_volume: S3,
+    subsurface_light: S3,
+    subsurface_through: S3,
+    subsurface_background: S3,
+    subsurface_valid: bool,
     entry_facing: f32,
+    component: i32,
     distance: f32,
     opacity: f32,
+}
+
+impl Default for Transmission {
+    fn default() -> Self { Self {
+        base:[0.;3],light:[0.;3],interior_light:[0.;3],material_light:[0.;3],entry_light:[0.;3],
+        entry_specular:[0.;3],entry_volume:[0.;3],entry_fog:[0.;3],entry_visibility:[1.;3],subsurface_light:[0.;3],
+        subsurface_through:[1.;3],subsurface_background:[0.;3],subsurface_valid:false,
+        entry_facing:0.,component:0,distance:0.,opacity:0.,
+    }}
 }
 
 pub struct TransmissionCache {
     rgb: Vec<u8>,
     samples: Vec<Transmission>,
+    subsurface_amount: f32,
+    full_thickness: bool,
 }
 
 impl std::fmt::Debug for TransmissionCache {
@@ -311,6 +337,9 @@ struct Frame {
     /// where the ray starts
     origin: Vec3,
     transmission_start: Option<S3>,
+    component: i32,
+    tmp_materials: Vec<(i32,Sd)>,
+    primary_transmission: bool,
 }
 
 impl Frame {
@@ -333,6 +362,9 @@ impl Frame {
             max_l: 0.0,
             origin: [0.0; 3],
             transmission_start: None,
+            component: 0,
+            tmp_materials: Vec::new(),
+            primary_transmission: false,
         }
     }
 }
@@ -361,6 +393,7 @@ struct RayHit {
     zz: f64,
     zz2_paint: f64,
     zz2: f64,
+    component: i32,
 }
 
 /// The pixel named by `MB3D_REFLECT_DEBUG` ("x,y").
@@ -383,6 +416,17 @@ impl<'a, 'c> SrTracer<'a, 'c> {
     }
 
     #[inline]
+    fn component_trace(&self)->bool {
+        self.c.calc_trans && self.c.p.difs && self.c.p.decomb.is_none()
+            && !self.c.p.inside_rendering && !self.c.p.in_and_outside
+    }
+    fn sync_components(&mut self) {
+        if self.c.static_difs {self.m.it.max_it=1;}
+        self.m.it.difs_inside_components=Some(self.difs_materials.iter().map(|(id,_)|*id).collect());
+        self.m.inside=!self.difs_materials.is_empty();
+        self.m.calc_inside=self.m.inside;
+    }
+
     fn toggle_inside(&mut self) {
         self.m.inside = !self.m.inside;
         self.m.calc_inside = !self.m.calc_inside;
@@ -469,6 +513,57 @@ impl<'a, 'c> SrTracer<'a, 'c> {
             }
         }
         mul3(dif, res)
+    }
+
+    /// Two deterministic quadrature samples in the material, with actual
+    /// rays toward the lights. Beer-Lambert attenuation applies on both the
+    /// incoming light path and the outgoing camera path. No image filtering.
+    fn integrate_subsurface(&mut self, origin: Vec3, direction: Vec3, distance: f32, albedo: S3, component: i32) {
+        if distance <= 0.0 { return; }
+        let c=self.c;
+        let density=subsurface_density(c.p, c.subsurface_amount);
+        let extinction=albedo.map(|a| density+c.absorp_coeff*(1.0-a.clamp(0.0,1.0)));
+        // A scattering event changes direction rather than destroying light.
+        // Use a reduced transport coefficient for the diffuse light field;
+        // clear (ballistic) transmission still uses the full extinction below.
+        let transport_density=density*(1.0-SUBSURFACE_ANISOTROPY);
+        let transport=albedo.map(|a|transport_density+c.absorp_coeff*(1.0-a.clamp(0.0,1.0)));
+        let cut=distance.min(1.0/transport_density.max(1e-20));
+        let intervals=[(0.0,cut),(cut,distance)];
+        let dir=normalize(direction);
+        let mut radiance=[0.;3];
+        for (start,end) in intervals {
+            if end<=start {continue;}
+            let t=(start+end)*0.5;
+            let point=add(origin,scale(dir,t as f64));
+            let mut incoming=[0.;3];
+            for (index,light) in c.lv.lights.iter().enumerate() {
+                if light.col.iter().all(|channel|*channel<=0.0){continue;}
+                let v=if light.positional {sub(c.hs_vecs[index],point)}else{c.hs_vecs[index]};
+                let length=if light.positional {len(&v)}else{(c.p.zend*c.p.step_width).abs().max(10.0)};
+                let attenuation=if light.positional {1.0/(length*length+c.p.step_width*c.p.step_width)}else{1.0};
+                let Some(material_path)=subsurface_light_path(c.p,point,normalize(v),length,component,self.m.ms_de_stop,c.static_difs,c.cancel) else {continue;};
+                for k in 0..3 {
+                    // Forward scattering carries backlight toward the viewer;
+                    // oblique illumination remains weaker. The normalized phase
+                    // redistributes source light instead of adding a free rim.
+                    let phase=subsurface_phase(dot(&dir,&normalize(v)) as f32);
+                    incoming[k]+=light.col[k]/255.0*c.lv.s_diff*phase*attenuation as f32
+                        *(-transport[k]*material_path).exp();
+                }
+            }
+            // The existing ambient environment is an incident light field,
+            // attenuated over the nearer material boundary, not a free glow.
+            let ambient=sc3(add3(c.lv.amb_col,c.lv.amb_col2),0.5/255.0);
+            for k in 0..3 {
+                incoming[k]+=ambient[k]*(-transport[k]*t.min(distance-t)).exp();
+                let camera_weight=(-transport[k]*start).exp()-(-transport[k]*end).exp();
+                radiance[k]+=incoming[k]*transport_density*albedo[k].clamp(0.0,0.999)/transport[k].max(1e-20)*camera_weight;
+            }
+        }
+        self.transmission.subsurface_light=add3(self.transmission.subsurface_light,mul3(self.transmission.subsurface_through,radiance));
+        self.transmission.subsurface_through=mul3(self.transmission.subsurface_through,extinction.map(|s|(-s*distance).exp()));
+        self.transmission.subsurface_valid=true;
     }
 
     /// Scattering builds with distance traveled through the material.
@@ -783,7 +878,7 @@ impl<'a, 'c> SrTracer<'a, 'c> {
     }
 
     /// `CalcOpenAir`: the background seen by a reflected ray
-    fn calc_open_air(&mut self, si: &mut SiLight, sd: &mut ([f32; 3], f32, [f32; 3]), t_absorb: &mut S3, calc_t: bool, zz: f32) {
+    fn calc_open_air(&mut self, si: &mut SiLight, sd: &mut ([f32; 3], f32, [f32; 3]), t_absorb: &mut S3, calc_t: bool, zz: f32, primary: bool) {
         let lv = self.c.lv;
         let p = self.c.p;
         if (lv.far_fog || lv.sqr) && lv.s_depth.abs() > 1e-10 {
@@ -830,6 +925,7 @@ impl<'a, 'c> SrTracer<'a, 'c> {
         }
         let sh = self.shade(si, inside, None);
         let tmp_amb = sh.light.map(|v| (v / 255.0).clamp(0.0, 8.0));
+        if primary && self.c.subsurface_amount > 0.0 && !self.m.inside {self.transmission.subsurface_background=tmp_amb;}
         self.t_amb = add3(self.t_amb, mul3(*t_absorb, tmp_amb));
     }
 
@@ -889,7 +985,11 @@ impl<'a, 'c> SrTracer<'a, 'c> {
     /// `CalcRay`: follows the reflected (or refracted) ray from the current
     /// surface; `sd` = (specular colour, alpha, diffuse colour) of it.
     fn calc_ray(&mut self, zz: f64, sr_vec: Vec3, t_absorb: S3, sd: Sd, rit: i32) {
-        let mut st = vec![Frame::new(zz, sr_vec, t_absorb, sd, rit)];
+        let mut first=Frame::new(zz,sr_vec,t_absorb,sd,rit);
+        first.component=if self.component_trace(){self.m.it.difs_component_id}else{0};
+        // Opaque palette stops are not participating transmission media.
+        first.primary_transmission=sd.1>0.0;
+        let mut st = vec![first];
         let mut hit = None;
         while let Some(r) = self.step(&mut st, hit.take()) {
             hit = Some(self.march(&r));
@@ -932,7 +1032,8 @@ impl<'a, 'c> SrTracer<'a, 'c> {
                 }
                 At::Next => {
                     let t_absorb = f.t_absorb;
-                    if t_absorb[0].abs() * 0.3 + t_absorb[1].abs() * 0.59 + t_absorb[2].abs() * 0.11 < 1e-4 {
+                    if t_absorb[0].abs() * 0.3 + t_absorb[1].abs() * 0.59 + t_absorb[2].abs() * 0.11 < 1e-4
+                        && !(c.subsurface_amount > 0.0 && f.primary_transmission) {
                         st.pop();
                         continue;
                     }
@@ -941,7 +1042,12 @@ impl<'a, 'c> SrTracer<'a, 'c> {
                     loop {
                         if f.calc_t {
                             let sd = f.sd;
-                            let dstep = if self.trans_flip_inside ^ self.m.inside { c.trans_di_const as f64 } else { 1.0 / c.trans_di_const as f64 };
+                            let dstep = if self.component_trace() {
+                                let exiting=self.difs_materials.iter().any(|(id,_)|*id==f.component);
+                                if exiting&&self.difs_materials.len()==1 {c.trans_di_const as f64}
+                                else if !exiting&&self.difs_materials.is_empty(){1.0/c.trans_di_const as f64}
+                                else {1.0}
+                            } else if self.trans_flip_inside ^ self.m.inside { c.trans_di_const as f64 } else { 1.0 / c.trans_di_const as f64 };
                             let dl = len(&sr_vec);
                             let nl = len(&self.normal);
                             f.spec_mul_t = -dot(&sr_vec, &self.normal) / (dl * nl);
@@ -969,12 +1075,16 @@ impl<'a, 'c> SrTracer<'a, 'c> {
                             }
                             let stmp = sd.0[0].max(sd.0[1]).max(sd.0[2]);
                             f.t_absorb = sc3(f.t_absorb, (1.0 - f.spec_mul_t * stmp as f64) as f32);
-                            if c.capture_transmission && f.rit == 2 && self.transmission.distance > 0.0
-                                && (self.trans_flip_inside ^ self.m.inside)
-                            {
-                                f.transmission_start = Some(self.t_amb);
+                            if f.primary_transmission && c.subsurface_amount > 0.0 {
+                                self.transmission.subsurface_through=sc3(self.transmission.subsurface_through,(1.0-f.spec_mul_t).clamp(0.0,1.0) as f32);
                             }
-                            self.toggle_inside();
+                            if self.component_trace() {
+                                f.tmp_materials=self.difs_materials.clone();
+                                if let Some(i)=self.difs_materials.iter().position(|(id,_)|*id==f.component) {
+                                    self.difs_materials.remove(i);
+                                } else {self.difs_materials.push((f.component,f.sd));}
+                                self.sync_components();
+                            } else {self.toggle_inside();}
                             new_vec = nv;
                         } else {
                             let n = self.normal;
@@ -1019,32 +1129,67 @@ impl<'a, 'c> SrTracer<'a, 'c> {
                         if self.trans_flip_inside ^ self.m.inside {
                             if calc_t && rit == 1 && c.capture_transmission {
                                 self.transmission.distance = (h.zz2.min(max_l).max(0.0) * sw) as f32;
+                                if c.translucency_thickness && self.component_trace() {
+                                    // Frosting follows the visible material crossing.
+                                    // A grazing ray refracted deep into the object must
+                                    // not make a visually thin edge opaque. Background
+                                    // transport and physical scattering still refract.
+                                    let start=(p.de_stop as f64*0.25).min(1.0);
+                                    let stop=(p.de_stop as f64*(1.0+f.zz_tmp.abs()*p.de_stop_factor as f64)) as f32;
+                                    if let Some(path) = material_exit_path(p, f.origin, f.sr_vec, start, max_l,
+                                        f.component, stop, c.cancel) {
+                                        self.transmission.distance = (path * sw) as f32;
+                                    }
+                                }
                                 self.transmission.opacity = sd.1;
+                                self.transmission.component = f.component;
                                 self.transmission.entry_facing = (dot(&normalize(f.tmp_norm), &normalize(f.sr_vec))
                                     .abs().clamp(0.0, 1.0)) as f32;
                             }
                             // absorption inside the material
-                            let tmp_amb = spow(sd.2, (h.zz2.min(max_l) as f32) * c.absorption);
+                            let medium=if self.component_trace(){self.difs_materials.last().map_or(sd,|(_,material)|*material)}else{sd};
+                            let tmp_amb = spow(medium.2, (h.zz2.min(max_l) as f32) * c.absorption);
                             let tmp_spec = t_absorb;
                             t_absorb = mul3(t_absorb, tmp_amb);
-                            let al = self.add_light(sd.2);
+                            let al = self.add_light(medium.2);
                             if calc_t && rit == 1 && c.capture_transmission {
                                 // Use the same scene lighting and material tint as
                                 // the existing internal scattering term.
-                                let peak = al.iter().copied().fold(1.0_f32, f32::max);
-                                self.transmission.interior_light = mul3(tmp_spec, sc3(al, 1.0 / peak));
+                                let peak=al.iter().copied().fold(1.0_f32,f32::max);
+                                self.transmission.interior_light=mul3(tmp_spec,sc3(al,1.0/peak));
+                                self.transmission.material_light = mul3(tmp_spec,self.transmission.material_light);
                             }
                             let scatter = self.scattering_weight(h.zz2.min(max_l) as f32, al);
-                            self.t_amb = add3(self.t_amb, sc3(mul3(al, lin2(t_absorb, tmp_spec, 0.5)), scatter));
-                            inside = Some((sd.2, c.absorp_coeff));
+                            let volume = sc3(mul3(al, lin2(t_absorb, tmp_spec, 0.5)), scatter);
+                            self.t_amb = add3(self.t_amb, volume);
+                            if calc_t && rit == 1 && c.capture_transmission { self.transmission.entry_volume = volume; }
+                            if calc_t && f.primary_transmission && c.subsurface_amount > 0.0 {
+                                self.integrate_subsurface(f.origin, new_vec, (h.zz2.min(max_l).max(0.0) * sw) as f32, medium.2, f.component);
+                            }
+                            inside = Some((medium.2, c.absorp_coeff));
+                        }
+                        if calc_t && rit == 1 && c.capture_transmission
+                            && self.transmission.distance > 0.0 {
+                            // Everything seen through the first material segment,
+                            // including the exit surface's shading and reflections,
+                            // must be extinguished by its translucency opacity.
+                            // Keep only entry shading and volume light in the base.
+                            f.transmission_start = Some(self.t_amb);
                         }
                         // Use the entered material's transparency at its exit.
-                        let exit_transmission = (calc_t && inside.is_some()).then_some(sd.1);
+                        let exit_transmission = if self.component_trace() {
+                            self.difs_materials.iter().find(|(id,_)|*id==h.component).map(|(_,material)|material.1)
+                        } else {(calc_t && inside.is_some()).then_some(sd.1)};
                         let sh = self.shade(&si, inside, exit_transmission);
                         if self.dbg {
                             eprintln!("  hit: pos {:?} si {si:?}\n  plv {:?}\n  light {:?} result {:?} spe {:?} {} dif {:?} t_absorb {t_absorb:?}", h.pos, self.plv, sh.light, sh.result, sh.spe, sh.spe_a, sh.dif);
                         }
                         let tmp_amb = sh.light.map(|v| (v / 255.0).clamp(0.0, 8.0));
+                        if f.primary_transmission && calc_t && c.subsurface_amount>0.0 && inside.is_none()
+                            && h.component!=self.transmission.component && sh.spe_a<0.01 {
+                            self.transmission.subsurface_background=tmp_amb;
+                            f.primary_transmission=false;
+                        }
                         f.sd = (sh.spe, sh.spe_a, sh.dif);
                         self.t_amb = add3(self.t_amb, mul3(t_absorb, tmp_amb));
                         if !calc_t || !(self.trans_flip_inside ^ self.m.inside) {
@@ -1054,12 +1199,15 @@ impl<'a, 'c> SrTracer<'a, 'c> {
                         if rit < c.max_reflections {
                             let t_absorb = sc3(t_absorb, c.sr_light_amount);
                             let (zz, sd) = (f.zz, f.sd);
-                            st.push(Frame::new(zz, new_vec, t_absorb, sd, rit + 1));
+                            let mut next=Frame::new(zz,new_vec,t_absorb,sd,rit+1);
+                            next.component=h.component;
+                            next.primary_transmission=f.primary_transmission && calc_t;
+                            st.push(next);
                         }
                     } else {
                         let mut sd = f.sd;
                         let mut t_absorb = if calc_t { sc3(f.t_absorb, sd.1) } else { mul3(f.t_absorb, sd.0) };
-                        self.calc_open_air(&mut si, &mut sd, &mut t_absorb, calc_t, h.zz2.min(max_l) as f32);
+                        self.calc_open_air(&mut si, &mut sd, &mut t_absorb, calc_t, h.zz2.min(max_l) as f32, f.primary_transmission && calc_t);
                         (f.sd, f.t_absorb) = (sd, t_absorb);
                         if self.dbg {
                             eprintln!("  open air: t_absorb {t_absorb:?} t_amb {:?} plv {:?}", self.t_amb, self.plv);
@@ -1077,8 +1225,10 @@ impl<'a, 'c> SrTracer<'a, 'c> {
                         f.zz = f.zz_tmp;
                         f.sd = f.tmp_sd;
                         f.t_absorb = sc3(f.tmp_absorb, (f.spec_mul_t + (1.0 - f.spec_mul_t) * (1.0 - f.sd.1 as f64)) as f32);
-                        self.toggle_inside();
+                        if self.component_trace() {self.difs_materials=f.tmp_materials.clone();self.sync_components();}
+                        else {self.toggle_inside();}
                         f.calc_t = false;
+                        f.primary_transmission = false;
                         f.at = At::Next;
                     } else {
                         st.pop();
@@ -1287,7 +1437,23 @@ impl<'a, 'c> SrTracer<'a, 'c> {
                     _ => 0,
                 };
                 self.m.mzz = zz.abs();
+                // Trace ambient occlusion against other geometry, then weight
+                // the containing media by their actual transparency. Palette
+                // interpolation must not turn nearly clear glass into a solid
+                // enclosure. Fully opaque objects remain in the AO field.
+                let ignored = std::mem::take(&mut self.m.it.difs_ignored_components);
+                let mut enclosure_transmission = 1.0_f32;
+                if self.component_trace() {
+                    self.m.it.difs_ignored_components = self.difs_materials.iter()
+                        .filter(|(_,material)|material.1 > 0.0).map(|(id,material)| {
+                            enclosure_transmission *= material.1.clamp(0.0,1.0);
+                            *id
+                        }).collect();
+                }
                 self.deao_1pos(&mut si, q, max_len, first);
+                self.m.it.difs_ignored_components = ignored;
+                si.amb_shadow = (16383.0 - (16383.0-si.amb_shadow as f32)*enclosure_transmission)
+                    .round_ties_even().clamp(0.0,16383.0) as u16;
                 si.amb_shadow = ((si.amb_shadow as i32 * 8) / (8 + r.rit)) as u16;
             } else {
                 si.amb_shadow = 5000;
@@ -1296,7 +1462,8 @@ impl<'a, 'c> SrTracer<'a, 'c> {
         } else {
             si.zpos_fine = 32768 << 16;
         }
-        Some(RayHit { hit: !open_air, si, pos: self.m.it.c, zz, zz2_paint, zz2 })
+        let component=if !open_air&&self.component_trace(){self.m.calc_de();self.m.it.difs_component_id}else{0};
+        Some(RayHit { hit: !open_air, si, pos: self.m.it.c, zz, zz2_paint, zz2,component })
     }
 
     /// One pixel of `TSRCalcThread.Execute`: returns the new colour, or
@@ -1321,6 +1488,8 @@ impl<'a, 'c> SrTracer<'a, 'c> {
             return None;
         }
         self.sr_si = *si;
+        self.difs_materials.clear();
+        self.m.it.difs_inside_components=if self.component_trace(){Some(Vec::new())}else{None};
         self.guard = 0;
         let inside = if p.in_and_outside && si.otrap & 0x8000 != 0 { false } else { p.inside_rendering };
         self.m.inside = inside;
@@ -1384,11 +1553,27 @@ impl<'a, 'c> SrTracer<'a, 'c> {
         self.scale_amb_diff_down = self.calc_trans_r;
         let sh = self.shade(si, None, None);
         self.t_amb = sh.light.map(|v| (v / 255.0).clamp(0.0, 8.0));
+        if c.capture_transmission {
+            self.transmission.entry_light = self.t_amb;
+            self.transmission.entry_fog=sh.depth_fog_light.map(|v|v/255.0);
+            self.transmission.entry_visibility=sh.result;
+            self.transmission.entry_specular = mul3(sh.specular_light.map(|v| v / 255.0), sh.result);
+            // Frosted opacity must use the visible boundary's diffuse lighting,
+            // including facing and shadows. Internal light intensity alone would
+            // illuminate a backlit opaque face as if it faced every light.
+            self.scale_amb_diff_down=false;
+            let opaque=self.shade(si,None,None);
+            self.scale_amb_diff_down=self.calc_trans_r;
+            let specular=mul3(opaque.specular_light.map(|v|v/255.0),opaque.result);
+            let diffuse=sub3(opaque.light.map(|v|v/255.0),specular).map(|v|v.max(0.0));
+            self.transmission.material_light=translucency_material_light([1.;3],[1.;3],diffuse);
+        }
         let sv = sc3(sh.result, c.sr_light_amount);
         let mzz = self.m.mzz;
         if self.dbg {
             eprintln!("CPU surface: pos {:?} zz {mzz:.4} si {si:?}\n  plv {:?}\n  light {:?} result {:?} spe {:?} {} dif {:?}", self.m.it.c, self.plv, sh.light, sh.result, sh.spe, sh.spe_a, sh.dif);
         }
+        if self.component_trace(){self.m.calc_de();}
         Some((mzz, vf, sv, (sh.spe, sh.spe_a, sh.dif)))
     }
 
@@ -1474,21 +1659,23 @@ pub fn reflections<S: Sample>(
     if let Some(cache) = &sc.transmission_cache {
         let cached = cache.lock().ok();
         if let Some(data) = cached.as_deref().and_then(Option::as_ref)
-            .filter(|data| p.rect == [0, 0, p.width, p.height] && data.rgb.len() == rgb.len())
+            .filter(|data| p.rect == [0, 0, p.width, p.height] && data.rgb.len() == rgb.len()
+                && data.full_thickness == sc.translucency_enabled
+                && data.subsurface_amount == if sc.subsurface_scattering && sc.translucency_enabled {sc.subsurface_amount}else{0.0})
         {
             for (dst, &src) in rgb.iter_mut().zip(&data.rgb) {
                 *dst = S::from_paint(f32::from(src));
             }
-            if sc.transmission_blur > 0.0 || sc.translucency_glow != 0.0 {
+            if sc.transmission_blur > 0.0 || sc.translucency_glow != 0.0 || (sc.subsurface_scattering && sc.translucency_enabled && sc.subsurface_amount > 0.0) {
                 blur_transmission(rgb, gbuf, &data.samples, p, lv, sc.transmission_blur,
-                    sc.translucency_glow, threads.min(p.height as usize).max(1), cancel);
+                    sc.translucency_glow, if sc.subsurface_scattering && sc.translucency_enabled {sc.subsurface_amount}else{0.0}, threads.min(p.height as usize).max(1), cancel);
             }
             progress(p.height as usize, p.height as usize);
             return;
         }
     }
     #[cfg(feature = "gpu")]
-    if !(sc.mc.transparency && (sc.transmission_blur > 0.0 || sc.translucency_glow != 0.0
+    if !(sc.mc.transparency && ((p.difs&&p.decomb.is_none()) || (sc.subsurface_scattering && sc.translucency_enabled && sc.subsurface_amount > 0.0) || sc.transmission_blur > 0.0 || sc.translucency_glow != 0.0
         || (sc.mc.reflection_depth >= 2 && can_cache_transmission(sc, p))))
         && crate::gpu::enabled() && crate::gpu::unsupported(p).is_none() {
         let [x0, y0, w, h] = p.rect;
@@ -1589,8 +1776,11 @@ fn reflections_cpu<S: Sample>(
         ao,
         vol: p.vol.is_some(),
         gpu: false,
+        static_difs: static_difs_instances(p),
+        subsurface_amount: if sc.subsurface_scattering && sc.translucency_enabled {sc.subsurface_amount.clamp(0.0,1.0)}else{0.0},
+        translucency_thickness: sc.translucency_enabled,
         capture_transmission: mc.transparency && mc.reflection_depth >= 2
-            && (sc.transmission_blur > 0.0 || sc.translucency_glow != 0.0 || can_cache_transmission(sc, p)),
+            && ((sc.subsurface_scattering && sc.translucency_enabled && sc.subsurface_amount > 0.0) || sc.transmission_blur > 0.0 || sc.translucency_glow != 0.0 || can_cache_transmission(sc, p)),
     };
     let [x0, y0, w, h] = p.rect;
     let (wu, hu) = (w as usize, h as usize);
@@ -1623,6 +1813,7 @@ fn reflections_cpu<S: Sample>(
                         sr_si: SiLight::default(),
                         normal: [0.0; 3],
                         transmission: Transmission::default(),
+                        difs_materials: Vec::new(),
                         t_amb: [0.0; 3],
                         plv: Plv {
                             view: [0.0, 0.0, 1.0],
@@ -1663,50 +1854,164 @@ fn reflections_cpu<S: Sample>(
         // Keep one full frame of CPU trace data for the next interactive edit.
         // Tiled renders and frames outside the memory budget skip retention.
         let cache = sc.transmission_cache.as_ref().filter(|_| {
-            can_cache_transmission(sc, p) && transmission.iter().any(|sample| sample.distance > 0.0 && sample.opacity > 0.0)
+            can_cache_transmission(sc, p) && transmission.iter().any(|sample| sample.distance > 0.0 && (sample.opacity > 0.0 || sample.subsurface_valid))
         });
         let baseline = cache.map(|_| rgb.iter().map(|c| c.to_255().round() as u8).collect());
-        if sc.transmission_blur > 0.0 || sc.translucency_glow != 0.0 {
-            blur_transmission(rgb, gbuf, &transmission, p, lv, sc.transmission_blur, sc.translucency_glow, threads, cancel);
+        if sc.transmission_blur > 0.0 || sc.translucency_glow != 0.0 || (sc.subsurface_scattering && sc.translucency_enabled && sc.subsurface_amount > 0.0) {
+            blur_transmission(rgb, gbuf, &transmission, p, lv, sc.transmission_blur, sc.translucency_glow, if sc.subsurface_scattering && sc.translucency_enabled {sc.subsurface_amount}else{0.0}, threads, cancel);
         }
         if let (Some(cache), Some(rgb)) = (cache, baseline) {
             if !cancel() {
                 if let Ok(mut entry) = cache.lock() {
-                    *entry = Some(TransmissionCache { rgb, samples: transmission });
+                    *entry = Some(TransmissionCache { rgb, samples: transmission, subsurface_amount:ctx.subsurface_amount, full_thickness:ctx.translucency_thickness });
                 }
             }
         }
     }
 }
 
+// A single distance primitive with vector updates disabled describes the
+// same surface on every iteration. Its coincident repetitions are one medium,
+// not a stack of different surfaces consuming reflection depth.
+fn static_difs_instances(p:&CalcParams)->bool {
+    if !p.difs || p.decomb.is_some() {return false;}
+    let mut active=p.slots.iter().filter(|slot|slot.iterations>0);
+    let Some(slot)=active.next() else {return false;};
+    active.next().is_none() && !slot.uncounted
+        && slot.formula.options().iter().any(|(name,value)|
+            name.eq_ignore_ascii_case("Apply scale+add") && *value==0.0)
+}
+
+/// Continue a thickness query past an internal object to the entered medium's
+/// actual exit. This affects frosting only; normal visibility still stops at
+/// an opaque object. Ray parameters use the same units as the reflection march.
+fn material_exit_path(p: &CalcParams, origin: Vec3, direction: Vec3, start: f64, limit: f64,
+    component: i32, de_stop: f32, cancel: &(dyn Fn()->bool+Sync)) -> Option<f64> {
+    let mut m=Marcher::new(p,1);
+    m.ms_de_stop=de_stop;m.inside=true;m.calc_inside=true;
+    m.it.difs_inside_components=Some(vec![component]);m.it.difs_only_component=Some(component);
+    let mut path=start;
+    for step in 0..512 {
+        if step%16==0 && cancel() {return None;}
+        let distance=m.de_at_point(add(origin,scale(direction,path)),false);
+        if !distance.is_finite() {return None;}
+        if distance<=de_stop as f64 {return Some(path);}
+        path += ((distance-p.ms_de_sub as f64*de_stop as f64)*p.z_step_div as f64).max(0.11);
+        if path>limit {return None;}
+    }
+    None
+}
+
+// Approximate the forward-biased scattering of a translucent solid.
+const SUBSURFACE_ANISOTROPY:f32=0.7;
+fn subsurface_phase(cosine:f32)->f32 {
+    let g=SUBSURFACE_ANISOTROPY;
+    0.25*(1.0-g*g)/(1.0+g*g-2.0*g*cosine.clamp(-1.0,1.0)).powf(1.5)
+}
+
+// Define optical thickness relative to the view's world-space width, like
+// the existing transmission controls. A fixed world-unit coefficient makes
+// the effect disappear on highly magnified fractal details. Width * step_width
+// is independent of render resolution and oversampling.
+fn subsurface_density(p: &CalcParams, amount: f32) -> f32 {
+    let view_width = (p.step_width * p.width as f64).abs().max(1e-30);
+    // Preserve the existing density at ordinary scene scales; increase it
+    // for magnified details rather than weakening larger objects.
+    (100.0 * (amount as f64).powi(2) * (0.1 / view_width).max(1.0)) as f32
+}
+
+/// Material distance from an interior sample toward a light. Other DIFS
+/// instances occlude the light; repeated crossings of a hollow object's walls
+/// accumulate only solid material, excluding the air in its cavity.
+fn subsurface_light_path(p:&CalcParams,origin:Vec3,direction:Vec3,max_distance:f64,component:i32,de_stop:f32,static_difs:bool,cancel:&(dyn Fn()->bool+Sync))->Option<f32>{
+    crate::diagnostics::begin_ray();
+    let result=(|| {
+        let mut m=Marcher::new(p,1);m.ms_de_stop=de_stop;
+        // Light transport needs geometric distances more precise than the
+        // primary image's pixel-sized surface threshold.
+        let eps=(de_stop as f64*p.step_width).abs().min(1e-5).max(1e-9);
+        m.ms_de_stop=(eps/p.step_width.abs()) as f32;
+        let individual=p.difs&&p.decomb.is_none();
+        if static_difs {m.it.max_it=1;}
+        let components=vec![component];
+        let mut inside=true;let mut travelled=0.0;let mut material=0.0;
+        if individual {m.it.difs_inside_components=Some(components.clone());}
+        for step in 0..256 {
+            if step%16==0&&cancel(){return None;}
+            crate::diagnostics::step();
+            m.inside=inside;m.calc_inside=inside;
+            let point=add(origin,scale(direction,travelled));
+            let d=m.de_at_point(point,false)*p.step_width;
+            if !d.is_finite(){return None;}
+            let remaining=max_distance-travelled;
+            if remaining<=eps{return Some(material as f32);}
+            let advance=if d<=eps*1.2 {
+                if individual&&m.it.difs_component_id!=component{return None;}
+                inside=!inside;
+                if individual {m.it.difs_inside_components=Some(if inside{components.clone()}else{Vec::new()});}
+                (eps*4.0).min(remaining)
+            }else{(d*0.7).max(eps).min(remaining)};
+            if inside {material+=advance;}
+            travelled+=advance;
+            if travelled>=max_distance{return Some(material as f32);}
+        }
+        None // A bounded, unresolved light path is conservatively occluded.
+    })();
+    crate::diagnostics::end_ray(result.is_some());result
+}
+
+/// Normalize illumination before applying albedo, so bright light does not
+/// erase the material's diffuse color. Opaque frosting uses this full lit
+/// material response rather than an arbitrary quarter-brightness substitute.
+fn translucency_material_light(through: S3, albedo: S3, incident: S3) -> S3 {
+    let peak=incident.iter().copied().fold(1.0_f32,f32::max);
+    mul3(through,mul3(albedo,sc3(incident,1.0/peak)))
+}
+
+fn frost_edge_coverage(path: f32) -> f32 {
+    let edge=(path/0.05).clamp(0.0,1.0);
+    edge*edge*(3.0-2.0*edge)
+}
+
+fn transmission_opacity(path: f32, strength: f32) -> f32 {
+    // A single broad ramp preserves intermediate thicknesses. Strength 2
+    // remains fully frosted away from the clear silhouette.
+    let t = (path / 2.0).clamp(0.0, 1.0);
+    let opacity = (strength * t * t * (3.0 - 2.0 * t)).min(1.0);
+    let coverage = (strength - 1.0).clamp(0.0, 1.0);
+    let coverage = coverage * coverage * (3.0 - 2.0 * coverage);
+    opacity + coverage * frost_edge_coverage(path) * (1.0 - opacity)
+}
+
 /// Filter only the light gathered beyond the exit interface. Surface
 /// highlights, absorption and internal illumination stay in the base color.
 fn blur_transmission<S: Sample>(
     rgb: &mut [S], gbuf: &[SiLight], transmission: &[Transmission], p: &CalcParams,
-    lv: &LightVals, amount: f32, glow_amount: f32, threads: usize, cancel: &(dyn Fn() -> bool + Sync),
+    lv: &LightVals, amount: f32, glow_amount: f32, subsurface_amount: f32, threads: usize, cancel: &(dyn Fn() -> bool + Sync),
 ) {
+    if amount<=0.0 && glow_amount==0.0 { return; }
     let [_, _, width, height] = p.rect;
     let (width, height) = (width as usize, height as usize);
     let rows = height.div_ceil(threads);
     let radius_limit = (p.width.min(p.height) as f32 * 0.075).clamp(1.0, 64.0);
-    // Convert scene distance to the scale of the view so framing changes
-    // do not make the effect depend on the output resolution.
-    let view_width = (p.step_width * p.width as f64) as f32;
-    let mut path_scale = (0.40 * view_width).max(1e-20);
+    // The near-plane pixel scale can be orders of magnitude smaller than
+    // a distant object's thickness. Measure paths on each DIFS instance so
+    // a floor or another object cannot make all of its edges appear thick.
+    let mut paths = std::collections::HashMap::<i32, Vec<f32>>::new();
+    for sample in transmission.iter().step_by((transmission.len() / 65_536).max(1)) {
+        if sample.distance.is_finite() && sample.distance > 0.0 && sample.opacity > 0.0 {
+            paths.entry(sample.component).or_default().push(sample.distance);
+        }
+    }
+    let scales: std::collections::HashMap<_, _> = paths.into_iter().map(|(id, mut paths)| {
+        let index = paths.len() * 3 / 4;
+        let (_, distance, _) = paths.select_nth_unstable_by(index, f32::total_cmp);
+        (id, (*distance * 0.65).max(1e-20))
+    }).collect();
+    let scales = &scales;
     // Above the default strength, progressively frost even short paths.
     let coverage = (amount - 1.0).clamp(0.0, 1.0);
     let coverage = coverage * coverage * (3.0 - 2.0 * coverage);
-    // Use a representative long path when the whole object is thin in the
-    // view. A single outlier should not suppress blur across the image.
-    let mut paths: Vec<_> = transmission.iter().step_by((transmission.len() / 65_536).max(1))
-        .filter(|sample| sample.distance.is_finite() && sample.distance > 0.0 && sample.opacity > 0.0)
-        .map(|sample| sample.distance)
-        .collect();
-    if !paths.is_empty() {
-        let index = paths.len() * 3 / 4;
-        let (_, distance, _) = paths.select_nth_unstable_by(index, f32::total_cmp);
-        path_scale = path_scale.min((*distance * 0.65).max(1e-20));
-    }
     std::thread::scope(|scope| {
         for (band, output) in rgb.chunks_mut(rows * width * 3).enumerate() {
             scope.spawn(move || {
@@ -1716,24 +2021,26 @@ fn blur_transmission<S: Sample>(
                     for (x, pixel) in pixels.chunks_exact_mut(3).enumerate() {
                         let i = y * width + x;
                         let center = transmission[i];
-                        if center.distance <= 0.0 || center.opacity <= 0.0 { continue; }
+                        if center.distance <= 0.0 || (center.opacity <= 0.0 && !center.subsurface_valid) { continue; }
+                        let path_scale = scales.get(&center.component).copied().unwrap_or(1.0);
                         let path = center.distance / path_scale;
                         // Keep short paths clear and let the blur rise quickly
                         // as the ray travels farther inside the material.
                         let thickness = path / (1.0 + path);
                         let response = thickness * thickness * (3.0 - 2.0 * thickness);
-                        // Fade the effect in across thin material, reaching the
-                        // full filter on the longer paths through the interior.
-                        let edge = ((response - 0.36) / 0.25).clamp(0.0, 1.0);
-                        let edge_weight = edge * edge * (3.0 - 2.0 * edge);
-                        let edge_weight = edge_weight + coverage * (1.0 - edge_weight);
-                        if edge_weight == 0.0 && glow_amount == 0.0 { continue; }
-                        let radius = amount * radius_limit * (response + coverage * (1.0 - response));
-                        if radius <= 0.5 && glow_amount == 0.0 { continue; }
+                        // Use the whole thickness range, rather than stacking
+                        // narrow thresholds into a steep transparency boundary.
+                        let edge_weight = response;
+                        let edge_coverage = coverage * frost_edge_coverage(path);
+                        let edge_weight = edge_weight + edge_coverage * (1.0 - edge_weight);
+                        if edge_weight == 0.0 && glow_amount == 0.0 && subsurface_amount <= 0.0 { continue; }
+                        let radius = amount * radius_limit * (response + edge_coverage * (1.0 - response));
+                        if radius <= 0.5 && glow_amount == 0.0 && subsurface_amount <= 0.0 { continue; }
                         let sample_radius = if radius > 0.5 { radius } else { 3.0 };
 
                         let mut light = center.light;
                         let mut interior_light = center.interior_light;
+                        let mut material_light = center.material_light;
                         let mut weights = 1.0;
                         for tap in 0..32 {
                             let index = tap as f32 + 0.5;
@@ -1751,7 +2058,9 @@ fn blur_transmission<S: Sample>(
                                 / (1.0 + (depth / 100.0).powi(2) + 16.0 * delta.powi(2));
                             light = add3(light, sc3(other.light, weight));
                             interior_light = add3(interior_light, sc3(other.interior_light, weight));
+                            material_light = add3(material_light, sc3(other.material_light, weight));
                             weights += weight;
+
                         }
                         let mix = ((response - 0.12) / 0.43).clamp(0.0, 1.0)
                             * (radius - 0.5).clamp(0.0, 1.0) * edge_weight;
@@ -1760,25 +2069,21 @@ fn blur_transmission<S: Sample>(
                         // interior light without transmitting the background.
                         // Use the same scene-relative thickness as the blur so
                         // smaller objects can also develop an opaque interior.
-                        let opacity = ((response - 0.36) / 0.38).clamp(0.0, 1.0);
-                        let opacity = (amount * opacity * opacity * (3.0 - 2.0 * opacity)).min(1.0);
+                        let opacity = transmission_opacity(path, amount);
                         let lit_material = sc3(interior_light, 1.0 / weights);
+                        let frosted_material = sc3(material_light,1.0/weights);
                         // Replace extinguished background light with diffuse
                         // light scattered inside the material.
-                        let opacity = opacity * edge_weight;
-                        let opacity = opacity + coverage * (1.0 - opacity);
                         let transmitted = if opacity > 0.0 {
-                            add3(sc3(blurred, 1.0 - opacity), sc3(lit_material, 0.25 * opacity))
-                        } else {
-                            blurred
-                        };
+                            add3(sc3(blurred, 1.0 - opacity), sc3(frosted_material, opacity))
+                        } else { blurred };
                         let glow = if glow_amount < 0.0 {
                             // Grazing entry rays form a rim. Extinction along
                             // the path softens the glow toward the interior.
                             let facing = center.entry_facing;
                             let grazing = (1.0 - facing).powi(2);
-                            let falloff = (-2.0 * center.distance * facing).exp();
-                            let rim = (3.0 * grazing * falloff).min(1.0);
+                            let falloff = (-1.5 * path).exp();
+                            let rim = ((0.5 + 2.5 * grazing) * falloff).min(1.0);
                             let rim_color = lit_material.map(|channel| channel.max(0.0).sqrt());
                             sc3(rim_color, 1.2 * -glow_amount * rim)
                         } else {
@@ -1788,7 +2093,32 @@ fn blur_transmission<S: Sample>(
                             let glow_weight = interior * interior * (3.0 - 2.0 * interior);
                             sc3(lit_material, 0.65 * glow_amount * glow_weight)
                         };
-                        pixel.copy_from_slice(&reflection_colour(lv, add3(add3(center.base, transmitted), glow)));
+                        let ordinary = add3(center.base, transmitted);
+                        let color = if subsurface_amount > 0.0 && center.subsurface_valid {
+                            // The ordinary transmission already includes material opacity,
+                            // refraction, surface frosting and diffuse boundary lighting.
+                            // Extinguish that transmitted light and add the integrated
+                            // volume radiance; do not replace it with an unfiltered
+                            // background ray or discard the surface contribution.
+                            // Fog lies between the camera and the material. It must
+                            // not be extinguished as internal diffuse illumination.
+                            let surface_diffuse = sub3(sub3(center.entry_light, center.entry_specular),center.entry_fog).map(|v| v.max(0.0));
+                            let surface = add3(sub3(center.base, surface_diffuse),
+                                mul3(surface_diffuse, center.subsurface_through));
+                            // Frosted material is already a lit opaque response,
+                            // not background radiance crossing the whole volume.
+                            // Only the remaining clear transmission is ballistic.
+                            let physical_transmission = add3(
+                                mul3(sc3(blurred,1.0-opacity),center.subsurface_through),
+                                sc3(frosted_material,opacity));
+                            let physical = add3(surface,
+                                add3(mul3(center.subsurface_light,center.entry_visibility), physical_transmission));
+                            // Strength is the material mixture, including scattering.
+                            // Do not retain full volume extinction as the frosted
+                            // fraction approaches clear, ordinary transmission.
+                            lin2(physical, ordinary, subsurface_amount * center.opacity.clamp(0.0,1.0) * opacity)
+                        } else { ordinary };
+                        pixel.copy_from_slice(&reflection_colour(lv, add3(color, glow)));
                     }
                 }
             });
@@ -1875,6 +2205,9 @@ fn reflections_gpu<S: Sample>(sc: &Scene, p: &CalcParams, gbuf: &[SiLight], rgb:
         vol: p.vol.is_some(),
         gpu: true,
         capture_transmission: false,
+        translucency_thickness: false,
+        subsurface_amount: 0.0,
+        static_difs: static_difs_instances(p),
     };
     // the lights of the shadow rays (calc_hs): soft shadows use the last one
     let mut lights: Vec<ReflectLight> = Vec::new();
@@ -1902,6 +2235,7 @@ fn reflections_gpu<S: Sample>(sc: &Scene, p: &CalcParams, gbuf: &[SiLight], rgb:
         sr_si: SiLight::default(),
         normal: [0.0; 3],
         transmission: Transmission::default(),
+        difs_materials: Vec::new(),
         t_amb: [0.0; 3],
         plv: Plv { view: [0.0, 0.0, 1.0], abs_view: [0.0, 0.0, 1.0], cam_pos: [0.0; 3], obj_pos: [0.0; 3], z_pos: 0.0, zpos_dyn_fog: 0.0, x_pos: 0.0, y_pos: 0.0, dep_c: [0.0; 3] },
         light_z: lv.lights.iter().map(|l| (l.pos_z, l.pos_lp)).collect(),
@@ -2053,12 +2387,12 @@ fn reflections_gpu<S: Sample>(sc: &Scene, p: &CalcParams, gbuf: &[SiLight], rgb:
                     } else {
                         si.amb_shadow = 5000;
                     }
-                    RayHit { hit: true, si, pos: h.pos, zz: h.zz as f64, zz2_paint: h.zz2 as f64, zz2: h.zz2 as f64 }
+                    RayHit { hit: true, si, pos: h.pos, zz: h.zz as f64, zz2_paint: h.zz2 as f64, zz2: h.zz2 as f64, component:0 }
                 } else {
                     // the step count of the ray (dynamic fog) as calc_ray keeps it
                     let shadow = if p.vol.is_some() { crate::lighting::encode_vlight(h.step_count) } else { h.step_count.clamp(0.0, 1023.0).round_ties_even() as u16 };
                     let si = SiLight { zpos_fine: 32768 << 16, shadow, ..SiLight::default() };
-                    RayHit { hit: false, si, pos: [0.0; 3], zz: h.zz as f64, zz2_paint: h.zz2 as f64, zz2: h.zz2 as f64 }
+                    RayHit { hit: false, si, pos: [0.0; 3], zz: h.zz as f64, zz2_paint: h.zz2 as f64, zz2: h.zz2 as f64, component:0 }
                 }
             })
             .collect();
@@ -2321,4 +2655,285 @@ mod band_memory_tests {
         let free = 2 * REFLECT_BAND_BYTES * (1 << 20);
         assert_eq!(band_pixels(Some(free)), 1 << 20);
     }
+}
+
+#[cfg(test)]
+mod transmission_opacity_tests {
+    use super::transmission_opacity;
+    #[test]
+    fn lit_frosting_retains_white_gray_and_colored_materials() {
+        use super::translucency_material_light;
+        for albedo in [[1.;3],[0.5;3],[1.,0.2,0.1]] {
+            assert_eq!(translucency_material_light([1.;3],albedo,[4.;3]),albedo);
+        }
+        assert_eq!(translucency_material_light([1.;3],[1.;3],[0.;3]),[0.;3]);
+        assert_eq!(translucency_material_light([1.;3],[1.;3],[0.2;3]),[0.2;3]);
+    }
+
+    #[test]
+    fn zero_thickness_is_clear_at_every_strength() {
+        for strength in [0.,0.5,1.,1.0861,1.5,2.] {
+            assert_eq!(transmission_opacity(0.,strength),0.);
+            assert!(transmission_opacity(0.00001,strength)<0.001);
+            let edge:Vec<_>=(0..=100).map(|i|transmission_opacity(i as f32*0.0005,strength)).collect();
+            assert!(edge.windows(2).all(|v|v[1]>=v[0] && v[1]-v[0]<0.05));
+        }
+    }
+
+    #[test]
+    fn opacity_has_a_broad_ramp_and_an_opaque_maximum() {
+        let values: Vec<_> = (1..=20).map(|i| transmission_opacity(i as f32 / 10.0, 1.2473)).collect();
+        assert!(values.windows(2).all(|p| p[1] >= p[0] && p[1] - p[0] < 0.09));
+        assert!(values[5] > 0.1 && values[5] < values[10] && values[10] < values[15]);
+        for path in [0.1, 0.5, 1.0, 3.0] {
+            assert_eq!(transmission_opacity(path, 2.0), 1.0);
+            assert_eq!(transmission_opacity(path, 0.0), 0.0);
+        }
+    }
+}
+
+#[cfg(test)]
+mod subsurface_transport_tests {
+    use super::*;
+    #[test]
+    fn light_ray_measures_the_material_in_an_analytic_sphere() {
+        crate::formulas::add_formula_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rust-assets/M3Formulas"));
+        let mut sc=Scene::preset("SphereIFS").unwrap();sc.iterations=1;sc.width=128;sc.height=128;
+        let text=sc.to_text().lines().map(|line|if line.to_ascii_lowercase().starts_with("apply scale+add") {"apply scale+add = 0".to_string()}else{line.to_string()}).collect::<Vec<_>>().join("\n");
+        let sc=Scene::parse(&text).unwrap();
+        let p=CalcParams::new(&sc).unwrap();
+        let origin=[-1.5,0.,0.]; // default SphereIFS: scale 2 and X add 3
+        let radius=-crate::calc::de_at(&p,origin).0;
+        let path=subsurface_light_path(&p,origin,[0.,0.,1.],radius*3.,1,p.de_stop,static_difs_instances(&p),&||false).unwrap();
+        assert!((path as f64-radius).abs()<radius*0.02,"material path {path}, analytic radius {radius}");
+        let mut shell=sc.clone();shell.iterations=60;
+        shell.formulas[0].formula.set_option("Inside radius",0.8).unwrap();
+        let p=CalcParams::new(&shell).unwrap();
+        let path=subsurface_light_path(&p,[-1.5,0.,0.45],[0.,0.,-1.],2.,1,p.de_stop,static_difs_instances(&p),&||false).unwrap();
+        assert!((path-0.15).abs()<0.002,"hollow sphere counted air as material: {path}");
+    }
+    #[test]
+    fn repeated_static_difs_instances_share_the_entered_medium() {
+        crate::formulas::add_formula_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rust-assets/M3Formulas"));
+        for count in [1,2] {
+            let sc=Scene::parse(&format!("width=128\nheight=128\niterations=60\n[formula]\nname=SphereIFS\niterations={count}\nRadius=1\nScale=1\nX add=0\nApply scale+add=0\n[formula]\nname=SphereIFS\niterations=1\nRadius=0.25\nScale=1\nX add=0\nZ add=-3\nApply scale+add=0")).unwrap();
+            let p=CalcParams::new(&sc).unwrap();
+            let mut m=Marcher::new(&p,1);m.it.c=[0.;3];m.inside=true;m.calc_inside=true;
+            m.it.difs_inside_components=Some(vec![1]);
+            let distance=m.calc_de()*p.step_width;
+            assert!(distance>0.9 && distance<1.1,"coincident repeat was treated as another boundary: {distance}, count={count}");
+            m.it.c=[0.,0.,3.];
+            assert!(m.calc_de()*p.step_width < -0.2,"a distinct opaque primitive was merged into the entered medium");
+            m.it.difs_inside_components=Some(vec![count+1]);
+            let exit=m.calc_de()*p.step_width;
+            assert!(exit>0.2 && exit<0.3,"the second primitive's repetitions did not share its medium: {exit}");
+            m.it.c=[0.;3];m.it.difs_inside_components=Some(vec![1]);m.it.difs_ignored_components=vec![1];
+            let unoccluded=m.calc_de()*p.step_width;
+            assert!((unoccluded-2.75).abs()<0.02,"clear enclosing copies still occlude AO: {unoccluded}");
+            m.it.c=[0.,0.,3.];
+            assert!(m.calc_de()*p.step_width < -0.2,"ignoring a clear enclosure also hid an opaque object");
+        }
+    }
+
+    #[test]
+    fn coincident_heightmap_primitives_share_a_medium_without_an_apply_option() {
+        crate::formulas::add_formula_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rust-assets/M3Formulas"));
+        let sc=Scene::parse("width=128\nheight=128\niterations=60\n[formula]\nname=TorusHMVoid\niterations=1\nMap height=0\nRadius=0.8\nRadius2=0.3\nScale=1\n[formula]\nname=SphereIFS\niterations=1\nRadius=0.25\nScale=1\nX add=0\nZ add=-3\nApply scale+add=0").unwrap();
+        let p=CalcParams::new(&sc).unwrap();let mut m=Marcher::new(&p,1);
+        m.it.c=[0.5,0.,0.];m.inside=true;m.calc_inside=true;m.it.difs_inside_components=Some(vec![1]);
+        let distance=m.calc_de()*p.step_width;
+        assert!(distance>0.04 && distance<0.15,"coincident torus repetitions form a false boundary: {distance}");
+    }
+
+    #[test]
+    fn another_object_occludes_the_subsurface_light_ray() {
+        crate::formulas::add_formula_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rust-assets/M3Formulas"));
+        let sc=Scene::parse("width=128\nheight=128\niterations=2\n[formula]\nname=SphereIFS\niterations=1\nRadius=1\nScale=1\nX add=0\nApply scale+add=0\n[formula]\nname=SphereIFS\niterations=1\nRadius=0.2\nScale=1\nX add=0\nZ add=-2\nApply scale+add=0").unwrap();
+        let p=CalcParams::new(&sc).unwrap();
+        assert!(subsurface_light_path(&p,[0.,0.,0.],[0.,0.,1.],3.,1,p.de_stop,false,&||false).is_none());
+    }
+    #[test]
+    fn teapot_thin_spout_paths_transmit_more_than_the_body() {
+        crate::formulas::add_formula_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rust-assets/M3Formulas"));
+        let mut sc=Scene::parse(include_str!("../tests/fixtures/transmission-teapot.m3s")).unwrap();
+        sc.width=240;sc.height=180;sc.threads=4;sc.mc.reflections=true;
+        sc.translucency_enabled=true;sc.transmission_blur=1.0048;sc.subsurface_scattering=true;sc.subsurface_amount=0.7;
+        sc.transmission_cache=Some(Default::default());
+        let(p,mut g)=crate::render::calculate(&sc,&|_,_|{}).unwrap();crate::render::post_process(&sc,&p,&mut g,4);
+        let _=crate::render::paint(&sc,&p,&g);
+        let cache=sc.transmission_cache.as_ref().unwrap().lock().unwrap();let cache=cache.as_ref().unwrap();
+        let values=|xr:std::ops::Range<usize>,yr:std::ops::Range<usize>| {
+            let mut values=Vec::new();for y in yr {for x in xr.clone(){let v=cache.samples[y*240+x];if v.subsurface_valid {values.push(v.subsurface_through[1]);}}}values.sort_by(f32::total_cmp);values
+        };
+        let spout=values(37..76,76..111);let body=values(106..160,103..143);
+        assert!(!spout.is_empty()&&!body.is_empty());
+        let thin=spout[spout.len()*9/10];let thick=body[body.len()/2];
+        eprintln!("spout clear-path T={thin}, body median T={thick}");
+        assert!(thin>0.2 && thin>thick*3.,"thin spout is not transmitting: {thin} versus body {thick}");
+    }
+
+    #[test]
+    fn subsurface_density_tracks_scene_scale_not_render_resolution() {
+        let mut sc=Scene::preset("Integer Power").unwrap();sc.width=100;sc.height=100;sc.zoom=40.;
+        let p=CalcParams::new(&sc).unwrap();let original=subsurface_density(&p,1.);
+        sc.width=400;sc.height=400;
+        assert!((subsurface_density(&CalcParams::new(&sc).unwrap(),1.)/original-1.).abs()<1e-6);
+        sc.zoom*=100.;let magnified=subsurface_density(&CalcParams::new(&sc).unwrap(),1.);
+        assert!((magnified/original-100.).abs()<1e-4);
+        assert_eq!(subsurface_density(&p,0.),0.);
+        assert!((subsurface_density(&p,0.5)/original-0.25).abs()<1e-6);
+    }
+
+    #[test]
+    fn subsurface_is_visible_in_magnified_translucent_scene() {
+        crate::formulas::add_formula_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rust-assets/M3Formulas"));
+        let mut sc=Scene::parse(include_str!("../tests/fixtures/transmission-magnified.m3s")).unwrap();
+        sc.width=32;sc.height=32;sc.threads=4;sc.mc.reflections=true;
+        sc.transmission_blur=0.5694;sc.translucency_glow=-0.4423;
+        sc.subsurface_amount=1.;sc.translucency_enabled=true;
+        sc.transmission_cache=Some(Default::default());
+        let(p,mut g)=crate::render::calculate(&sc,&|_,_|{}).unwrap();crate::render::post_process(&sc,&p,&mut g,4);
+        sc.subsurface_scattering=false;let off=crate::render::paint(&sc,&p,&g);
+        sc.subsurface_scattering=true;let on=crate::render::paint(&sc,&p,&g);
+        let difference=off.iter().zip(&on).map(|(&a,&b)|a.abs_diff(b) as f64).sum::<f64>()/off.len() as f64;
+        eprintln!("magnified scene mean on/off difference={difference}");
+        assert!(difference>5.,"scattering is visually negligible: {difference}/255");
+        let cache=sc.transmission_cache.as_ref().unwrap().lock().unwrap();let cache=cache.as_ref().unwrap();
+        let peak=cache.samples.iter().flat_map(|s|s.subsurface_light).fold(0.0_f32,f32::max);
+        eprintln!("magnified scene peak scattered radiance={peak}");
+        assert!(peak>0.01,"scattering only extinguished light without gathering a visible source: {peak}");
+    }
+
+    #[test]
+    fn frosting_edge_thickness_is_independent_of_refraction() {
+        crate::formulas::add_formula_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rust-assets/M3Formulas"));
+        let mut sc=Scene::parse(include_str!("../tests/fixtures/translucency-board-occlusion.m3s")).unwrap();
+        sc.threads=4;sc.mc.reflections=true;sc.translucency_enabled=true;sc.transmission_blur=1.0861;sc.translucency_glow=0.;
+        let measure=|sc:&mut Scene,ri:f32| {
+            sc.mc.refraction_index=ri;sc.transmission_cache=Some(Default::default());
+            let (p,mut g)=crate::render::calculate(sc,&|_,_|{}).unwrap();crate::render::post_process(sc,&p,&mut g,4);
+            let _=crate::render::paint(sc,&p,&g);
+            let cache=sc.transmission_cache.as_ref().unwrap().lock().unwrap();let cache=cache.as_ref().unwrap();
+            [cache.samples[24*64+26].distance,cache.samples[24*64+53].distance]
+        };
+        let glass=measure(&mut sc,1.5);let nearly_unrefracted=measure(&mut sc,1.01);
+        eprintln!("edge thickness: RI1.5={glass:?}, RI1.01={nearly_unrefracted:?}");
+        for (a,b) in glass.into_iter().zip(nearly_unrefracted) {
+            assert!(a>0. && b>0.);assert!((a-b).abs()<b*0.05,"refraction made a thin visible edge opaque: {a} versus {b}");
+        }
+    }
+
+    #[test]
+    fn translucency_thickness_is_not_truncated_by_an_internal_board() {
+        crate::formulas::add_formula_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rust-assets/M3Formulas"));
+        let mut sc=Scene::parse(include_str!("../tests/fixtures/translucency-board-occlusion.m3s")).unwrap();
+        sc.threads=4;sc.mc.reflections=true;sc.translucency_enabled=true;sc.transmission_blur=1.2997;sc.translucency_glow=0.;
+        sc.transmission_cache=Some(Default::default());
+        let measure=|sc:&Scene| {
+            let (p,mut g)=crate::render::calculate(sc,&|_,_|{}).unwrap();crate::render::post_process(sc,&p,&mut g,4);
+            let _=crate::render::paint(sc,&p,&g);
+            let cache=sc.transmission_cache.as_ref().unwrap().lock().unwrap();let cache=cache.as_ref().unwrap();
+            let v=cache.samples[27*64+40];eprintln!("captured box path {} component {}",v.distance,v.component);v.distance
+        };
+        let with_board=measure(&sc);sc.formulas[1].iterations=0;
+        sc.transmission_cache=Some(Default::default());
+        let without_board=measure(&sc);
+        assert!(with_board>0. && without_board>0.);
+        assert!((with_board-without_board).abs()<without_board*0.05,
+            "internal board changed the box thickness: {with_board} versus {without_board}");
+    }
+
+    #[test]
+    fn scattering_fades_with_strength_instead_of_exposing_full_extinction() {
+        let mut sc=Scene::preset("Integer Power").unwrap();sc.width=16;sc.height=16;
+        sc.lighting.gamma=32.;sc.lighting.internal_gamma2=false;
+        let p=CalcParams::new(&sc).unwrap();let cam=crate::render::paint_camera(&sc,&p);
+        let lv=crate::render::light_vals(&sc,&sc.lighting,&cam);
+        let g=vec![SiLight{normal:[0,0,32767],zpos_fine:100<<16,..Default::default()};256];
+        let samples=vec![Transmission{light:[1.;3],material_light:[1.;3],distance:1.,opacity:1.,component:1,
+            subsurface_valid:true,subsurface_through:[0.;3],..Default::default()};256];
+        for strength in [0.,0.1,0.25,0.5,0.75,1.,1.5,2.] {
+            let mut ordinary=vec![255u8;256*3];let mut scattering=ordinary.clone();
+            blur_transmission(&mut ordinary,&g,&samples,&p,&lv,strength,0.,0.,2,&||false);
+            blur_transmission(&mut scattering,&g,&samples,&p,&lv,strength,0.,1.,2,&||false);
+            if strength==0. {assert!(ordinary==scattering,"zero Strength retained scattering extinction");}
+            // A conservative white medium cannot become black simply because
+            // the user reduces its frosted fraction.
+            assert!(scattering.iter().all(|&v|v>=190),"dark band at Strength {strength}: {}",scattering.iter().min().unwrap());
+        }
+    }
+
+    #[test]
+    fn scattering_preserves_foreground_depth_fog() {
+        let mut sc=Scene::preset("Integer Power").unwrap();sc.width=16;sc.height=16;
+        sc.lighting.gamma=32.;sc.lighting.internal_gamma2=false;
+        let p=CalcParams::new(&sc).unwrap();let cam=crate::render::paint_camera(&sc,&p);
+        let lv=crate::render::light_vals(&sc,&sc.lighting,&cam);
+        let g=vec![SiLight{normal:[0,0,32767],zpos_fine:100<<16,..Default::default()};256];
+        let fog=[0.2,0.35,0.5];
+        for visibility in [0.,0.2,1.] {
+            let samples=vec![Transmission{base:fog,entry_light:fog,entry_fog:fog,entry_visibility:[visibility;3],
+                distance:1.,opacity:1.,component:1,subsurface_valid:true,subsurface_through:[0.;3],
+                subsurface_light:[0.1;3],..Default::default()};256];
+            let mut output=vec![0u8;256*3];
+            blur_transmission(&mut output,&g,&samples,&p,&lv,2.,0.,1.,2,&||false);
+            let expected=reflection_colour::<u8>(&lv,add3(fog,[0.1*visibility;3]));
+            assert!(output.chunks_exact(3).all(|v|v.iter().zip(expected).all(|(&a,b)|a.abs_diff(b)<=1)),
+                "scattering absorbed foreground fog or bypassed its visibility: {visibility}");
+        }
+    }
+
+    #[test]
+    fn scattering_does_not_extinguish_lit_opaque_frosting() {
+        let mut sc=Scene::preset("Integer Power").unwrap();sc.width=16;sc.height=16;
+        sc.lighting.gamma=32.;sc.lighting.internal_gamma2=false;
+        let p=CalcParams::new(&sc).unwrap();let cam=crate::render::paint_camera(&sc,&p);
+        let lv=crate::render::light_vals(&sc,&sc.lighting,&cam);
+        let g=vec![SiLight{normal:[0,0,32767],zpos_fine:100<<16,..Default::default()};256];
+        for color in [[1.;3],[0.5;3],[0.8,0.3,0.1]] {
+            let samples=vec![Transmission{material_light:color,light:[0.9;3],distance:1.,opacity:1.,component:1,
+                subsurface_valid:true,subsurface_through:[0.;3],..Default::default()};256];
+            let mut output=vec![0u8;256*3];
+            blur_transmission(&mut output,&g,&samples,&p,&lv,2.,0.,1.,2,&||false);
+            let expected=reflection_colour::<u8>(&lv,color);
+            assert!(output.chunks_exact(3).all(|v|v.iter().zip(expected).all(|(&a,b)|a.abs_diff(b)<=1)),"volume extinction darkened lit opaque material {color:?}");
+        }
+        // The opaque portion of a mixed palette stop keeps its lighting.
+        let samples=vec![Transmission{base:[0.4;3],entry_light:[0.4;3],light:[0.1;3],distance:1.,opacity:0.01,
+            component:1,subsurface_valid:true,subsurface_through:[0.;3],..Default::default()};256];
+        let mut output=vec![0u8;256*3];
+        blur_transmission(&mut output,&g,&samples,&p,&lv,2.,0.,1.,2,&||false);
+        let expected=reflection_colour::<u8>(&lv,[0.396;3]);
+        assert!(output.chunks_exact(3).all(|v|v.iter().zip(expected).all(|(&a,b)|a.abs_diff(b)<=1)),"a tiny transmitting fraction darkened the opaque material");
+    }
+
+    #[test]
+    fn subsurface_cannot_restore_detail_removed_by_translucency() {
+        let mut sc=Scene::preset("Integer Power").unwrap();sc.width=64;sc.height=64;
+        sc.lighting.gamma=32.;sc.lighting.internal_gamma2=false;
+        let p=CalcParams::new(&sc).unwrap();
+        let cam=crate::render::paint_camera(&sc,&p);
+        let lv=crate::render::light_vals(&sc,&sc.lighting,&cam);
+        let g=vec![SiLight{normal:[0,0,32767],zpos_fine:100<<16,..Default::default()};4096];
+        let samples:Vec<_>=(0..4096).map(|i| {
+            let light=if (i%64/4+i/64/4)%2==0 {[0.1;3]}else{[0.9;3]};
+            Transmission{light,subsurface_background:light,interior_light:[0.4;3],material_light:[0.4;3],distance:1e-8,
+                opacity:1.,component:1,subsurface_valid:true,..Default::default()}
+        }).collect();
+        let initial:Vec<u8>=samples.iter().flat_map(|s|reflection_colour::<u8>(&lv,s.light)).collect();
+        // An optically tiny material has near-unit physical transmission. It
+        // must still obey the independently selected surface frosting.
+        for strength in [0.,0.25,0.6,2.] {
+            let mut ordinary=initial.clone();let mut scattering=initial.clone();
+            blur_transmission(&mut ordinary,&g,&samples,&p,&lv,strength,0.,0.,2,&||false);
+            blur_transmission(&mut scattering,&g,&samples,&p,&lv,strength,0.,1.,2,&||false);
+            assert!(ordinary == scattering,"SSS bypassed frosting at strength {strength}");
+        }
+        let opaque:Vec<_>=samples.iter().map(|s|Transmission{opacity:0.,light:[0.;3],entry_light:[0.2;3],base:[0.2;3],..*s}).collect();
+        let mut output=initial.clone();
+        blur_transmission(&mut output,&g,&opaque,&p,&lv,0.,0.,1.,2,&||false);
+        let expected=reflection_colour::<u8>(&lv,[0.2;3]);
+        assert!(output.chunks_exact(3).all(|pixel|pixel == expected), "SSS made an opaque entry transmit the background");
+    }
+
 }

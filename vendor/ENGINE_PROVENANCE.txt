@@ -1,19 +1,55 @@
-Mandelbulb3D SE rendering engine attribution and modification notice
+Local source snapshot: mb3d-rs 0.2.61 by thr32423
+Commit: d32154faf83b3b785b448d63aaf6accfd7416aac
+Imported: 2026-10-19
+License: LGPL-2.1, retained in mb3d-rs/LICENSE
+Import form: standalone source tree, no Git metadata or upstream connection
+Local integration: rust-bridge, rust_engine.h, rust_engine.inc
 
-Based on mb3d-rs by Sebastian Paluch (thr32423):
-https://github.com/thr32423/mb3d-rs
-Original source snapshot: d32154faf83b3b785b448d63aaf6accfd7416aac
-Based in turn on Mandelbulb3D, originally developed by Jesse, with community contributions:
-https://github.com/thargor6/mb3d
-License: LGPL 2.1; license texts and original notices are retained.
+Local engine change (build 95): bounded one-bounce diffuse lighting in
+mb3d-rs/src/hybrid_indirect.rs, included by reflect.rs. No upstream dependency.
+Local engine change (build 97): continuous diffuse-map scale in Lighting and
+centered spherical texture scaling in maps.rs, supplied by the private bridge.
+Local engine change (build 98): inside/outside-aware, perspective-scaled
+indirect rays and a reusable coarse bounce field with adjustable strength.
+Local engine change (build 99): replace occluded ambient fill with traced
+diffuse radiance, including ambient source illumination at secondary hits.
+Build 99 also refines primary hit positions, handles short contact rays, restores
+material orbit state after normals, and preserves hue for over-range bounce RGB.
+Local formula addition (build 100): user-supplied JosKn-KleinIFS.m3f from the
+Mandelbulb3D 1.9.1 formula collection. Original file and author credits retained
+verbatim in rust-assets/M3Formulas; no external-volume runtime dependency.
+Local integration change (build 102): cached primary-color histogram endpoints
+exported from rust-bridge to the native Adjust sliders to fit control.
 
-This is modified source, not an unmodified upstream distribution.
-Modification notice dated 2026-11-17, by Glenn Olander and contributors to Mandelbulb3D SE.
-Changes include native macOS integration, formula translations and support,
-color/map and fog compatibility, emissive lighting with cached repainting,
-GPU cancellation and reliability, bounded reflection memory, and formula
-execution safeguards. Additional changes include diffuse-opacity-controlled emission,
-indirect emissive fill, improved emission sampling and CPU scheduling, and
-matching interpolation and color handling. The release also adds transmission blur and glow, improves transparency and reflections, and ports adaptive Navigator movement and preview feedback. Formula definitions retain their respective author credits.
+Local integration change (build 108): preserve visible-source flags in the
+C parameter handoff for Rust and expose the original Visible 0–4 menu.
+No Rust lighting implementation change is required for visible sources.
 
-Corresponding source: https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/tree/rel4
+Local integration change (build 109): retain uneditable imported header fields
+through shared C serialization and pass supported settings to Rust unchanged.
+The C renderer also retains those fields, warning for features it ignores.
+No vendor Rust engine changes are required.
+
+Local engine changes (build 131): restore per-pixel inside/outside state in
+shadow surface reconstruction and original inside-escape DEAO stepping.
+The private bridge reuses unchanged post-pass G-buffers during recoloring.
+
+Build 132: gpu_march.wgsl restores per-pixel inside/outside state for post passes and matches CPU inside escape-time DEAO.
+
+Build 134: Added generated native JosKn-KleinIFS CPU calculations. Extended Rust lifting for conditional moves, integer conversions, FPU control-word access and comparisons; C calculations are generated as independent C source. Original M3F retained.
+
+Build 136: Preserve the high word of lighting TBpos[3] as fog_far_offset through binary/text scene I/O and animation; use it in LightVals dynamic/volumetric fog depth scaling.
+
+Build 149: Added user-supplied SurfBox.m3f with original credits; generated native Rust direct execution and independent C kernels from its original instructions.
+
+Build 159: Background picture load filters and standard-header flags are supported by the native Lighting Back pic editor; loaded maps remain shared and unmodified for other uses.
+
+Selective upstream ports, build 267 (2026-10-28):
+- 2e0ea4bffc129965b7a38dfb665f51bfcc2f9bab: reflection CPU waiters released on GPU errors/unwinding.
+- faccf7372bf64ce8bcf63faf9244a3ecaf73c7c7: background shader failures notify waiters and select CPU fallback.
+- cae790d7c126138b9f5bfc7524f21dc045a38dd4: division quotient/overflow checks and upstream regression tests.
+- 028b5207fd27babd11002d03f876bb37b0f85b1b: one-time SSAO uploads, dynamic parameter offsets, GPU pyramid copies, 2M reflection bands and early list release. Native AppKit .m3i saving already uses its own streaming writer; upstream GUI memory dialogs and unrelated multi-GPU changes were not imported.
+Base source remains 0.2.61; these are targeted ports, not a complete upstream replacement.
+Related division fixes included for native execution: 8934f0db697548c1a96bb171c4dd6623a070f833 (lifted formula division checks), 06646c0831f90c35b75960eedadb531559535914 (the four affected generated formula sites).
+
+Build 279: added native translations for 40 user-supplied original M3F files, retaining formula-author credits in rust-assets/M3Formulas. Existing translations retained. See FORMULA_ADDITIONS.md.

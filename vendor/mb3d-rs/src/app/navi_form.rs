@@ -5,6 +5,7 @@
 //! rotation and other values) and sending the view back to the main window.
 
 use super::engine::{Engine, Job};
+use super::navi_se;
 use super::util::{fts, fts_single, parse_float, pti, ptf};
 use super::{Mb3d, MAIN};
 use crate::lighting::Lighting;
@@ -15,6 +16,12 @@ use crate::vcl::{Ev, Event, MouseButton, Ui};
 
 const F: &str = "FNavigator";
 const PID180: f64 = std::f64::consts::PI / 180.0;
+
+#[derive(Clone, Copy)]
+enum ResetValue {
+    Formula(usize, usize),
+    Value(usize),
+}
 
 pub struct State {
     pub scene: Scene,
@@ -44,6 +51,11 @@ pub struct State {
     /// the view taken from the main window and "Fixed zoom" then ("Reset view")
     pub start: Option<Scene>,
     pub start_fixed: bool,
+    se_last_value: Option<ResetValue>,
+    se_cut_origin: [f64; 3],
+    se_julia_w_origin: f64,
+    se_value_positions: [i64; 9],
+    se_parameters: [(f64, f64); navi_se::PARAMETER_ROWS],
 }
 
 impl Default for State {
@@ -75,6 +87,11 @@ impl Default for State {
             waker_set: false,
             start: None,
             start_fixed: false,
+            se_last_value: None,
+            se_cut_origin: [0.0; 3],
+            se_julia_w_origin: 0.0,
+            se_value_positions: [0; 9],
+            se_parameters: [(0.0, 1.0); navi_se::PARAMETER_ROWS],
         }
     }
 }
@@ -220,6 +237,10 @@ fn set_zoom(app: &mut Mb3d, ui: &mut Ui) {
 
 /// `SetWindowSize`: window and image positions for the preview size.
 fn set_window_size(app: &mut Mb3d, ui: &mut Ui, panel2: bool) {
+    if cfg!(feature = "se-desktop") {
+        navi_se::set_preview_bounds(app, ui);
+        return;
+    }
     ui.set_visible(F, "Panel2", panel2);
     set_header_size(app, ui);
     let (w, h) = (app.navi.scene.width, app.navi.scene.height);
@@ -274,11 +295,17 @@ fn new_calc(app: &mut Mb3d, ui: &mut Ui) {
     ui.set_caption(F, "Label24", &crate::app::util::float_general(sc.zoom, 4));
     let red = sc.zoom > 1e13;
     ui.cm(F, "Label24").font = red.then(|| crate::vcl::font::Font { color: 0xFFFF_0000, custom_color: true, ..Default::default() });
+    if cfg!(feature = "se-desktop") { navi_se::sync_camera(ui, &sc); }
     st.eng.start(Job::Preview { scene: sc });
 }
 
 /// The navigator's image (polled from the idle loop).
 pub fn idle(app: &mut Mb3d, ui: &mut Ui) {
+    if cfg!(feature = "se-desktop") && !app.navi.first
+        && !(0..se_slot_count(&app.navi.scene)).any(|index| slot_active(&app.navi.scene, index))
+    {
+        return;
+    }
     if !app.navi.waker_set {
         if let Some(w) = ui.waker() {
             app.navi.eng.set_waker(Some(w));
@@ -345,7 +372,21 @@ fn insert_main(app: &mut Mb3d, ui: &mut Ui) {
     app.navi.start = Some(app.navi.scene.clone());
     app.navi.start_fixed = ui.checked(F, "CheckBox1");
     reset_julia_vals(app, ui);
+    reset_4d(app, ui);
+    if cfg!(feature = "se-desktop") {
+        app.navi.se_last_value = None;
+        app.navi.se_value_positions = [0; 9];
+        for index in [1, 2, 3, 7, 8, 9] {
+            ui.set_position(F, &format!("TrackBarEx{index}"), 0);
+        }
+        app.navi.se_cut_origin = app.navi.scene.cut_pos;
+        ui.set_enabled(F, "SeResetValue", false);
+        navi_se::sync_cutting(ui, &app.navi.scene);
+    }
     update_adjust(app, ui, "");
+    if cfg!(feature = "se-desktop") {
+        for index in 0..navi_se::PARAMETER_ROWS { rebase_se_parameter(app, ui, index, true); }
+    }
     adjust_panel3_positions(ui);
     app.navi.dynfog_changed = false;
     app.navi.destop_changed = false;
@@ -390,7 +431,7 @@ fn view_to_main(app: &mut Mb3d, ui: &mut Ui) {
     m.stereo_mode = 0;
     m.iterations = n.iterations;
     m.julia = n.julia;
-    if n.julia {
+    if n.julia || cfg!(feature = "se-desktop") {
         m.julia_c = n.julia_c;
     }
     m.dfog_on_it = n.dfog_on_it;
@@ -407,6 +448,10 @@ fn view_to_main(app: &mut Mb3d, ui: &mut Ui) {
     }
     m.formulas = round_fvals(&n.formulas);
     m.rot_4d = n.rot_4d;
+    if cfg!(feature = "se-desktop") {
+        m.cut_options = n.cut_options;
+        m.cut_pos = n.cut_pos;
+    }
     let _ = (mw, mh);
     let mut mm = m.clone();
     mod_rot_point(&mut mm);
@@ -415,7 +460,11 @@ fn view_to_main(app: &mut Mb3d, ui: &mut Ui) {
     let t = ui.f(F).caption().to_string();
     app.title = if t.is_empty() || t == "main paras" { app.title.clone() } else if t.ends_with('~') { t } else { format!("{t}~") };
     super::main_form::set_caption(app, ui);
-    app.message(ui, "Navigator view sent to the main window, press \"Calculate 3D\".");
+    if cfg!(feature = "se-desktop") {
+        super::main_form::calc_mand(app, ui, true);
+    } else {
+        app.message(ui, "Navigator view sent to the main window, press \"Calculate 3D\".");
+    }
 }
 
 fn round_fvals(f: &[crate::scene::FormulaEntry]) -> Vec<crate::scene::FormulaEntry> {
@@ -440,7 +489,7 @@ fn round_fvals(f: &[crate::scene::FormulaEntry]) -> Vec<crate::scene::FormulaEnt
 /// `SpeedButton1Click`: tag 1/2 slide up/down, 3/4 left/right, 5/6 walk
 /// forward/back, 7..10 look, 11/12 roll.
 fn navigate(app: &mut Mb3d, ui: &mut Ui, t: i64, fine: bool) {
-    let dm = if fine { 0.125 } else { 1.0 };
+    let dm = if fine { if cfg!(feature = "se-desktop") { 0.1 } else { 0.125 } } else { 1.0 };
     let fixed = ui.checked(F, "CheckBox1");
     let min_d = ptf(&ui.text(F, "Edit6"));
     let st = &mut app.navi;
@@ -546,13 +595,24 @@ fn reset_julia_vals(app: &mut Mb3d, ui: &mut Ui) {
         st.pos0[k] = st.scene.julia_c[k];
         st.vals[k] = st.pos0[k];
     }
+    if cfg!(feature = "se-desktop") {
+        st.se_julia_w_origin = st.scene.julia_c[3];
+        ui.set_position(F, "SeJuliaW", 0);
+    }
     update_julia_labels(app, ui);
     ui.set_checked(F, "CheckBox7", app.navi.scene.julia);
 }
 
 fn update_julia_labels(app: &Mb3d, ui: &mut Ui) {
+    if cfg!(feature="se-desktop") { navi_se::sync_julia_labels(ui); }
     for (k, l) in ["Label39", "Label40", "Label41"].iter().enumerate() {
         ui.set_caption(F, l, &fts_single(app.navi.vals[k]));
+    }
+    if cfg!(feature = "se-desktop") {
+        for axis in 0..4 {
+            let tag = if axis == 3 { 14 } else { axis };
+            ui.set_text(F, &format!("EditSeValue{tag}"), &fts(app.navi.scene.julia_c[axis]));
+        }
     }
 }
 
@@ -567,12 +627,24 @@ fn reset_4d(app: &mut Mb3d, ui: &mut Ui) {
 
 fn update_4d_labels(app: &Mb3d, ui: &mut Ui) {
     for (k, l) in ["Label50", "Label51", "Label52"].iter().enumerate() {
-        ui.set_caption(F, l, &fts_single(app.navi.vals[6 + k] / PID180));
+        let angle = app.navi.vals[6 + k] / PID180;
+        ui.set_caption(F, l, &fts_single(angle));
+        if cfg!(feature = "se-desktop") {
+            ui.set_text(F, &format!("EditSeValue{}", 6 + k), &fts(angle));
+        }
     }
 }
 
+fn se_slot_count(scene: &Scene) -> usize {
+    if scene.interpolation.is_some() { 2 } else { 6 }
+}
+
 fn formula_nr(ui: &Ui) -> usize {
-    (pti(&ui.caption(F, "Label49")) - 1).clamp(0, 5) as usize
+    if cfg!(feature = "se-desktop") {
+        ui.item_index(F, "SeSlot").clamp(0, 5) as usize
+    } else {
+        (pti(&ui.caption(F, "Label49")) - 1).clamp(0, 5) as usize
+    }
 }
 
 fn formula_index(app: &Mb3d, ui: &Ui, slider: usize) -> (usize, usize) {
@@ -661,6 +733,17 @@ fn update_adjust(app: &mut Mb3d, ui: &mut Ui, sender: &str) {
             ui.set_caption(F, "Label42", "Iterations:");
         }
     }
+    if cfg!(feature = "se-desktop") {
+        update_se_slot(app, ui, sender == "SpinEdit2");
+        ui.set_text(F, "EditSeIterations", &ui.caption(F, "Label47"));
+        let has_4d = app.navi.scene.formulas.iter().any(|entry| {
+            entry.iterations > 0 && matches!(entry.formula.de_option(), 4 | 5 | 6)
+        });
+        ui.set_enabled(F, navi_se::ROTATION, has_4d);
+        if !has_4d && ui.active_page(F, "SeNavigatorTabs") == navi_se::ROTATION {
+            ui.set_active_page(F, "SeNavigatorTabs", navi_se::NAVIGATION);
+        }
+    }
     for i in 3..6 {
         let (v, t, _) = formula_value(app, formula_index(app, ui, i - 3));
         app.navi.vals[i] = v;
@@ -717,7 +800,16 @@ fn adjust_panel3_positions(ui: &mut Ui) {
 /// `RxSlider1Change`: a value slider moved (-60..60 around the start value).
 fn slider_change(app: &mut Mb3d, ui: &mut Ui, sender: &str) {
     let t = ui.tag(F, sender) as usize;
-    let pos = ui.position(F, sender) as f64;
+    let position = ui.position(F, sender);
+    let mut pos = position as f64;
+    if cfg!(feature = "se-desktop") && matches!(t, 0..=2 | 6..=8) {
+        let previous = std::mem::replace(&mut app.navi.se_value_positions[t], position);
+        pos = (position - previous) as f64;
+        app.navi.pos0[t] = app.navi.vals[t];
+        if t < 3 && ui.checked(F, "CheckBox8") {
+            app.navi.pos0[..3].copy_from_slice(&app.navi.vals[..3]);
+        }
+    }
     let mut d = ((640 * 16) >> (ui.item_index(F, "RadioGroup1").clamp(0, 3) * 4)) as f64;
     if is_int_type(app.navi.vtype[t]) {
         d = (d * 0.5).clamp(3.0, 50.0);
@@ -757,6 +849,7 @@ fn slider_change(app: &mut Mb3d, ui: &mut Ui, sender: &str) {
     } else {
         st.vals[t] = st.pos0[t] + pos * st.range[t] / d;
     }
+    if cfg!(feature = "se-desktop") { remember_value(app, ui, t); }
     let formula_shown = ui.visible(F, sender);
     apply_value(app, ui, t, formula_shown);
 }
@@ -848,6 +941,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
     let h = e.handler.as_str();
     match h {
         "FormCreate" => {
+            if cfg!(feature = "se-desktop") { navi_se::configure(ui); }
             let q = app.ini.get("NaviSize").to_string();
             let i = ui.c(F, "NaviSizeCmb").items.iter().position(|s| *s == q).map(|i| i as i32).unwrap_or(6);
             ui.set_item_index(F, "NaviSizeCmb", i);
@@ -863,13 +957,14 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
                 ui.set_checked(F, "CheckBox5", app.ini.get("NavFkey") == "0");
                 ui.set_checked(F, "CheckBox4", app.ini.get("NavHiQ") != "No");
                 app.navi.double_click = app.ini.get("NavDoubleClickMode") != "No";
+                if cfg!(feature = "se-desktop") { ui.set_checked(F, "CheckBox2", false); }
                 for k in 0..3 {
                     let p = crate::appdirs::config_file(&format!("NaviLightPreset{}.m3l", k + 1));
                     app.navi.presets[k] = std::fs::read(p).ok().and_then(|d| crate::m3p::light_from_record(&d));
                     ui.set_enabled(F, &format!("SpeedButton{}", 19 + k), app.navi.presets[k].is_some());
                 }
                 insert_main(app, ui);
-                if app.ini.get("NaviPanelShow") == "1" {
+                if !cfg!(feature = "se-desktop") && app.ini.get("NaviPanelShow") == "1" {
                     toggle_adjust_panel(app, ui);
                 }
             }
@@ -891,12 +986,113 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             app.navi.eng.stop();
             ui.close_ok(F);
         }
+        "SeMoveMouseUp" => {
+            if let Ev::MouseUp { button: MouseButton::Left, shift, x, y } = e.ev {
+                let control = ui.c(F, &e.sender);
+                if (0..control.width).contains(&x) && (0..control.height).contains(&y) {
+                    navigate(app, ui, control.tag, shift & crate::vcl::form::SS_SHIFT != 0);
+                }
+            }
+        }
         "SpeedButton1Click" => {
             let t = ui.tag(F, &e.sender);
             navigate(app, ui, t, false);
         }
         "SpeedButton11Click" => insert_main(app, ui),
-        "SpeedButton14Click" => view_to_main(app, ui),
+        "SpeedButton14Click" => {
+            if !cfg!(feature = "se-desktop") || !app.eng.running() { view_to_main(app, ui); }
+        }
+        "SeZoomIn" | "SeZoomOut" => se_zoom(app, ui, h == "SeZoomIn", false),
+        "SeFarLess" | "SeFarMore" => form_key_down(app, ui, if h == "SeFarLess" { 112 } else { 113 }, false),
+        "SeSlot" | "SePreviousSlot" | "SeNextSlot" => {
+            let step = if h == "SePreviousSlot" { -1 } else if h == "SeNextSlot" { 1 } else { 0 };
+            let current = formula_nr(ui) as i32;
+            let last = se_slot_count(&app.navi.scene) as i32 - 1;
+            ui.set_item_index(F, "SeSlot", (current + step).clamp(0, last));
+            update_adjust(app, ui, "SpinEdit2");
+        }
+        "SeFormula" => {
+            let current = ui.caption(F, "SeFormula").trim_end_matches(" ▾").to_string();
+            for item in &mut ui.fm(F).ctl {
+                if item.name.starts_with("SeFormulaChoice") {
+                    item.checked = item.caption == current;
+                }
+            }
+            ui.popup_menu(F, "SeFormulaMenu", "SeFormula", 0, 24);
+        }
+        "SeFormulaChoice" => choose_formula(app, ui, &ui.caption(F, &e.sender)),
+        "SeSearch" => {
+            navi_se::open_search(ui,false);
+        }
+        "SeClearFormula" => clear_formula(app, ui),
+        "SeParameterEdit" if commit_edit(&e.ev) => {
+            let index = ui.tag(F, &e.sender) as usize;
+            if let Some(value) = read_finite(ui, &e.sender) {
+                set_se_parameter(app, ui, index, value);
+                rebase_se_parameter(app, ui, index, false);
+            }
+        }
+        "SeParameterSlider" => {
+            let index = ui.tag(F, &e.sender) as usize;
+            let (base, radius) = app.navi.se_parameters[index];
+            set_se_parameter(app, ui, index, base + radius * ui.position(F, &e.sender) as f64 / 100.0);
+        }
+        "SeParameterSliderUp" if at_slider_end(ui, &e.sender) => {
+            rebase_se_parameter(app, ui, ui.tag(F, &e.sender) as usize, true);
+        }
+        "SeRange" => {
+            ui.set_item_index(F, "RadioGroup1", ui.item_index(F, "SeRange"));
+            for index in 0..navi_se::PARAMETER_ROWS {
+                rebase_se_parameter(app, ui, index, false);
+            }
+        }
+        "SeJuliaCoordinates" => navi_se::sync_julia_labels(ui),
+        "SeJuliaW" => {
+            let pos = ui.position(F, "SeJuliaW") as f64;
+            let range = ((640 * 16) >> (ui.item_index(F, "RadioGroup1").clamp(0, 3) * 4)) as f64;
+            app.navi.scene.julia_c[3] = app.navi.se_julia_w_origin + pos / range;
+            remember_value(app, ui, 14);
+            update_julia_labels(app, ui);
+            if app.navi.scene.julia { new_calc(app, ui); }
+        }
+        "SeJuliaWUp" if at_slider_end(ui, &e.sender) => {
+            app.navi.se_julia_w_origin = app.navi.scene.julia_c[3];
+            ui.set_position(F, "SeJuliaW", 0);
+        }
+        "SeIterations" if commit_edit(&e.ev) => edit_iterations(app, ui),
+        "SeValue" if commit_edit(&e.ev) => edit_value(app, ui, ui.tag(F, &e.sender) as usize, &e.sender),
+        "SeResetValue" => reset_se_value(app, ui),
+        "SeCutValue" if commit_edit(&e.ev) => {
+            let axis = ui.tag(F, &e.sender) as usize;
+            if let Some(value) = read_finite(ui, &e.sender) {
+                let mut position = app.navi.scene.cut_pos;
+                position[axis] = value;
+                set_cutting(app, ui, position);
+            }
+        }
+        "SeCutCheck" => {
+            let axis = ui.tag(F, &e.sender) as usize;
+            app.navi.scene.cut_options &= !(1 << axis);
+            if ui.checked(F, &e.sender) { app.navi.scene.cut_options |= 1 << axis; }
+            set_cutting(app, ui, app.navi.scene.cut_pos);
+        }
+        "SeCutSlider" => {
+            let axis = ui.tag(F, &e.sender) as usize;
+            let scene = &mut app.navi.scene;
+            let span = (scene.z_end - scene.z_start).abs() * 0.1;
+            let radius = span.max(1.0 / scene.zoom.max(1e-12));
+            let value = app.navi.se_cut_origin[axis] + radius * ui.position(F, &e.sender) as f64 / 100.0;
+            scene.cut_pos[axis] = value;
+            ui.set_text(F, &format!("EditSeCut{axis}"), &fts(value));
+            new_calc(app, ui);
+        }
+        "SeCutSliderUp" if at_slider_end(ui, &e.sender) => {
+            let axis = ui.tag(F, &e.sender) as usize;
+            app.navi.se_cut_origin[axis] = app.navi.scene.cut_pos[axis];
+            ui.set_position(F, &e.sender, 0);
+        }
+        "SeCutMid" => set_cutting(app, ui, app.navi.scene.mid),
+        "SeCutPick" => super::main_form::begin_navigator_cut_pick(app, ui),
         "SpeedButton15Click" => {
             // the lighting of the main window
             super::light_form::put_light_in_header(app, ui);
@@ -1050,7 +1246,9 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
         }
         "TrackBar1Change" => {
             let p = ui.position(F, "TrackBar1") as f64;
-            app.navi.lightness = (p * -0.05 + 0.85).powi(2) + 0.2775;
+            app.navi.lightness = if cfg!(feature = "se-desktop") {
+                if p == 0.0 { 1.0 } else { (p * 0.05 + 0.85).powi(2) + 0.2775 }
+            } else { (p * -0.05 + 0.85).powi(2) + 0.2775 };
             app.navi.ver = 0;
             idle(app, ui);
         }
@@ -1151,7 +1349,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             adjust_panel3_positions(ui);
         }
         "RxSlider1Change" => slider_change(app, ui, &e.sender),
-        "RxSlider1MouseUp" => {
+        "RxSlider1MouseUp" if !cfg!(feature = "se-desktop") || at_slider_end(ui, &e.sender) => {
             let t = ui.tag(F, &e.sender) as usize;
             if t < 3 && ui.checked(F, "CheckBox8") {
                 for k in 0..3 {
@@ -1161,6 +1359,7 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
                 app.navi.pos0[t] = app.navi.vals[t];
             }
             ui.set_position(F, &e.sender, 0);
+            if cfg!(feature = "se-desktop") && t < 9 { app.navi.se_value_positions[t] = 0; }
         }
         "CheckBox7Click" => {
             app.navi.scene.julia = ui.checked(F, "CheckBox7");
@@ -1325,7 +1524,10 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             let z = crate::app::util::float_general(app.navi.scene.zoom, 6);
             ui.input_query("navi:zoom", "Zoom", "New zoom:", &z);
         }
-        "ResetViewBtnClick" => reset_view(app, ui),
+        "ResetViewBtnClick" => {
+            if cfg!(feature = "se-desktop") { reset_se_position(app, ui); }
+            else { reset_view(app, ui); }
+        }
         "Label39MouseDown" => {
             // a value label: focus its slider, and type its value (MB3D's
             // InputQuery; angles in degrees)
@@ -1448,6 +1650,13 @@ fn form_key_down(app: &mut Mb3d, ui: &mut Ui, key: u16, shift: bool) {
         set_look(app, ui, false);
         return;
     }
+    if cfg!(feature = "se-desktop") {
+        let editing = ui.focused(F).is_some_and(|field| field.starts_with("Edit"));
+        if !editing && matches!(key, 107 | 109 | 187 | 189) {
+            se_zoom(app, ui, matches!(key, 107 | 187), shift);
+            return;
+        }
+    }
     let mut k = key;
     if (k == 112 || k == 113) && parse_float(&ui.text(F, "Edit4")).is_some() {
         let d = ptf(&ui.text(F, "Edit4")) * if k == 112 { 0.8 } else { 1.25 };
@@ -1494,6 +1703,10 @@ fn form_key_down(app: &mut Mb3d, ui: &mut Ui, key: u16, shift: bool) {
         67 | 81 => 2,
         65 => 3,
         68 => 4,
+        38 if cfg!(feature = "se-desktop") => 7,
+        40 if cfg!(feature = "se-desktop") => 8,
+        37 if cfg!(feature = "se-desktop") => 9,
+        39 if cfg!(feature = "se-desktop") => 10,
         73 => 7,
         75 => 8,
         74 => 9,
@@ -1511,4 +1724,272 @@ fn form_key_down(app: &mut Mb3d, ui: &mut Ui, key: u16, shift: bool) {
         _ => return,
     };
     navigate(app, ui, t, shift);
+}
+
+fn commit_edit(event: &Ev) -> bool {
+    matches!(event, Ev::Exit | Ev::KeyDown { key: 13, .. })
+}
+
+fn read_finite(ui: &Ui, field: &str) -> Option<f64> {
+    parse_float(&ui.text(F, field)).filter(|value| value.is_finite())
+}
+
+fn se_zoom(app: &mut Mb3d, ui: &mut Ui, zoom_in: bool, fine: bool) {
+    let step: f64 = if fine { 0.1 } else { 1.0 };
+    let factor = 1.2_f64.powf(if zoom_in { step } else { -step });
+    app.navi.scene.zoom = (app.navi.scene.zoom * factor).clamp(1e-12, 1e12);
+    new_calc(app, ui);
+}
+
+fn reset_se_position(app: &mut Mb3d, ui: &mut Ui) {
+    let sc = &mut app.navi.scene;
+    let wide = sc.effective_rstop() > 500.0;
+    let (start, end, zoom) = if wide { (-8.0, 120.0, 0.18) } else { (-2.0, 30.0, 0.8) };
+    sc.vgrads = build_rot_matrix(0.0001, -0.0001, 0.0);
+    sc.mid = sc.vgrads[2].map(|value| value * start);
+    sc.z_start = sc.mid[2];
+    sc.z_end = sc.z_start + end - start;
+    sc.zoom = zoom;
+    sc.fov_y = 30.0;
+    app.navi.de_mul = 1.0;
+    ui.set_text(F, "Edit3", "30");
+    new_calc(app, ui);
+}
+
+fn choose_formula(app: &mut Mb3d, ui: &mut Ui, name: &str) {
+    let slot = formula_nr(ui);
+    let formula = match crate::formulas::lookup(name) {
+        Ok(formula) => formula,
+        Err(error) => {
+            app.message(ui, &error);
+            update_adjust(app, ui, "");
+            return;
+        }
+    };
+    let entries = &mut app.navi.scene.formulas;
+    if entries.get(slot).is_some_and(|entry| entry.iterations > 0 && entry.formula.name().eq_ignore_ascii_case(name)) {
+        return;
+    }
+    entries.resize_with(entries.len().max(slot + 1), || crate::scene::FormulaEntry {
+        formula: crate::formulas::Formula::IntPow { power: 8, z_mul: -1.0 },
+        iterations: 0,
+    });
+    entries[slot].formula = formula;
+    entries[slot].iterations = entries[slot].iterations.max(1);
+    if let Some(weight) = app.navi.scene.interpolation.as_mut().and_then(|weights| weights.get_mut(slot)) {
+        if *weight <= 0.0 { *weight = 1.0; }
+    }
+    update_adjust(app, ui, "SpinEdit2");
+    new_calc(app, ui);
+}
+
+fn edit_iterations(app: &mut Mb3d, ui: &mut Ui) {
+    let Some(value) = read_finite(ui, "EditSeIterations") else {
+        update_adjust(app, ui, "");
+        return;
+    };
+    let slot = formula_nr(ui);
+    let scene = &mut app.navi.scene;
+    if let Some(weight) = scene.interpolation.as_mut().and_then(|weights| weights.get_mut(slot)) {
+        let value = value.clamp(0.0, f32::MAX as f64) as f32;
+        if *weight == value { return; }
+        *weight = value;
+    } else if let Some(entry) = scene.formulas.get_mut(slot) {
+        let value = value.round().clamp(0.0, i32::MAX as f64) as i32;
+        if entry.iterations == value { return; }
+        entry.iterations = value;
+    }
+    update_adjust(app, ui, "UpDown2");
+}
+
+fn remember_value(app: &mut Mb3d, ui: &mut Ui, index: usize) {
+    app.navi.se_last_value = match index {
+        3..=5 => {
+            let (slot, option) = formula_index(app, ui, index - 3);
+            Some(ResetValue::Formula(slot, option))
+        }
+        0..=2 | 6..=8 | 14 => Some(ResetValue::Value(index)),
+        _ => app.navi.se_last_value,
+    };
+    ui.set_enabled(F, "SeResetValue", app.navi.se_last_value.is_some());
+}
+
+fn edit_value(app: &mut Mb3d, ui: &mut Ui, index: usize, field: &str) {
+    let Some(value) = read_finite(ui, field) else { return };
+    let current = if index == 14 { app.navi.scene.julia_c[3] }
+        else if (6..9).contains(&index) { app.navi.vals[index].to_degrees() }
+        else { app.navi.vals[index] };
+    if ui.text(F, field) == fts(current) { return; }
+    remember_value(app, ui, index);
+    if index == 14 {
+        app.navi.scene.julia_c[3] = value;
+        app.navi.se_julia_w_origin = value;
+        ui.set_position(F, "SeJuliaW", 0);
+        update_julia_labels(app, ui);
+        new_calc(app, ui);
+    } else {
+        let value = if (6..9).contains(&index) { value.to_radians() } else { value };
+        app.navi.vals[index] = value;
+        app.navi.pos0[index] = value;
+        apply_value(app, ui, index, true);
+    }
+}
+
+fn reset_se_value(app: &mut Mb3d, ui: &mut Ui) {
+    let Some(target) = app.navi.se_last_value.take() else { return };
+    ui.set_enabled(F, "SeResetValue", false);
+    app.make_scene(ui);
+    match target {
+        ResetValue::Formula(slot, option) => {
+            let Some(source) = app.scene.formulas.get(slot) else { return };
+            let Some(dest) = app.navi.scene.formulas.get_mut(slot) else { return };
+            if source.formula.name() != dest.formula.name() { return; }
+            if let Some((_, value)) = source.formula.options().get(option) {
+                super::formula_form::set_option_index(&mut dest.formula, option, *value);
+            }
+            update_adjust(app, ui, "");
+            rebase_se_parameter(app, ui, option, true);
+        }
+        ResetValue::Value(index @ 6..=8) => {
+            app.navi.scene.rot_4d[index - 6] = app.scene.rot_4d[index - 6];
+            reset_4d(app, ui);
+        }
+        ResetValue::Value(index) => {
+            let axis = if index == 14 { 3 } else { index };
+            app.navi.scene.julia_c[axis] = app.scene.julia_c[axis];
+            reset_julia_vals(app, ui);
+        }
+    }
+    new_calc(app, ui);
+}
+
+pub(super) fn set_cutting(app: &mut Mb3d, ui: &mut Ui, position: [f64; 3]) {
+    app.navi.scene.cut_pos = position;
+    app.navi.se_cut_origin = position;
+    navi_se::sync_cutting(ui, &app.navi.scene);
+    new_calc(app, ui);
+}
+
+fn at_slider_end(ui: &Ui, name: &str) -> bool {
+    let slider = ui.c(F, name);
+    slider.position == slider.min || slider.position == slider.max
+}
+
+fn slot_active(scene: &Scene, slot: usize) -> bool {
+    scene.formulas.get(slot).is_some_and(|entry| match scene.interpolation {
+        Some(weights) => weights.get(slot).is_some_and(|weight| *weight > 0.0),
+        None => entry.iterations > 0,
+    })
+}
+
+fn update_se_slot(app: &mut Mb3d, ui: &mut Ui, new_slot: bool) {
+    let scene = &app.navi.scene;
+    let slots = se_slot_count(scene);
+    let slot = formula_nr(ui).min(slots - 1);
+    let labels = (0..slots).map(|index| {
+        let active = if slot_active(scene, index) { "*" } else { "" };
+        let name = scene.formulas.get(index)
+            .filter(|entry| entry.iterations != 0 || entry.formula.name() != "Integer Power")
+            .map_or_else(|| "Empty".to_string(), |entry| entry.formula.name());
+        format!("{}{active}  {name}", index + 1)
+    }).collect();
+    ui.set_items(F, "SeSlot", labels);
+    ui.set_item_index(F, "SeSlot", slot as i32);
+    ui.cm(F, "SeSlot").collapsed_text = Some(format!("{}{}", slot + 1, if slot_active(scene, slot) { "*" } else { "" }));
+    ui.set_enabled(F, "SePreviousSlot", slot > 0);
+    ui.set_enabled(F, "SeNextSlot", slot + 1 < slots);
+    ui.set_enabled(F, "SpeedButton14", (0..slots).any(|index| slot_active(scene, index)));
+    let entry = scene.formulas.get(slot).filter(|entry| {
+        !(entry.iterations == 0 && entry.formula.name() == "Integer Power")
+    });
+    let title = entry.map_or_else(|| "Choose Formula…".to_string(), |entry| entry.formula.name());
+    ui.set_caption(F, "SeFormula", &title);
+    ui.set_enabled(F, "SeClearFormula", entry.is_some());
+    ui.set_enabled(F, "EditSeIterations", entry.is_some());
+    ui.set_enabled(F, "UpDown2", entry.is_some());
+    let count = entry.map_or(0, |entry| entry.formula.options().len());
+    if new_slot {
+        ui.cm(F, "SeFormulaValuesPane").scroll_y = 0;
+    }
+    for index in 0..navi_se::PARAMETER_ROWS {
+        let label = format!("SeParameterLabel{index}");
+        let slider = format!("SeParameterSlider{index}");
+        let field = format!("EditSeParameter{index}");
+        let visible = index < count;
+        for control in [&label, &slider, &field] {
+            ui.set_visible(F, control, visible);
+        }
+        if visible {
+            let (value, _, name) = formula_value(app, (slot, index));
+            ui.set_caption(F, &label, &name);
+            ui.set_text(F, &field, &fts(value));
+            rebase_se_parameter(app, ui, index, new_slot);
+        }
+    }
+}
+
+fn rebase_se_parameter(app: &mut Mb3d, ui: &mut Ui, index: usize, center: bool) {
+    let (value, kind, _) = formula_value(app, (formula_nr(ui), index));
+    let level = ui.item_index(F, "SeRange").clamp(0, 3) as usize;
+    let radius = [0.01, 0.1, 1.0, 10.0][level] * value.abs().max(1.0);
+    let radius = if is_int_type(kind) { radius.max(1.0) } else { radius };
+    let slider = format!("SeParameterSlider{index}");
+    if center { ui.set_position(F, &slider, 0); }
+    let fraction = ui.position(F, &slider) as f64 / 100.0;
+    app.navi.se_parameters[index] = (value - radius * fraction, radius);
+}
+
+fn set_se_parameter(app: &mut Mb3d, ui: &mut Ui, index: usize, value: f64) {
+    let slot = formula_nr(ui);
+    let (previous, kind, name) = formula_value(app, (slot, index));
+    if name.is_empty() { return; }
+    let value = if is_int_type(kind) { value.round() } else { value };
+    if value.is_finite() && value != previous {
+        let entry = &mut app.navi.scene.formulas[slot];
+        super::formula_form::set_option_index(&mut entry.formula, index, value);
+        app.navi.se_last_value = Some(ResetValue::Formula(slot, index));
+        ui.set_enabled(F, "SeResetValue", true);
+        new_calc(app, ui);
+    }
+    let (value, _, _) = formula_value(app, (slot, index));
+    ui.set_text(F, &format!("EditSeParameter{index}"), &fts(value));
+}
+
+fn clear_formula(app: &mut Mb3d, ui: &mut Ui) {
+    let slot = formula_nr(ui);
+    let scene = &mut app.navi.scene;
+    let Some(entry) = scene.formulas.get_mut(slot) else { return };
+    entry.formula = crate::formulas::Formula::IntPow { power: 8, z_mul: -1.0 };
+    entry.iterations = 0;
+    if let Some(weight) = scene.interpolation.as_mut().and_then(|weights| weights.get_mut(slot)) {
+        *weight = 0.0;
+    }
+    while scene.formulas.last().is_some_and(|entry| entry.iterations == 0 && entry.formula.name() == "Integer Power") {
+        scene.formulas.pop();
+    }
+    update_adjust(app, ui, "SpinEdit2");
+    if (0..6).any(|slot| slot_active(&app.navi.scene, slot)) {
+        new_calc(app, ui);
+    } else {
+        app.navi.eng.stop();
+        app.navi.eng.clear();
+        ui.set_picture(F, "Image1", None);
+    }
+}
+
+pub(super) fn search_event(app: &mut Mb3d, ui: &mut Ui, event: &Event) {
+    match event.handler.as_str() {
+        "Filter" => navi_se::filter_search(ui),
+        "Choose" => {
+            let name = ui.c(navi_se::SEARCH, "Results").item_text();
+            if !name.is_empty() {
+                let formula_window=ui.f(navi_se::SEARCH).ctl[0].tag==1;
+                ui.close(navi_se::SEARCH);
+                if formula_window { super::formula_form::select_formula(app,ui,&name); }
+                else { choose_formula(app, ui, &name); }
+            }
+        }
+        "Cancel" => ui.close(navi_se::SEARCH),
+        _ => {}
+    }
 }

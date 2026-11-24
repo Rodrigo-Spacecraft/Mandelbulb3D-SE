@@ -489,8 +489,11 @@ pub fn event(app: &mut Mb3d, ui: &mut Ui, e: &Event) {
             app.scene = m.scene;
             app.eng.clear();
             app.scene_to_forms(ui);
-            app.title = caption(i, app.mutagen.current);
+            if !cfg!(feature="se-desktop") {app.title = caption(i, app.mutagen.current);}
             super::main_form::set_caption(app, ui);
+            if cfg!(feature = "se-desktop") {
+                super::main_form::calc_mand(app, ui, true);
+            }
         }
         _ => {}
     }

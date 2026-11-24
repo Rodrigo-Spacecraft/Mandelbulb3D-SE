@@ -277,6 +277,17 @@ impl Ui {
     }
 
     fn file_dialog(&mut self, tag: &str, o: &FileOptions, save: bool) {
+        #[cfg(windows)]
+        {
+            let (paths,index)=match super::native_dialog::show(o,save) {
+                Ok(result)=>result,
+                Err(hr)=>{self.show_message(&format!("Windows could not open the file dialog (0x{:08X}).",hr as u32));(Vec::new(),o.filter_index)}
+            };
+            self.filter_index=index;
+            let result=if o.multi&&!save&&!o.folder {DialogResult::Files(paths)}else{DialogResult::File(paths.into_iter().next())};
+            self.events.push_back(Event {form:String::new(),sender:tag.into(),handler:String::new(),ev:Ev::DialogResult(result)});
+            return;
+        }
         let title = if o.title.is_empty() { if save { "Save As" } else { "Open" } } else { &o.title };
         let filters = parse_filter(&o.filter);
         let cw = if o.preview { 812 } else { 560 };

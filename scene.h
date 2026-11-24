@@ -14,7 +14,7 @@ typedef struct {
     double diffuse,specular,ambient,depth,ao_amount,indirect,cstart,cspan,col_z,diffuse_shadow;
     Vec center,julia_c,amb_top,amb_bottom,bg_top,bg_bottom;
     double matrix[3][3]; Light lights[6]; Stop stops[10];
-    ShadowSettings shadows;ObjectMap map;DepthOfFieldSettings dof;ReflectionSettings reflections;double transmission_blur,translucency_glow;int translucency_mode;
+    ShadowSettings shadows;ObjectMap map;DepthOfFieldSettings dof;ReflectionSettings reflections;double transmission_blur,translucency_glow;int translucency_mode;int subsurface_scattering;double subsurface_amount;
     int cutting_mask;double cutting[3];ObjectLighting cutting_colors;
     int color_option;double color_multiplier;SSAOSettings ssao;FogSettings fog;double rotation4[3],julia_w;float matrix4[16];
     int preserved_header_valid;unsigned char preserved_header[840];
@@ -68,7 +68,7 @@ static void scene_defaults(void) {
     for(int i=0;i<4;i++)scene.matrix4[i*4+i]=1;
     scene.color_multiplier=1;
     scene.ssao=(SSAOSettings){.threshold=2,.samples=1};
-    scene.reflections=default_reflections();scene.translucency_mode=1;scene.transmission_blur=1;scene.fog=fog_settings_default();
+    scene.subsurface_amount=1;scene.reflections=default_reflections();scene.translucency_mode=1;scene.transmission_blur=1;scene.fog=fog_settings_default();
     scene.dof=(DepthOfFieldSettings){.passes=1,.aperture=.02,.clip_radius=25};
     scene.oversampling=scene.viewing=1;scene.size_flags=3;scene.width=480;scene.height=360;scene.iterations=60;scene.power=8;
     scene.scale=scene.scale2=2;scene.min_radius=scene.min_radius2=.5;scene.fold=scene.fold2=1;
@@ -335,6 +335,12 @@ static int load_m3i(const char *path) {
     if(extra_count==4096&&!memcmp(extra+4056,"TBL1",4)){
         double blur=f64(extra+4060);
         if(isfinite(blur)&&blur>=0&&blur<=2)next.transmission_blur=blur;
+    }
+    next.subsurface_amount=1;
+    next.subsurface_scattering=extra_count==4096&&!memcmp(extra+4088,"SSS1",4)&&u32(extra+4092)==1;
+    if(extra_count==4096&&!memcmp(extra+4088,"SSS2",4)){
+        float value=f32(extra+4092);
+        if(isfinite(value)&&fabsf(value)<=1){next.subsurface_scattering=!signbit(value);next.subsurface_amount=fabsf(value);}
     }
     next.translucency_mode=1+(next.transmission_blur>0||next.translucency_glow!=0);
     if(extra_count==4096&&!memcmp(extra+4080,"TLE1",4))

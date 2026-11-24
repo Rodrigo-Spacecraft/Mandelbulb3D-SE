@@ -10,6 +10,54 @@ use crate::scene::{CameraOptic, FormulaEntry, Scene};
 
 pub(crate) const HEADER_SIZE: usize = 840;
 pub(crate) const ADDON_SIZE: usize = 8 + 6 * 188;
+const SE_RADIANCE: &[u8; 8] = b"M3DSE001";
+
+fn read_se_radiance(scene: &mut Scene, data: &[u8]) {
+    fn unit(value: f64, fallback: f32) -> f32 {
+        if value.is_finite() { value.clamp(0.0, 1.0) as f32 } else { fallback }
+    }
+    let r = Rd(data);
+    if data.starts_with(SE_RADIANCE) && data.len() >= 62 {
+        scene.render_sampling = r.u8(8).clamp(1, 6);
+        if r.u8(9) == 1 {
+            scene.emissive_difs = Some(std::array::from_fn(|i| unit(r.f32(10 + i * 4), 1.0)));
+        }
+        scene.emissive_opacity = std::array::from_fn(|i| unit(r.f32(22 + i * 4), 1.0));
+        if data.get(62..66) == Some(b"TLE1") && data.len() >= 75 {
+            scene.translucency_enabled = r.u8(66) != 0;
+            scene.transmission_blur = r.f32(67).clamp(0.0, 2.0) as f32;
+            scene.translucency_glow = r.f32(71).clamp(-1.0, 1.0) as f32;
+            scene.subsurface_scattering = data.get(75..79) == Some(b"SSS1") && data.get(79) == Some(&1);
+            if data.get(80..84)==Some(b"SSA1") && data.len()>=88 {scene.subsurface_amount=r.f32(84).clamp(0.0,1.0) as f32;}
+        }
+    } else if data.starts_with(b"IPMACM3I") && data.len() >= 4096 && r.u32(8) == 2 && r.u32(12) == 4096 {
+        scene.render_sampling = r.u32(16).clamp(1, 6) as u8;
+        scene.subsurface_scattering = &data[4088..4092] == b"SSS1" && r.u32(4092) == 1;
+        if &data[4088..4092]==b"SSS2" {
+            let value=r.f32(4092);
+            if value.is_finite()&&value.abs()<=1.0 {scene.subsurface_scattering=!value.is_sign_negative();scene.subsurface_amount=value.abs() as f32;}
+        }
+        if &data[3880..3884] == b"FOG1" && r.u32(3884) == 2 {
+            scene.emissive_difs = Some(std::array::from_fn(|i| unit(r.f64(3936 + i * 8), 1.0)));
+            scene.vol_light = None;
+            scene.lighting.dyn_fog = 53.0;
+        }
+        if &data[3712..3716] == b"OPA1" && r.u32(3716) != 0 {
+            scene.emissive_opacity = std::array::from_fn(|i| unit(r.f64(3720 + i * 8), 1.0));
+        }
+        if cfg!(feature = "se-desktop") && &data[4056..4060] == b"TBL1" && (0.0..=2.0).contains(&r.f64(4060)) {
+            scene.transmission_blur = r.f64(4060) as f32;
+        }
+        if cfg!(feature = "se-desktop") && &data[4068..4072] == b"TGL1" && (-1.0..=1.0).contains(&r.f64(4072)) {
+            scene.translucency_glow = r.f64(4072) as f32;
+        }
+        scene.translucency_enabled = if cfg!(feature = "se-desktop") && &data[4080..4084] == b"TLE1" {
+            r.u8(4084) != 0
+        } else {
+            scene.transmission_blur != 0.0 || scene.translucency_glow != 0.0
+        };
+    }
+}
 
 struct Rd<'a>(&'a [u8]);
 impl Rd<'_> {
@@ -105,7 +153,6 @@ pub fn raw_from_bytes(data: Vec<u8>, is_m3i: bool) -> Result<(Vec<u8>, Option<St
     } else {
         let mut raw = data;
         raw.resize(raw.len().max(HEADER_SIZE + ADDON_SIZE), 0);
-        raw.truncate(HEADER_SIZE + ADDON_SIZE);
         Ok((raw, None))
     }
 }
@@ -271,6 +318,13 @@ pub fn raw_from_m3i(data: &[u8]) -> Result<Vec<u8>, String> {
         raw.extend_from_slice(&data[off..data.len().min(off + ADDON_SIZE)]);
     }
     raw.resize(HEADER_SIZE + ADDON_SIZE, 0);
+    if let Some(extra) = data.get(off + ADDON_SIZE..) {
+        let native_after_preview = extra.get(px * 4..).filter(|trailer| trailer.starts_with(b"IPMACM3I"));
+        let trailer = if extra.starts_with(b"IPMACM3I") || extra.starts_with(SE_RADIANCE) {
+            extra
+        } else { native_after_preview.unwrap_or_default() };
+        raw.extend_from_slice(&trailer[..trailer.len().min(4096)]);
+    }
     Ok(raw)
 }
 
@@ -305,7 +359,12 @@ pub fn gbuffer_from_m3i(data: &[u8]) -> Option<(usize, usize, Vec<crate::gbuffer
                 otrap: r.u16(o + 16),
             }
         })
-        .collect();
+        .collect::<Vec<_>>();
+    // Mac parameter files reserve a zero-filled geometry block for the preview.
+    // It is not a completed render and cannot be shaded.
+    if g.iter().all(|p| p.normal == [0; 3] && p.zpos_fine == 0) {
+        return None;
+    }
     Some((w, h, g))
 }
 
@@ -569,6 +628,7 @@ pub fn parse(data: &[u8]) -> Result<M3pFile, String> {
     };
 
     s.lighting = parse_light(&r, &mut w);
+    read_se_radiance(&mut s, data.get(HEADER_SIZE + ADDON_SIZE..).unwrap_or_default());
     if let Some(v) = s.vol_light {
         if !s.lighting.lights[v.light].on {
             w.push(format!("volumetric light: light {} is off, no volumetric light", v.light + 1));
@@ -1289,6 +1349,23 @@ pub fn write(sc: &Scene) -> Vec<u8> {
         }
         for (k, (_, v)) in opts.iter().take(16).enumerate() {
             pf64(&mut d, o + 60 + 8 * k, *v);
+        }
+    }
+    if sc.emissive_difs.is_some() || sc.render_sampling > 1 || sc.emissive_opacity != [1.0; 10] || sc.translucency_enabled || sc.subsurface_scattering || sc.subsurface_amount != 1.0 {
+        d.extend_from_slice(SE_RADIANCE);
+        d.push(sc.render_sampling.clamp(1, 6));
+        d.push(u8::from(sc.emissive_difs.is_some()));
+        for component in sc.emissive_difs.unwrap_or([0.0; 3]).into_iter().chain(sc.emissive_opacity) {
+            d.extend_from_slice(&component.to_le_bytes());
+        }
+        if sc.translucency_enabled || sc.subsurface_scattering || sc.subsurface_amount != 1.0 {
+            d.extend_from_slice(b"TLE1");
+            d.push(u8::from(sc.translucency_enabled));
+            d.extend_from_slice(&sc.transmission_blur.to_le_bytes());
+            d.extend_from_slice(&sc.translucency_glow.to_le_bytes());
+            d.extend_from_slice(b"SSS1");
+            d.push(u8::from(sc.subsurface_scattering));
+            d.extend_from_slice(b"SSA1");d.extend_from_slice(&sc.subsurface_amount.to_le_bytes());
         }
     }
     d

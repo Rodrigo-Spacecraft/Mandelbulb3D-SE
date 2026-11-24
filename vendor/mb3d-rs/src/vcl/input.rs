@@ -306,12 +306,26 @@ impl Form {
                 }
             }
             Kind::TrackBar => {
+                let c = &self.ctl[id];
+                if c.modifier_resets_track && button == MouseButton::Left && shift & (SS_SUPER | SS_CTRL) != 0 {
+                    self.cap_part = PART_NONE;
+                    if c.position != 0 {
+                        self.ctl[id].set_position(0);
+                        self.dirty = true;
+                        out.push(raw(id, "OnChange", Ev::Change));
+                    }
+                    return out;
+                }
+                if c.fine_track_drag && shift & SS_SHIFT != 0 {
+                    self.cap_part = PART_THUMB;
+                }
                 if self.cap_part == PART_THUMB {
                     let c = &self.ctl[id];
                     let (_, thumb, _, _) = track_geom(c);
                     let r = self.abs_rect(id);
                     let centre = if c.vertical { r.y + thumb.y + thumb.h / 2 } else { r.x + thumb.x + thumb.w / 2 };
                     self.cap_value = (if c.vertical { y } else { x } - centre) as i64;
+                    self.cap_track = (if c.vertical { y } else { x }, c.position as f64);
                 } else {
                     self.track_page(id, x, y, &mut out);
                     self.repeat_at = Some(now + REPEAT_FIRST);
@@ -338,6 +352,9 @@ impl Form {
                 if self.cap_part >= 0 {
                     let rects = self.tab_rects(id);
                     let key = rects[self.cap_part as usize].0;
+                    if self.ctl[id].kind == Kind::PageControl && !self.ctl[key].enabled {
+                        return out;
+                    }
                     let c = &mut self.ctl[id];
                     if c.kind == Kind::PageControl {
                         if c.active_page != Some(key) {
@@ -421,7 +438,7 @@ impl Form {
         if let Some(Popup::Combo { id, top, .. }) = self.popup {
             let lr = combo_list_rect(self, id);
             if lr.contains(x, y) {
-                let ih = line_height(&self.font(id)) + 2;
+                let ih = paint::combo_item_height(self,id);
                 let h = top + (y - lr.y - 1) / ih;
                 if h >= 0 && (h as usize) < self.ctl[id].items.len() {
                     self.popup = Some(Popup::Combo { id, hot: h, top });
@@ -449,7 +466,7 @@ impl Form {
             }
             let (lx, ly) = self.local(cap, x, y);
             out.push(raw(cap, "OnMouseMove", Ev::MouseMove { x: lx, y: ly, shift }));
-            self.drag(cap, x, y, &mut out);
+            self.drag(cap, x, y, shift, &mut out);
             return out;
         }
         if hit != self.hot {
@@ -483,7 +500,7 @@ impl Form {
         out
     }
 
-    fn drag(&mut self, id: Id, x: i32, y: i32, out: &mut Vec<Raw>) {
+    fn drag(&mut self, id: Id, x: i32, y: i32, shift: u8, out: &mut Vec<Raw>) {
         let kind = self.ctl[id].kind;
         if self.cap_button != Some(MouseButton::Left) {
             return;
@@ -546,7 +563,18 @@ impl Form {
                 let (_, _, x0, x1) = track_geom(c);
                 let p = if c.vertical { y - r.y } else { x - r.x } - self.cap_value as i32;
                 let range = (c.max - c.min) as f64;
-                let v = c.min + (((p - x0) as f64 / (x1 - x0).max(1) as f64).clamp(0.0, 1.0) * range).round() as i64;
+                let span = (x1 - x0).max(1) as f64;
+                let v = if c.fine_track_drag {
+                    let pointer = if c.vertical { y } else { x };
+                    let (previous, value) = self.cap_track;
+                    let gain = if shift & SS_SHIFT != 0 { 0.1 } else { 1.0 };
+                    let value = (value + (pointer - previous) as f64 * range / span * gain)
+                        .clamp(c.min as f64, c.max as f64);
+                    self.cap_track = (pointer, value);
+                    value.round() as i64
+                } else {
+                    c.min + (((p - x0) as f64 / span).clamp(0.0, 1.0) * range).round() as i64
+                };
                 if v != c.position {
                     self.ctl[id].position = v;
                     out.push(raw(id, "OnChange", Ev::Change));
@@ -593,6 +621,16 @@ impl Form {
             return out;
         }
         if let Some(Popup::Menu { owner, mut levels }) = self.popup.clone() {
+            // A menu opened on mouse-down must survive the matching release
+            // at the same point, even if its first item covers that point.
+            // Moving into another item while held still selects on release.
+            if self.capture.is_some() && self.cap_button == Some(button)
+                && (self.last_click.1-x).abs() < 4 && (self.last_click.2-y).abs() < 4
+            {
+                self.capture=None;
+                self.cap_button=None;
+                return out;
+            }
             self.menu_hover(&mut levels, x, y);
             for lv in levels.iter().rev() {
                 if !lv.rect.contains(x, y) {
@@ -697,20 +735,37 @@ impl Form {
         if let Some(Popup::Combo { id, hot, top }) = self.popup {
             let n = self.ctl[id].items.len() as i32;
             let lr = combo_list_rect(self, id);
-            let ih = line_height(&self.font(id)) + 2;
+            let ih = paint::combo_item_height(self,id);
             let vis = (lr.h - 2) / ih;
             let t = (top - delta.signum() * 3).clamp(0, (n - vis).max(0));
             self.popup = Some(Popup::Combo { id, hot, top: t });
             self.dirty = true;
             return out;
         }
-        if self.popup.is_some() {
+        if let Some(Popup::Menu { owner, mut levels }) = self.popup.clone() {
+            if let Some(i) = levels.iter().rposition(|level| level.rect.contains(x, y)) {
+                let full_height = menu_size(self, levels[i].parent).1;
+                let max = (full_height - levels[i].rect.h).max(0);
+                levels[i].scroll = (levels[i].scroll - delta.signum() * 66).clamp(0, max);
+                levels[i].hot = -1;
+                levels.truncate(i + 1);
+                self.popup = Some(Popup::Menu { owner, levels });
+                self.dirty = true;
+            }
             return out;
         }
-        out.push(raw(0, "OnMouseWheel", Ev::Wheel { delta, x, y, shift }));
-        out.push(raw(0, if delta > 0 { "OnMouseWheelUp" } else { "OnMouseWheelDown" }, Ev::Wheel { delta, x, y, shift }));
-        // the control under the mouse scrolls
-        let mut k = self.hit(x, y);
+        let mut ancestor=self.hit(x,y);let mut pane=None;
+        while let Some(id)=ancestor {
+            if self.ctl[id].wheel_scroll_children {pane=Some(id);break;}
+            if self.ctl[id].ignore_mouse_wheel {return out;}
+            ancestor=self.ctl[id].parent;
+        }
+        if pane.is_none(){
+            out.push(raw(0, "OnMouseWheel", Ev::Wheel { delta, x, y, shift }));
+            out.push(raw(0, if delta > 0 { "OnMouseWheelUp" } else { "OnMouseWheelDown" }, Ev::Wheel { delta, x, y, shift }));
+        }
+        // Formula panes scroll as a unit, including over a focused slider.
+        let mut k=pane.or_else(||self.hit(x,y));
         while let Some(id) = k {
             let (lx, ly) = self.local(id, x, y);
             if id != 0 && self.has_handler(id, "OnMouseWheel") {
@@ -1103,10 +1158,14 @@ impl Form {
     pub fn open_menu(&mut self, menu: Id, owner: Id, x: i32, y: i32) {
         let (w, h) = menu_size(self, menu);
         let (cw, ch) = self.client_size();
-        let x = if x + w > cw { (x - w).max(0) } else { x };
+        let h = h.min(ch);
+        let x = if self.ctl[menu].name == "SeFormulaMenu" {
+            let child_width = menu_items(self, menu).into_iter().map(|id| menu_size(self, id).0).max().unwrap_or(0);
+            x.min((cw - w - child_width).max(0))
+        } else if x + w > cw { (x - w).max(0) } else { x };
         let y = if y + h > ch { (ch - h).max(0) } else { y };
         self.popup_owner = Some(owner);
-        self.popup = Some(Popup::Menu { owner, levels: vec![MenuLevel { parent: menu, rect: Rect::new(x, y, w, h), hot: -1 }] });
+        self.popup = Some(Popup::Menu { owner, levels: vec![MenuLevel { parent: menu, rect: Rect::new(x, y, w, h), hot: -1, scroll: 0 }] });
         self.hint = None;
         self.dirty = true;
     }
@@ -1123,10 +1182,11 @@ impl Form {
             if !menu_items(self, k).is_empty() && self.ctl[k].enabled {
                 let (w, h) = menu_size(self, k);
                 let (cw, ch) = self.client_size();
+                let h = h.min(ch);
                 let lr = levels[li].rect;
                 let nx = if lr.right() + w > cw { (lr.x - w).max(0) } else { lr.right() - 2 };
                 let ny = if r.y + h > ch { (ch - h).max(0) } else { r.y - 2 };
-                levels.push(MenuLevel { parent: k, rect: Rect::new(nx, ny, w, h), hot: -1 });
+                levels.push(MenuLevel { parent: k, rect: Rect::new(nx, ny, w, h), hot: -1, scroll: 0 });
             }
         }
     }
@@ -1408,14 +1468,22 @@ impl Form {
                                 }
                             }
                             levels[li].hot = h;
+                            let r = items[h as usize].1;
+                            let body = levels[li].rect;
+                            if r.y < body.y + 2 { levels[li].scroll -= body.y + 2 - r.y; }
+                            if r.bottom() > body.bottom() - 2 { levels[li].scroll += r.bottom() - body.bottom() + 2; }
                         }
                         vk::RETURN | vk::RIGHT => {
                             if levels[li].hot >= 0 {
                                 let (k, r) = items[levels[li].hot as usize];
                                 if !menu_items(self, k).is_empty() {
                                     let (w, h) = menu_size(self, k);
+                                    let (cw, ch) = self.client_size();
+                                    let h = h.min(ch);
                                     let lr = levels[li].rect;
-                                    levels.push(MenuLevel { parent: k, rect: Rect::new(lr.right() - 2, r.y - 2, w, h), hot: 0 });
+                                    let x = if lr.right() + w > cw { (lr.x - w).max(0) } else { lr.right() - 2 };
+                                    let y = (r.y - 2).clamp(0, (ch - h).max(0));
+                                    levels.push(MenuLevel { parent: k, rect: Rect::new(x, y, w, h), hot: 0, scroll: 0 });
                                 } else if key == vk::RETURN && self.ctl[k].enabled {
                                     self.popup = None;
                                     out.push(raw(k, "OnClick", Ev::Click));
@@ -1462,9 +1530,13 @@ impl Form {
                     let tabs = self.tab_rects(i);
                     if let Some(p) = tabs.iter().position(|(s, _)| Some(*s) == self.ctl[i].active_page) {
                         let n = tabs.len();
-                        let next = if sh { (p + n - 1) % n } else { (p + 1) % n };
-                        self.ctl[i].active_page = Some(tabs[next].0);
-                        out.push(raw(i, "OnChange", Ev::Change));
+                        let next = (1..n).map(|offset| if sh { (p + n - offset) % n } else { (p + offset) % n })
+                            .map(|index| tabs[index].0)
+                            .find(|&page| self.ctl[page].enabled);
+                        if let Some(page) = next {
+                            self.ctl[i].active_page = Some(page);
+                            out.push(raw(i, "OnChange", Ev::Change));
+                        }
                     }
                     break;
                 }
@@ -1859,4 +1931,35 @@ fn thousands(v: i64) -> String {
     } else {
         o
     }
+}
+
+#[cfg(test)] mod se_windows_menu_tests {
+ use super::*;
+ use crate::vcl::{Ui,control::Control};
+ fn setup()->Ui {
+  let mut ui=Ui::default();ui.add_form("object Test: TForm\n ClientWidth = 400\n ClientHeight = 300\nend").unwrap();
+  let form=ui.fm("Test");form.ctl[0].visible=true;
+  let mut owner=Control::new("Owner","TButton");owner.set_bounds(20,20,100,25);form.add_control(0,owner);
+  let menu=form.add_control(0,Control::new("Menu","TPopupMenu"));
+  for name in ["Copy","Paste"] {let mut item=Control::new(name,"TMenuItem");item.caption=name.into();form.add_control(menu,item);}
+  form.layout();ui
+ }
+ #[test] fn se_windows_context_menu_survives_opening_release_then_selects_on_click() {
+  let mut ui=setup();let f=ui.fm("Test");let owner=f.id("Owner").unwrap();let menu=f.id("Menu").unwrap();
+  f.mouse_down(30,30,MouseButton::Right,0);assert_eq!(f.capture,Some(owner));
+  f.open_menu(menu,owner,20,20);
+  assert!(f.mouse_up(30,30,MouseButton::Right,0).is_empty());assert!(f.popup.is_some());
+  let Popup::Menu{levels,..}=f.popup.clone().unwrap() else {panic!()};
+  let (item,r)=menu_item_rects(f,&levels[0])[0];let (x,y)=(r.x+r.w/2,r.y+r.h/2);
+  f.mouse_down(x,y,MouseButton::Left,0);let events=f.mouse_up(x,y,MouseButton::Left,0);
+  assert!(events.iter().any(|e|e.id==item&&e.name=="OnClick"));assert!(f.popup.is_none());
+ }
+ #[test] fn se_windows_menu_selects_after_press_drag_release() {
+  let mut ui=setup();let f=ui.fm("Test");let owner=f.id("Owner").unwrap();let menu=f.id("Menu").unwrap();
+  f.mouse_down(30,30,MouseButton::Left,0);f.open_menu(menu,owner,20,20);
+  let Popup::Menu{levels,..}=f.popup.clone().unwrap() else {panic!()};
+  let (item,r)=menu_item_rects(f,&levels[0])[1];let (x,y)=(r.x+r.w/2,r.y+r.h/2);
+  f.mouse_move(x,y,0);let events=f.mouse_up(x,y,MouseButton::Left,0);
+  assert!(events.iter().any(|e|e.id==item&&e.name=="OnClick"));assert!(f.popup.is_none());
+ }
 }

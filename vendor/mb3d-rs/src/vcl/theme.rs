@@ -92,7 +92,7 @@ fn registry() -> std::sync::RwLockReadGuard<'static, Vec<&'static ThemeData>> {
     {
         let mut w = REGISTRY.write().unwrap();
         if w.is_empty() {
-            let (themes, errors) = load_dirs(&theme_dirs());
+            let (themes, errors) = if cfg!(feature="se-desktop") { (fixed_windows_theme(),Vec::new()) } else { load_dirs(&theme_dirs()) };
             for e in errors {
                 eprintln!("theme {e}");
             }
@@ -1124,4 +1124,13 @@ mod tests {
         assert_eq!(errors.len(), 1, "{errors:?}");
         assert!(errors[0].contains("Nowhere"));
     }
+}
+
+fn fixed_windows_theme()->Vec<&'static ThemeData> {
+ vec![Box::leak(Box::new(parse(include_str!("../../Themes/Windows.xml"),&[]).expect("embedded Windows appearance")))]
+}
+#[cfg(all(test,feature="se-desktop"))] mod se_windows_fixed_theme_tests {
+ #[test] fn se_windows_default_appearance_needs_no_files_and_has_no_alternatives() {
+  let themes=super::fixed_windows_theme();assert_eq!(themes.len(),1);assert_eq!(themes[0].name,"Windows");
+ }
 }

@@ -17,6 +17,11 @@ pub mod clipboard;
 pub mod control;
 pub mod dfm;
 pub mod dialogs;
+#[cfg(windows)]
+mod native_dialog;
+#[cfg(windows)]
+mod native_preview;
+pub(crate) mod parameter_preview;
 pub mod font;
 pub mod form;
 pub mod input;

@@ -1,0 +1,175 @@
+# mb3d scene
+width = 480
+height = 360
+iterations = 6
+min_iterations = 1
+stereo_screen = 1, 2, 1.5
+mc_depth = 3
+mc_reflection_depth = 8
+mc_reflection_amount = 0.64731735
+mc_reflections = true
+mc_transparency = true
+mc_only_difs = false
+mc_diffuse_reflects = 0
+mc_soft_shadow_radius = 12
+mc_exposure = 128
+mc_saturation = 32
+mc_options = 2
+mc_refraction_index = 1.1
+mc_absorption = 0.1
+mc_scattering = 0.01
+rstop = 16
+zoom = 6.010796385964076
+mid = -0.7028423639702492, 0.8439887248781978, -0.4688428945180964
+z_start = -0.4688428945180964
+z_end = 3053.033028605293
+vgrads = 0.7770863613161567, 0.6279277452385549, -0.0429363926761469, -0.09700754258857304, 0.1868955946410157, 0.9775784231378617, 0.6218732376757684, -0.7554977057962554, 0.20614774507438174
+fov = 30
+optic = 0
+de_stop = 4
+raystep = 0.5
+raystep_limiter = 1
+smooth_normals = 0
+bin_search = 8
+first_step_random = true
+step_sub_de_stop = false
+vary_de_stop = true
+normals_on_de = true
+disable_analytic_de = false
+julia = false
+julia_c = 1, 0, 0, 0
+rotation_4d = 0, 0, 0
+color_option = 0
+color_mul = 1
+dfog_on_it = 0
+repeat_from = 0
+threads = 8
+ao = off
+dof = off
+vol_light = off
+shadows = off
+ambient_top = #808080
+ambient_bottom = #808080
+depth_color = #808080
+depth_color2 = #808080
+dynfog_color = #FFFFFF
+dynfog_color2 = #FFFFFF
+fog_far_offset = 128
+fog_offset = 128
+depth_fog = 27
+dyn_fog = 53
+diffuse = 70
+specular = 50
+ambient = 173
+ambient_shadow = 95
+indirect_light = 53
+gamma = 32
+roughness = 255
+color_start = 44
+color_end = 58
+color_cycling = true
+color_var_z = 0
+color_on_otrap = false
+far_fog = true
+depth_func = 0
+interior_start = 0
+interior_end = 60
+diffuse_shadowing = 0.5
+palette_full = 0:#8A91BD:#00FFFF, 8077:#CF0FC1:#80FF00, 16382:#7D7DAE:#404040, 25947:#C75895:#404040, 27363:#F728B4:#FF8000, 29234:#9915E7:#80FF00, 31041:#CC3D52:#00FFFF, 31512:#BFB255:#404040, 32081:#308251:#404040, 32620:#0068DA:#FF0000
+palette_alpha = 0, 0, 0, 0, 0, 0, 0, 0, 0, 248
+interior_colors = 0:#A0A0A0:160, 8191:#A0A0A0:160, 16382:#A0A0A0:160, 24573:#A0A0A0:160
+color_interpolation = false
+diffuse_map_mode = wrap_sine
+diffuse_map_offset = 128, 116
+diffuse_map_rotation = 139
+diffuse_map_scale = 14
+
+[formula]
+name = Integer Power
+iterations = 0
+integer power = 8
+z multiplier = -1
+
+[formula]
+name = Integer Power
+iterations = 0
+integer power = 8
+z multiplier = -1
+
+[formula]
+name = helixIFS
+iterations = 1
+helix stretch = 1.98
+diameter 1 = 1
+diameter 2 = 1
+scale = 0.976
+z add = 0
+y add = 0
+x add = 0
+string radius = -0.73
+apply scale+add = 1
+coord (0..2) = 0
+helix count (1..16) = 2
+
+[formula]
+name = YinYangIFS
+iterations = 1
+radius 1 = 0.5
+scale = 1.06
+z add = -0.03
+y add = 0
+x add = 0
+radius 2 = 0.1
+apply scale+add = 1
+radius spheres = 0.2
+yinyangrot x = 0
+yinyangrot y = 0
+yinyangrot z = 0
+
+[formula]
+name = QCylIFS
+iterations = 1
+divergmul = -0.17999999999999994
+scale = 1.8599999999999999
+z add = 0
+y add = 0
+x add = -0.55
+distance = 0.2
+apply scale+add = 1
+pinnacle limiter = 3
+
+[formula]
+name = BoxIFS
+iterations = 1
+z halfwidth = 1
+y halfwidth = 0.4732751980633826
+x halfwidth = 0.4140625000000023
+scale = 1.435065470950696
+z add = -0.0773272447183104
+y add = -0.7604395906690142
+x add = 0.862703565140842
+trapez = 0
+twist = 0
+apply scale+add = 1
+otrap option (0..3) = 0
+otrap offset = 1
+otrap scale = 1
+
+[light]
+slot = 1
+color = #FFEFB9
+x_angle = 44.637451172
+y_angle = 70.367431641
+amplitude = 1
+spec_power = 32
+diffuse_func = 3
+relative_to_object = false
+
+[light]
+slot = 2
+color = #808080
+position = 0.5031834184767092, -0.8623083197687436, -0.037109362776904575
+amplitude = 9.2
+spec_power = 16
+diffuse_func = 0
+relative_to_object = false

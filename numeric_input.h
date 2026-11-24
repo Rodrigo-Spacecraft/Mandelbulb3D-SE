@@ -47,7 +47,14 @@ static NSString *numericInputString(NSTextField *field);
 @property(nonatomic,copy) NSString *retainedNumericInput;
 @end
 @implementation NumericTextField
-- (instancetype)initWithFrame:(NSRect)frame {if((self=[super initWithFrame:frame]))self.formatter=[NumericInputFormatter new];return self;}
+- (instancetype)initWithFrame:(NSRect)frame {
+    if((self=[super initWithFrame:frame])){
+        self.formatter=[NumericInputFormatter new];
+        self.maximumNumberOfLines=1;self.cell.usesSingleLineMode=YES;
+        self.cell.wraps=NO;self.cell.scrollable=YES;self.lineBreakMode=NSLineBreakByClipping;
+    }
+    return self;
+}
 - (void)setStringValue:(NSString *)value {NSString *raw=numericExpandedString(value);[super setStringValue:raw];self.retainedNumericInput=raw;}
 - (void)setDoubleValue:(double)value {[super setDoubleValue:value];self.retainedNumericInput=[NSString stringWithFormat:@"%.17g",value];}
 - (void)setIntegerValue:(NSInteger)value {[super setIntegerValue:value];self.retainedNumericInput=[NSString stringWithFormat:@"%ld",(long)value];}

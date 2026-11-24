@@ -1,6 +1,7 @@
 #ifndef INTEGER_POWER_RENDERER_H
 #define INTEGER_POWER_RENDERER_H
 #include <stddef.h>
+#include <stdint.h>
 #define RENDER_MAX_DIMENSION 16384
 /* Creates an app scratch file in MB3DX_TEMP_DIR (or the caller temp dir). */
 int render_create_temporary(char path[4096],const char *pattern,int suffix_length);
@@ -155,6 +156,8 @@ typedef struct {
     double transmission_blur; /* 0–2; appended for animation compatibility. */
     double translucency_glow; /* -1–1. */
     int translucency_mode; /* 0: legacy (infer from values), 1: off, 2: on. */
+    uint64_t subsurface_scattering; /* Experimental; appended for animation compatibility. */
+    double subsurface_amount; /* 0..1; light transport mixture and optical density. */
 } RenderOptions;
 /* Work counts are actual CPU calls, not configured iteration limits.
    Field/DE phases: primary, normals, refinement, hard shadows, ambient, fog,

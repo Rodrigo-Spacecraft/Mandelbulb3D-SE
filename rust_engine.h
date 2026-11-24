@@ -3,7 +3,7 @@
 #define MB3DX_RUST_ENGINE_H
 #include "renderer.h"
 void render_set_rust_assets(const char *path);
-extern int mb3dx_rust_render(const char *,const char *,int,int,int,double,const double *,const double *,double,double,int,void *,int (*)(void *),void (*)(void *,int,int),unsigned char *,unsigned char *,double *,char *,RenderStatistics *);
+extern int mb3dx_rust_render(const char *,const char *,int,int,int,double,const double *,const double *,double,double,int,int,double,void *,int (*)(void *),void (*)(void *,int,int),unsigned char *,unsigned char *,double *,char *,RenderStatistics *);
 extern void mb3dx_rust_set_cpu_only(int);
 extern int mb3dx_rust_color_fit(int *);
 extern int mb3dx_rust_color_histogram(unsigned *);

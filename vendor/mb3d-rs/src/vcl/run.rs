@@ -123,6 +123,7 @@ fn shift_of(m: ModifiersState) -> u8 {
     if m.control_key() || m.super_key() && cfg!(target_os = "macos") {
         s |= SS_CTRL;
     }
+    if m.super_key() { s |= SS_SUPER; }
     if m.alt_key() {
         s |= SS_ALT;
     }
@@ -314,10 +315,41 @@ impl<A: App> Runner<A> {
         }
         for r in std::mem::take(&mut self.ui.requests) {
             let fi = match r {
-                Request::Raise(i) | Request::Minimize(i) | Request::Maximize(i, _) | Request::Move(i, ..) | Request::Cursor(i, _) | Request::MouseLook(i, _) => i,
+                Request::Raise(i) | Request::Minimize(i) | Request::Maximize(i, _) | Request::Move(i, ..) | Request::Cursor(i, _) | Request::MouseLook(i, _) | Request::ActualImageSize(i,..) => i,
             };
             let Some(w) = self.by_form.get(&fi).and_then(|id| self.wins.get(id)) else { continue };
             match r {
+                Request::ActualImageSize(_,width,height,panel) => {
+                    let scale=w.window.scale_factor()*self.ui.ui_scale;
+                    let f=&mut self.ui.forms[fi];
+                    let monitor=w.window.current_monitor();
+                    let screen=monitor.as_ref().map(|m|m.size());
+                    let (max_w,max_h)=screen.map_or((width+panel+64,height+128),|s|((s.width as f64/scale) as i32-16,(s.height as f64/scale) as i32-64));
+                    let content_w=((width as f64/scale).ceil() as i32+panel+4).max(f.ctl[0].min_w).min(max_w);
+                    let content_h=((height as f64/scale).ceil() as i32+4).max(f.ctl[0].min_h).min(max_h);
+                    f.ctl[0].width=content_w;
+                    f.ctl[0].height=content_h;
+                    f.maximized=false;
+                    let image=f.c_mut("Image1");
+                    image.device_pixels=false;
+                    image.proportional=true;
+                    image.stretch=true;
+                    let fit=((content_w-panel-4) as f64/width.max(1) as f64)
+                        .min((content_h-4) as f64/height.max(1) as f64).min(1./scale);
+                    image.width=(width as f64*fit).round() as i32;
+                    image.height=(height as f64*fit).round() as i32;
+                    f.layout();f.dirty=true;
+                    w.window.set_maximized(false);
+                    let (ow,oh)=f.outer_size(&self.ui.theme);
+                    let _=w.window.request_inner_size(LogicalSize::new(ow as f64*self.ui.ui_scale,oh as f64*self.ui.ui_scale));
+                    if let Some(m)=monitor {
+                        let pos=m.position();let size=m.size();
+                        let current=w.window.outer_position().unwrap_or(pos);
+                        let x=current.x.clamp(pos.x,pos.x+(size.width as i32-(ow as f64*scale).ceil() as i32).max(0));
+                        let y=current.y.clamp(pos.y,pos.y+(size.height as i32-(oh as f64*scale).ceil() as i32-48).max(0));
+                        w.window.set_outer_position(winit::dpi::PhysicalPosition::new(x,y));
+                    }
+                }
                 Request::Raise(_) => {
                     w.window.set_minimized(false);
                     w.window.focus_window();
@@ -847,7 +879,12 @@ fn f_created(ui: &mut Ui, fi: usize) {
 }
 
 fn app_icon() -> Option<winit::window::Icon> {
-    let b = super::paint::decode_ico(include_bytes!("../../assets/mb3d-rs.ico"), 64)?;
+    let bytes: &[u8] = if cfg!(feature = "se-desktop") {
+        include_bytes!("../../assets/m3d-se.ico")
+    } else {
+        include_bytes!("../../assets/mb3d-rs.ico")
+    };
+    let b = super::paint::decode_ico(bytes, 64)?;
     let rgba: Vec<u8> = b.px.iter().flat_map(|p| [(p >> 16) as u8, (p >> 8) as u8, *p as u8, (p >> 24) as u8]).collect();
     winit::window::Icon::from_rgba(rgba, b.w as u32, b.h as u32).ok()
 }

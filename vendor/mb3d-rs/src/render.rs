@@ -1786,10 +1786,21 @@ fn paint_with<S: crate::lighting::Sample>(
     stage: &(dyn Fn(&str) + Sync),
     cancel: &(dyn Fn() -> bool + Sync),
 ) -> (Vec<S>, Option<f64>) {
+    // The saved controls retain their values while Translucency is off.
+    // Imported/cached geometry must obey the checkbox just like a new render.
+    let plain=if cfg!(feature="se-desktop") && !sc.translucency_enabled
+        && (sc.transmission_blur!=0. || sc.translucency_glow!=0. || sc.transmission_cache.is_some()) {
+        let mut scene=sc.clone();
+        scene.transmission_blur=0.;scene.translucency_glow=0.;scene.transmission_cache=None;
+        Some(scene)
+    } else {None};
+    let sc=plain.as_ref().unwrap_or(sc);
     let [x0, ry0, w, h] = p.rect;
     let l = effective_lighting(sc);
     let cam = paint_camera(sc, p);
     let mut lv = light_vals(sc, &l, &cam);
+    stage("emissive illumination");
+    let emission_progress=|done:usize,total:usize| progress(done.saturating_mul(9),total.saturating_mul(10));
     if full && p.rect==[0,0,p.width,p.height] {
         if let Some(emission)=lv.emission.as_mut(){
             let mut key_scene=sc.clone();key_scene.lighting=Default::default();key_scene.shadows=None;
@@ -1808,9 +1819,8 @@ fn paint_with<S: crate::lighting::Sample>(
                     Ok(v)=>{samples=Some(v);let status=crate::gpu::last_status();crate::gpu::set_status(format!("GPU emission; {status}"));eprintln!("Emissive illumination: GPU visibility rays");}
                     Err(reason)=>eprintln!("Emissive illumination: CPU fallback ({reason})"),
                 }}
-                if samples.is_none()&&!cancel(){samples=crate::emission::prepare_cpu(emission,gbuf,&cam,thread_count(sc),progress,cancel).ok();}
+                if samples.is_none()&&!cancel(){samples=crate::emission::prepare_cpu(emission,gbuf,&cam,thread_count(sc),&emission_progress,cancel).ok();}
                 if let Some(mut samples)=samples.filter(|_|!cancel()){
-                    stage("emissive illumination");
                     if !crate::emission::filter_primary(&mut samples,gbuf,p,&emission.mask,&cam,cancel){return(vec![S::default();(w*h*3) as usize],None)}
                     let samples=std::sync::Arc::new(samples);
                     if let Ok(mut cache)=sc.emission_cache.lock(){*cache=Some((key,samples.clone()));}
@@ -1824,6 +1834,7 @@ fn paint_with<S: crate::lighting::Sample>(
         if let Some(e)=lv.emission.as_mut(){std::sync::Arc::make_mut(e).bounce=bounce;}
     }
     if cancel(){return(vec![S::default();(w*h*3) as usize],None)}
+    let painted=std::sync::atomic::AtomicUsize::new(0);
     let threads = thread_count(sc).min(h as usize).max(1);
     let mut rgb = vec![S::default(); (w * h * 3) as usize];
     let chunk_rows = ((h as usize) + threads - 1) / threads;
@@ -1831,6 +1842,7 @@ fn paint_with<S: crate::lighting::Sample>(
         for (ci, chunk) in rgb.chunks_mut(chunk_rows * w as usize * 3).enumerate() {
             let lv = &lv;
             let cam = &cam;
+            let painted=&painted;
             s.spawn(move || {
                 let y0 = ci * chunk_rows;
                 for (ry, row) in chunk.chunks_mut(w as usize * 3).enumerate() {
@@ -1840,6 +1852,7 @@ fn paint_with<S: crate::lighting::Sample>(
                         let c = lv.pixel_color_s_cancellable::<S>(&gbuf[y * w as usize + x], x as i32 + x0, y as i32 + ry0, cam,cancel);
                         row[x * 3..x * 3 + 3].copy_from_slice(&c);
                     }
+                    progress(h as usize*9+painted.fetch_add(1,std::sync::atomic::Ordering::Relaxed)+1,h as usize*10);
                 }
             });
         }
