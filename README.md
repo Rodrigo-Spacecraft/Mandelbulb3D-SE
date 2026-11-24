@@ -6,7 +6,7 @@ This repository includes source, build scripts, resources, and tests, plus a Win
 
 ## Windows download
 
-[Download Mandelbulb3D SE 2.0.4 Beta 1 for Windows x64 (build 486)](https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/raw/refs/tags/rel5/release/windows/Mandelbulb3D-SE-2.0.4-Windows-Download.zip)
+[Download the latest Windows x64 beta](https://github.com/Rodrigo-Spacecraft/Mandelbulb3D-SE/raw/refs/heads/main/release/windows/Mandelbulb3D-SE-2.0.4-Windows-Download.zip)
 
 Extract the ZIP and run `Mandelbulb3D SE.exe`. See the included README for map installation instructions.
 
