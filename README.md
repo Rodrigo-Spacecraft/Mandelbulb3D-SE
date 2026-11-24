@@ -6,7 +6,7 @@ This repository includes source, build scripts, resources, and tests, plus a Win
 
 ## Mac download
 
-The Mac version of Mandelbulb3D SE is available on the Mac app store. [Mandelbulb3D SE](macappstore://apps.apple.com/app/id6828890043)
+The Mac version of Mandelbulb3D SE is available on the Mac app store. [Mandelbulb3D SE](https://apps.apple.com/app/id6828890043)
 
 ## Windows download
 
